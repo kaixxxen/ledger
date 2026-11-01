@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Ledger</title>
+<meta name="description" content="Ledger">
+<meta name="color-scheme" content="light dark">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#fafaf8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#131312" media="(prefers-color-scheme: dark)">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+  try {
+    var t = localStorage.getItem('ledger.theme');
+    if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+  } catch (e) {}
+</script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- SIGN IN (GOOGLE ONLY) -->
+<div id="auth" hidden>
+  <div class="auth-card">
+    <img class="auth-logo" src="icon-192.png" alt="" width="64" height="64">
+    <h1 class="brand">Ledger</h1>
+    <p class="sub" id="authSub">Sign in with Google to keep your data safe and in sync across devices.</p>
+
+    <div id="googleAuthWrap">
+      <button type="button" class="google-btn" id="authGoogle">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+        <span>Continue with Google</span>
+      </button>
+    </div>
+
+    <div class="msg" id="authMsg" role="status" aria-live="polite"></div>
+
+    <button type="button" class="ghost" id="authLocal">Continue without an account</button>
+    <p class="fine" id="authNote"></p>
+  </div>
+</div>
+
+<!-- APP MAIN -->
+<main id="app" hidden>
+
+  <!-- HOME PAGE -->
+  <section class="page" id="page-home" hidden>
+    <header class="top">
+      <h1 id="homeGreeting">Hi!</h1>
+      <div class="mnav">
+        <button class="icon" data-m="-1" aria-label="Previous month">‹</button>
+        <span class="monthLabel"></span>
+        <button class="icon" data-m="1" aria-label="Next month">›</button>
+      </div>
+    </header>
+
+    <div class="hero">
+      <small id="leftLabel">Net this month</small>
+      <div class="big" id="left">0</div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><small>Income</small><b class="in" id="inc">0</b></div>
+      <div class="stat"><small>Spent</small><b class="out" id="exp">0</b></div>
+      <div class="stat"><small>Budget</small><b id="bud">—</b></div>
+    </div>
+    <div class="progress" id="prog" hidden><i></i></div>
+
+    <!-- Credit Card Due Date Reminders -->
+    <section class="card" id="cardRemindersSection">
+      <div class="card-head">
+        <h2>Card Due Date Reminders</h2>
+        <button type="button" class="text-link" id="btnManageCardsHome">+ Manage Cards</button>
+      </div>
+      <div id="cardReminders"></div>
+    </section>
+
+    <div class="card empty-card" id="homeEmpty" hidden>
+      Nothing logged yet. Add an expense or split a bill to see your stats here.
+    </div>
+
+    <div id="homeCharts">
+      <section class="card">
+        <h2>Where it went</h2>
+        <div id="donutBody"></div>
+      </section>
+      <section class="card">
+        <h2>Last 6 months</h2>
+        <div id="barsBody"></div>
+      </section>
+      <section class="card">
+        <h2>Payment breakdown</h2>
+        <div id="splitBody"></div>
+      </section>
+    </div>
+  </section>
+
+<!-- EXPENSES PAGE -->
+  <section class="page" id="page-expenses" hidden>
+    <header class="top" style="margin-bottom: 12px;">
+      <h1>Expenses</h1>
+      <div class="mnav">
+        <button class="icon" data-m="-1" aria-label="Previous month">‹</button>
+        <span class="monthLabel"></span>
+        <button class="icon" data-m="1" aria-label="Next month">›</button>
+      </div>
+    </header>
+
+    <button type="button" class="secondary" id="btnAddExpenseBtn" style="width: 100%; margin-bottom: 16px; font-weight: 700;">+ Log Expense</button>
+
+    <div class="minis" id="minis"></div>
+
+    <div class="card" style="padding: 16px;">
+      <div class="seg" id="txViewSeg" style="margin-bottom: 14px;">
+        <button type="button" data-v="expenses" class="on">Expenses / Income</button>
+        <button type="button" data-v="recurring">Recurring Expenses</button>
+      </div>
+
+      <div id="tabExpensesView">
+        <div class="filters">
+          <div class="chips" id="methodChips">
+            <button type="button" class="chip on" data-v="all">All</button>
+            <button type="button" class="chip" data-v="cash">Cash</button>
+            <button type="button" class="chip" data-v="debit">Debit</button>
+            <button type="button" class="chip" data-v="card">Credit Card</button>
+          </div>
+        </div>
+
+        <p class="fine muted center-text" style="margin: 16px 0 12px;">💡 Tap any item to edit or delete</p>
+
+        <ul id="list"></ul>
+        <div class="empty" id="empty">Nothing here yet.</div>
+        <button type="button" class="secondary see-more-btn" id="btnSeeMoreExpenses" hidden>See More</button>
+      </div>
+
+      <div id="tabRecurringView" hidden>
+        <p class="fine muted center-text" style="margin: 0 0 12px;">💡 Tap any item to edit, or use the ✕ to remove schedule</p>
+        <div id="fixedExpensesList"></div>
+      </div>
+    </div>
+  </section>
+
+<!-- BILL SPLITTER PAGE -->
+  <section class="page" id="page-split" hidden>
+    <div id="splitMainView">
+      <header class="top" style="margin-bottom: 12px;">
+        <h1>Bill Splitter</h1>
+        <div class="top-actions">
+          <button type="button" class="text-link" id="btnOpenArchiveSubpage">📁 Archives</button>
+          <button type="button" class="text-link" id="btnOpenJoinModal">🔗 Join</button>
+        </div>
+      </header>
+
+      <button type="button" class="secondary" id="btnAddPersonFabTop" style="width: 100%; margin-bottom: 16px; font-weight: 700; border: 1.5px solid var(--accent);">+ Add a Group/Person</button>
+
+      <p class="muted split-subhead">Track shared expenses with friends & sync in real-time</p>
+      <p class="fine muted" style="margin-bottom: 12px;">💡 Tap any group card to open details, or hold down for options</p>
+      
+      <div id="tricountsList" class="tricounts-list"></div>
+
+      <button type="button" class="fab-btn" id="btnAddPersonFab" aria-label="Add group or person" hidden>
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+    </div>
+
+    <div id="splitArchiveView" hidden>
+      <div class="split-detail-header">
+        <button type="button" class="icon back-btn" id="btnArchiveBack" aria-label="Back">‹</button>
+        <!-- Requirement 2: Not all-caps header -->
+        <h2 class="person-name" style="text-transform: none; font-size: var(--fs-lg);">Archived Groups</h2>
+        <div></div>
+      </div>
+      <p class="muted split-subhead">Manage or restore archived groups and balances</p>
+      <div id="archivedTricountsList" class="tricounts-list"></div>
+    </div>
+
+    <div id="splitDetailView" hidden>
+      <div class="split-detail-header">
+        <button type="button" class="icon back-btn" id="btnSplitBack" aria-label="Back">‹</button>
+        <div class="person-avatar-wrap">
+          <span class="person-avatar" id="splitPersonAvatar">👥</span>
+          <!-- Requirement 2: Not all-caps Name header -->
+          <h2 class="person-name" id="splitPersonName" style="text-transform: none;">Group / Person</h2>
+        </div>
+        <button type="button" class="icon-btn edit-group-title-btn" id="btnEditGroupTitle">Edit</button>
+      </div>
+
+      <div class="group-share-bar card" id="groupShareBar">
+        <span>Invite Code: <b id="groupInviteCode">—</b></span>
+        <button type="button" class="text-link" id="btnCopyInviteCode">Copy Code</button>
+      </div>
+
+      <div class="seg" id="splitDetailTabs">
+        <button type="button" data-v="expenses" class="on">Expenses</button>
+        <button type="button" data-v="balances">Balances</button>
+      </div>
+
+      <div id="splitTabExpenses">
+        <div class="split-stats-bar">
+          <div><small>My expenses</small><b id="splitMyExpensesVal">₱0.00</b></div>
+          <div><small>Total expenses</small><b id="splitTotalExpensesVal">₱0.00</b></div>
+        </div>
+
+        <div id="splitExpensesGroupedList"></div>
+
+        <div class="import-splitwise-bar">
+          <button type="button" class="secondary-btn-link" id="btnOpenImportUrl">🔗 Import via Tricount Link</button>
+          <button type="button" class="secondary-btn-link" id="btnImportSplitwise">📥 Import Splitwise / Tricount (CSV)</button>
+          <input id="splitwiseCsvInput" type="file" accept=".csv,text/csv" hidden>
+        </div>
+
+        <div class="sticky-action-wrap">
+          <button type="button" class="primary-pill-btn" id="btnOpenAddSplitExpense">+ Add expense</button>
+        </div>
+      </div>
+
+      <div id="splitTabBalances" hidden>
+        <div class="split-balance-banner card" id="splitBalanceBanner">
+          <div class="banner-content">
+            <span class="banner-icon">💸</span>
+            <div>
+              <strong id="splitBannerStatus">Settled up</strong>
+              <small id="splitBannerSub">All balances are even!</small>
+            </div>
+          </div>
+        </div>
+
+        <button type="button" class="secondary-btn-link" id="btnSettleUp">Record Reimbursement / Settle Up</button>
+        <button type="button" class="primary" id="btnLogShareToMainExpenses">Log My Net Share to Main Expenses</button>
+
+        <h2 class="section-title">Individual Breakdown</h2>
+        <div id="splitBalancesList" class="card group"></div>
+      </div>
+    </div>
+  </section>
+
+<!-- SETTINGS PAGE -->
+  <section class="page" id="page-settings" hidden>
+    <header class="top"><h1>Settings</h1></header>
+
+    <h2>Profile & Preferences</h2>
+    <div class="card group">
+      <div class="srow">
+        <label class="k" for="setNickname">Nickname</label>
+        <input class="mini-in" id="setNickname" type="text" maxlength="20" placeholder="e.g. Eric" style="width:140px;">
+      </div>
+      <div class="srow">
+        <span class="k">Currency</span>
+        <div class="v">
+          <select id="setCur" aria-label="Select currency symbol">
+            <option value="₱">₱ Philippine Peso</option>
+            <option value="¥">¥ Japanese Yen</option>
+            <option value="₩">₩ Korean Won</option>
+            <option value="$">$ American Dollar</option>
+            <option value="€">€ Euro</option>
+          </select>
+        </div>
+      </div>
+      <div class="srow">
+        <label class="k" for="setBudget">Monthly budget</label>
+        <input class="mini-in" id="setBudget" type="number" inputmode="decimal" min="0" step="1" placeholder="None">
+      </div>
+    </div>
+
+    <h2>Credit Cards & Reminders</h2>
+    <div class="card group">
+      <div id="cardsList"></div>
+      <div class="srow">
+        <button type="button" class="rowbtn text-accent" id="btnAddCardModal">+ Add New Credit Card</button>
+      </div>
+    </div>
+
+    <h2>Account</h2>
+    <div class="card group" id="acctCloud" hidden>
+      <div class="srow"><span class="k">Signed in as</span><span class="v" id="acctEmail"></span></div>
+      <div class="srow"><span class="k">Sync</span><span class="v" id="syncState">—</span></div>
+      <div class="srow"><button type="button" class="rowbtn" id="signOut">Sign out</button></div>
+    </div>
+    <div class="card group" id="acctLocal" hidden>
+      <div class="srow"><span class="k">Storage</span><span class="v">This device only</span></div>
+      <div class="srow" id="signInRow"><button type="button" class="rowbtn" id="signInBtn">Sign in with Google to sync</button></div>
+      <div class="srow" id="noCloudRow"><span class="fine">Cloud sync isn't set up yet, so your data stays in this browser.</span></div>
+    </div>
+
+    <h2>Appearance</h2>
+    <div class="card group">
+      <div class="srow stack">
+        <span class="k">Theme</span>
+        <div class="seg" id="themeSeg">
+          <button type="button" data-v="system">System</button>
+          <button type="button" data-v="light">Light</button>
+          <button type="button" data-v="dark">Dark</button>
+        </div>
+      </div>
+    </div>
+
+    <h2>Data</h2>
+    <div class="card group">
+      <div class="srow"><button type="button" class="rowbtn" id="csv">Export to CSV</button></div>
+      <div class="srow">
+        <button type="button" class="rowbtn" id="importCsvBtn">Import from CSV (Restore)</button>
+        <input id="csvFileInput" type="file" accept=".csv,text/csv" hidden>
+      </div>
+      <div class="srow"><button type="button" class="rowbtn danger" id="wipe">Erase all data</button></div>
+    </div>
+    
+    <h2>About</h2>
+    <div class="card about">
+      <div class="avatar" aria-hidden="true">E</div>
+      <div>
+        <div class="who">Made by Eric S.</div>
+        <p>Hi, I'm Eric, the maker of Ledger. I built it as a calm, clutter-free way to keep track of everyday spending.</p>
+        <p class="fine">Ledger · Made on October 31, 2026 · Version 1.6</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ACTION SHEET MODAL -->
+<div class="action-sheet-backdrop" id="actionSheetModal" hidden>
+  <div class="action-sheet-card">
+    <div class="action-sheet-header">
+      <strong id="actionSheetTitle">Options</strong>
+      <span id="actionSheetSub" class="fine">Select an action</span>
+    </div>
+    <div id="actionSheetButtons" class="action-sheet-buttons"></div>
+    <button type="button" class="action-sheet-btn cancel-btn" id="actionSheetCancel">Cancel</button>
+  </div>
+</div>
+
+<!-- ADD / EDIT GROUP OR PERSON MODAL -->
+<div class="modal-backdrop" id="addPersonModal" hidden>
+  <div class="modal-card">
+    <h3 id="groupModalTitle">Add Group or Person</h3>
+    <form id="addPersonForm">
+      <input type="hidden" id="editGroupId">
+      <div>
+        <label class="lbl" for="personNameInput">Group / Person Name</label>
+        <input id="personNameInput" type="text" placeholder="e.g. Eric, Baguio Trip, Dinner" required maxlength="30">
+      </div>
+      <div>
+        <label class="lbl">Choose Emoji Avatar</label>
+        <div class="emoji-picker-grid" id="emojiPickerGrid">
+          <button type="button" class="emoji-opt on" data-emoji="👥">👥</button>
+          <button type="button" class="emoji-opt" data-emoji="🍕">🍕</button>
+          <button type="button" class="emoji-opt" data-emoji="✈️">✈️</button>
+          <button type="button" class="emoji-opt" data-emoji="🏠">🏠</button>
+          <button type="button" class="emoji-opt" data-emoji="🐰">🐰</button>
+          <button type="button" class="emoji-opt" data-emoji="🦊">🦊</button>
+          <button type="button" class="emoji-opt" data-emoji="🐱">🐱</button>
+          <button type="button" class="emoji-opt" data-emoji="🐼">🐼</button>
+        </div>
+      </div>
+      <div class="custom-emoji-wrap">
+        <label class="lbl" for="customEmojiInput">Or Type Any Emoji</label>
+        <input id="customEmojiInput" type="text" placeholder="e.g. 🎒, 🍻, 🚴, 🍔" maxlength="4">
+      </div>
+      <div class="btnrow modal-actions">
+        <button type="submit" class="primary">Save</button>
+        <button type="button" class="secondary danger" id="btnDeleteGroup" hidden>Delete Group / Person</button>
+        <button type="button" class="secondary" id="addPersonCancel">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- EDIT EXPENSE MODAL -->
+<div class="modal-backdrop" id="editExpenseModal" hidden>
+  <div class="modal-card" style="max-width: 420px; width: 100%;">
+    <h3 id="editModalTitle" style="margin-bottom: 14px;">Edit Transaction</h3>
+    <form id="editExpenseForm">
+      <input type="hidden" id="editTxId">
+      <input type="hidden" id="editIsRecurringItem" value="false">
+
+      <div class="seg" id="editTypeSeg" style="margin-bottom: 12px;">
+        <button type="button" data-v="expense" class="on">Expense</button>
+        <button type="button" data-v="income">Income</button>
+      </div>
+
+      <div class="row2">
+        <input id="editNote" type="text" placeholder="Note / Title" maxlength="60">
+        <input id="editAmount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="Amount" required>
+      </div>
+      
+      <div class="row2">
+        <select id="editCategory" aria-label="Category"></select>
+        <input id="editDate" type="date" required>
+      </div>
+
+      <div id="editMethodWrap" style="margin-top: 10px;">
+        <label class="lbl">Paid with</label>
+        <div class="seg" id="editMethodSeg">
+          <button type="button" data-v="cash" class="on">Cash</button>
+          <button type="button" data-v="debit">Debit</button>
+          <button type="button" data-v="card">Credit Card</button>
+        </div>
+      </div>
+
+      <div id="editCardSelectWrap" hidden style="margin-top: 10px;">
+        <label class="lbl" for="editCardSelect">Select Card</label>
+        <select id="editCardSelect"></select>
+      </div>
+
+      <div id="editRecurringSection" style="margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px;" hidden>
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+          <input type="checkbox" id="editIsIndefinite" checked style="width: 18px; height: 18px; accent-color: var(--accent);">
+          <label for="editIsIndefinite" style="font-size: var(--fs-sm); font-weight: 500; cursor: pointer;">Ongoing / No fixed end month</label>
+        </div>
+        <div id="editRecurMonthsWrap" hidden style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+          <span class="fine muted">Recur for</span>
+          <input type="number" id="editRecurTotalMonths" min="1" max="120" value="12" style="width: 70px; padding: 4px 8px;" class="mini-in">
+          <span class="fine muted">months</span>
+        </div>
+      </div>
+
+      <div class="btnrow modal-actions" style="margin-top: 20px;">
+        <button type="submit" class="primary">Save Changes</button>
+        <button type="button" class="secondary danger" id="btnDeleteExpenseFromModal">Delete</button>
+        <button type="button" class="secondary" id="editExpenseCancel">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- JOIN GROUP MODAL -->
+<div class="modal-backdrop" id="joinGroupModal" hidden>
+  <div class="modal-card">
+    <h3>Join Shared Group</h3>
+    <form id="joinGroupForm">
+      <div>
+        <label class="lbl" for="joinCodeInput">Invite Code</label>
+        <input id="joinCodeInput" type="text" placeholder="e.g. GRP-8921" required style="text-transform:uppercase;">
+      </div>
+      <div class="btnrow modal-actions">
+        <button type="submit" class="primary">Join Group</button>
+        <button type="button" class="secondary" id="joinGroupCancel">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- IMPORT VIA URL MODAL -->
+<div class="modal-backdrop" id="importUrlModal" hidden>
+  <div class="modal-card">
+    <h3>Import via Tricount Link</h3>
+    <form id="importUrlForm">
+      <div>
+        <label class="lbl" for="tricountUrlInput">Paste Tricount Web Link</label>
+        <input id="tricountUrlInput" type="url" placeholder="https://tricount.com/..." required>
+      </div>
+      <div class="btnrow modal-actions">
+        <button type="submit" class="primary" id="btnParseUrl">Fetch & Import Expenses</button>
+        <button type="button" class="secondary" id="importUrlCancel">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ADD / EDIT SPLIT EXPENSE MODAL -->
+<div class="modal-backdrop" id="addSplitExpenseModal" hidden>
+  <div class="modal-card">
+    <h3 id="splitExpenseModalTitle">Add Shared Expense</h3>
+    <form id="addSplitExpenseForm">
+      <input type="hidden" id="splitExpId">
+      <div>
+        <label class="lbl" for="splitExpTitle">Title / Description</label>
+        <input id="splitExpTitle" type="text" placeholder="e.g. Dinner, Coffee, Taxi" required maxlength="60">
+      </div>
+      <div class="row2">
+        <div>
+          <label class="lbl" for="splitExpAmount">Total Amount</label>
+          <input id="splitExpAmount" type="number" inputmode="decimal" step="0.01" min="0.01" placeholder="0.00" required>
+        </div>
+        <div>
+          <label class="lbl" for="splitExpDate">Date</label>
+          <input id="splitExpDate" type="date" required>
+        </div>
+      </div>
+      <div>
+        <label class="lbl" for="splitExpPaidBy">Paid By</label>
+        <input id="splitExpPaidBy" type="text" placeholder="e.g. Me, Alex" required>
+      </div>
+
+      <!-- Requirement 3: Split option selector (Equal, Parts, Amounts) -->
+      <div>
+        <label class="lbl">Split Method</label>
+        <div class="split-mode-options" id="splitModeSeg">
+          <button type="button" data-v="equal" class="on">Equally</button>
+          <button type="button" data-v="parts">By Parts</button>
+          <button type="button" data-v="amounts">By Amounts</button>
+        </div>
+        <div id="splitModeDynamicInputs" class="split-dynamic-inputs" style="margin-top: 8px;">
+          <span class="fine muted">Split equally (50 / 50 default).</span>
+        </div>
+      </div>
+
+      <div class="btnrow modal-actions" style="margin-top: 14px;">
+        <button type="submit" class="primary">Save Expense</button>
+        <button type="button" class="secondary danger" id="btnDeleteSplitExpense" hidden>Delete Expense</button>
+        <button type="button" class="secondary" id="addSplitExpenseCancel">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- CARD MODAL -->
+<div class="modal-backdrop" id="cardModal" hidden>
+  <div class="modal-card">
+    <h3 id="cardModalTitle">Add Credit Card</h3>
+    <form id="cardForm">
+      <input type="hidden" id="cardId">
+      <div>
+        <label class="lbl" for="cardBank">Bank Name</label>
+        <input id="cardBank" type="text" placeholder="e.g. BDO, BPI, Maya" required maxlength="40">
+      </div>
+      <div>
+        <label class="lbl" for="cardName">Card Name / Last 4 Digits</label>
+        <input id="cardName" type="text" placeholder="e.g. World Elite™ Mastercard® (1234)" required maxlength="40">
+      </div>
+      <div class="row2">
+        <div>
+          <label class="lbl" for="cardStmtDay">Statement Day (1-31)</label>
+          <input id="cardStmtDay" type="number" min="1" max="31" placeholder="15" required>
+        </div>
+        <div>
+          <label class="lbl" for="cardDueDays">Days After Statement</label>
+          <input id="cardDueDays" type="number" min="1" max="90" placeholder="21" required>
+        </div>
+      </div>
+      <div class="btnrow modal-actions">
+        <button type="submit" class="primary">Save Card</button>
+        <button type="button" class="secondary" id="cardModalCancel">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ADD TRANSACTION MODAL -->
+<div class="modal-backdrop" id="addExpenseModal" hidden>
+  <div class="modal-card">
+    <h3>Add Transaction</h3>
+    <form id="form" class="form" style="box-shadow: none; border: none; padding: 0; margin: 0;">
+      <div class="seg" id="typeSeg">
+        <button type="button" data-v="expense" class="on">Expense</button>
+        <button type="button" data-v="income">Income</button>
+      </div>
+      <div class="row2">
+        <input id="note" type="text" placeholder="Note / Title" maxlength="60">
+        <input id="amount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="Amount" required>
+      </div>
+      <div class="row2">
+        <select id="category" aria-label="Category"></select>
+        <input id="date" type="date" required>
+      </div>
+      <div id="customCatWrap" hidden>
+        <input id="customCategoryInput" type="text" placeholder="Enter custom category name" maxlength="30">
+      </div>
+      <div id="methodWrap">
+        <label class="lbl">Paid with</label>
+        <div class="seg" id="methodSeg">
+          <button type="button" data-v="cash" class="on">Cash</button>
+          <button type="button" data-v="debit">Debit</button>
+          <button type="button" data-v="card">Credit Card</button>
+        </div>
+      </div>
+      <div id="cardSelectWrap" hidden>
+        <label class="lbl" for="cardSelect">Select Card</label>
+        <select id="cardSelect"></select>
+      </div>
+      <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <input type="checkbox" id="isRecurring" style="width: 18px; height: 18px; accent-color: var(--accent);">
+          <label for="isRecurring" style="font-size: var(--fs-sm); font-weight: 500; cursor: pointer;">Recurring monthly expense/income</label>
+        </div>
+        <div id="recurringOptionsWrap" hidden style="margin-top: 8px; padding-left: 26px;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+            <input type="checkbox" id="isIndefinite" checked style="width: 16px; height: 16px; accent-color: var(--accent);">
+            <label for="isIndefinite" style="font-size: var(--fs-sm); font-weight: 500; cursor: pointer;">Ongoing / No fixed end month</label>
+          </div>
+          <div id="recurMonthsWrap" hidden style="display: flex; align-items: center; gap: 8px;">
+            <span class="fine muted">Recur for</span>
+            <input type="number" id="recurTotalMonths" min="1" max="120" value="12" style="width: 70px; padding: 4px 8px;" class="mini-in">
+            <span class="fine muted">months</span>
+          </div>
+        </div>
+      </div>
+      <div class="btnrow modal-actions" style="margin-top: 14px;">
+        <button class="primary" type="submit">Add Transaction</button>
+        <button type="button" class="secondary" id="addExpenseCancel">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+  
+<!-- FLOATING DOCK -->
+<nav class="dock" id="dock" aria-label="Main" hidden>
+  <button type="button" data-go="home">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    <span>Home</span>
+  </button>
+  <button type="button" data-go="expenses">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 8h10M7 12h10M7 16h6"/></svg>
+    <span>Expenses</span>
+  </button>
+  <button type="button" data-go="split">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    <span>Split</span>
+  </button>
+  <button type="button" data-go="settings">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/><circle cx="8" cy="6" r="2" fill="var(--card)"/><circle cx="16" cy="12" r="2" fill="var(--card)"/><circle cx="10" cy="18" r="2" fill="var(--card)"/></svg>
+    <span>Settings</span>
+  </button>
+</nav>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+  setTimeout(function() {
+    var auth = document.getElementById('auth');
+    var app = document.getElementById('app');
+    if (auth && app && auth.hidden && app.hidden) {
+      app.hidden = false;
+      var home = document.getElementById('page-home');
+      if (home) home.hidden = false;
+      var dock = document.getElementById('dock');
+      if (dock) dock.hidden = false;
+    }
+  }, 500);
+</script>
+
+<script src="config.js" onerror="this.onerror=null;"></script>
+<script src="app.js"></script>
+</body>
+</html>
