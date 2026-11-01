@@ -338,11 +338,14 @@
     <form id="addPersonForm">
       <input type="hidden" id="editGroupId">
       
-      <!-- Inline Emoji Avatar and Bill Name -->
+      <!-- Inline Emoji Avatar Box and Bill Name -->
       <div class="bill-name-section">
         <label class="lbl" for="personNameInput">Bill Name</label>
         <div class="bill-header-row">
-          <input id="customEmojiInput" type="text" class="emoji-box" value="💩" maxlength="2" title="Select an emoji from keyboard" required onclick="this.select()" onfocus="this.select()">
+          <div class="emoji-avatar-wrap">
+            <button type="button" id="emojiAvatarBtn" class="emoji-avatar-btn" title="Choose emoji avatar">💩</button>
+            <input id="customEmojiInput" type="text" class="emoji-hidden-input" value="💩" maxlength="4" aria-label="Emoji selector">
+          </div>
           <input id="personNameInput" type="text" class="bill-name-input" placeholder="e.g. Eric, Dinner, Baguio Trip" required maxlength="30">
         </div>
       </div>
@@ -355,7 +358,7 @@
           <button type="button" id="btnAddParticipantBtn" class="secondary add-part-btn">Add</button>
         </div>
         <ul id="billParticipantsList" class="participants-list">
-          <!-- Dynamically populated -->
+          <!-- Dynamically populated wrapping chips -->
         </ul>
       </div>
 

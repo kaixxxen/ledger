@@ -855,6 +855,12 @@ function renderPendingParticipants() {
   });
 }
 
+function updateModalEmojiDisplay(emojiVal) {
+  const val = emojiVal || '💩';
+  if ($('emojiAvatarBtn')) $('emojiAvatarBtn').textContent = val;
+  if ($('customEmojiInput')) $('customEmojiInput').value = val;
+}
+
 function renderTricountsList() {
   const el = $('tricountsList');
   if (!el) return;
@@ -905,7 +911,7 @@ function renderTricountsList() {
             $('groupModalTitle').textContent = 'Edit Bill';
             $('editGroupId').value = group.id;
             $('personNameInput').value = group.name;
-            if ($('customEmojiInput')) $('customEmojiInput').value = group.emoji || '💩';
+            updateModalEmojiDisplay(group.emoji || '💩');
             if ($('btnDeleteGroup')) $('btnDeleteGroup').hidden = false;
             
             pendingParticipants = group.participants ? [...group.participants] : [state.nickname || 'Me'];
@@ -1626,6 +1632,22 @@ function bind() {
     });
   }
 
+  // Emoji Avatar Keyboard Picker Handler
+  if ($('emojiAvatarBtn') && $('customEmojiInput')) {
+    $('emojiAvatarBtn').addEventListener('click', () => {
+      $('customEmojiInput').focus();
+      $('customEmojiInput').select();
+    });
+
+    $('customEmojiInput').addEventListener('input', (e) => {
+      const val = e.target.value.trim();
+      if (val) {
+        const symbol = Array.from(val).pop() || '💩';
+        updateModalEmojiDisplay(symbol);
+      }
+    });
+  }
+
   on('txViewSeg', 'click', e => {
     const b = e.target.closest('button');
     if (!b) return;
@@ -1845,7 +1867,7 @@ function bind() {
       $('groupModalTitle').textContent = 'Add a Bill';
       $('editGroupId').value = '';
       $('personNameInput').value = '';
-      if ($('customEmojiInput')) $('customEmojiInput').value = '💩';
+      updateModalEmojiDisplay('💩');
       if ($('btnDeleteGroup')) $('btnDeleteGroup').hidden = true;
       
       pendingParticipants = [state.nickname || 'Me'];
@@ -1861,7 +1883,7 @@ function bind() {
       $('groupModalTitle').textContent = 'Add a Bill';
       $('editGroupId').value = '';
       $('personNameInput').value = '';
-      if ($('customEmojiInput')) $('customEmojiInput').value = '💩';
+      updateModalEmojiDisplay('💩');
       if ($('btnDeleteGroup')) $('btnDeleteGroup').hidden = true;
       
       pendingParticipants = [state.nickname || 'Me'];
@@ -1879,7 +1901,7 @@ function bind() {
       $('groupModalTitle').textContent = 'Edit Bill';
       $('editGroupId').value = group.id;
       $('personNameInput').value = group.name;
-      if ($('customEmojiInput')) $('customEmojiInput').value = group.emoji || '💩';
+      updateModalEmojiDisplay(group.emoji || '💩');
       if ($('btnDeleteGroup')) $('btnDeleteGroup').hidden = false;
       
       pendingParticipants = group.participants ? [...group.participants] : [state.nickname || 'Me'];
