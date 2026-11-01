@@ -451,6 +451,7 @@ function renderHome() {
   if ($('homeCharts')) $('homeCharts').hidden = state.tx.length === 0;
   if (!state.tx.length) return;
 
+  // DONUT PIE CHART
   const by = {};
   txs.filter(t => t.type === 'expense').forEach(t => { by[t.category] = (by[t.category] || 0) + t.amount; });
   const entries = Object.entries(by).sort((a, b) => b[1] - a[1]);
@@ -459,28 +460,38 @@ function renderHome() {
       const R = 42, C = 2 * Math.PI * R;
       let off = 0;
       const arcs = entries.map(([c, v], idx) => {
-        const len = v / exp * C;
+        const len = (v / exp) * C;
         const color = getCategoryColor(c);
-        const dasharray = `${len} ${C - len}`;
-        const item = `<circle class="animated-donut-segment" cx="60" cy="60" r="${R}" fill="none" stroke="${color}" stroke-width="16" stroke-dasharray="0 ${C}" stroke-dashoffset="${-off}" style="animation: wheelSpinSegment 1s cubic-bezier(0.4, 0, 0.2, 1) ${idx * 0.12}s forwards; --target-dasharray: ${dasharray};" transform="rotate(-90 60 60)"/>`;
+        const dasharray = `${len.toFixed(2)} ${(C - len).toFixed(2)}`;
+        const dashoffset = -off;
         off += len;
-        return item;
+        return `<circle class="animated-donut-segment" cx="60" cy="60" r="${R}" fill="none" stroke="${color}" stroke-width="16" stroke-dasharray="${dasharray}" stroke-dashoffset="${dashoffset.toFixed(2)}" transform="rotate(-90 60 60)" style="animation: donutSegmentFade 0.6s cubic-bezier(0.4, 0, 0.2, 1) ${idx * 0.08}s both;" />`;
       }).join('');
 
       $('donutBody').innerHTML = `
         <div class="donut-wrap">
-          <div class="donut"><svg viewBox="0 0 120 120" role="img" aria-label="Spending by category">
-            ${arcs}
-            <text x="60" y="57" text-anchor="middle" class="d-sub">Spent</text>
-            <text x="60" y="73" text-anchor="middle" class="d-val">${esc(state.cur)}${short(exp)}</text></svg></div>
+          <div class="donut">
+            <svg viewBox="0 0 120 120" role="img" aria-label="Spending by category">
+              ${arcs}
+              <text x="60" y="55" text-anchor="middle" class="d-sub">Spent</text>
+              <text x="60" y="72" text-anchor="middle" class="d-val">${esc(state.cur)}${short(exp)}</text>
+            </svg>
+          </div>
           <ul class="legend">${entries.map(([c, v], idx) => `
-            <li style="animation: fadeInLegend 0.5s ease ${idx * 0.08}s both;"><i style="background:${getCategoryColor(c)}"></i><span>${esc(c)}</span><b>${money(v)}</b><em>${Math.round(v / exp * 100)}%</em></li>`).join('')}</ul>
+            <li style="animation: fadeInLegend 0.4s ease ${idx * 0.06}s both;">
+              <i style="background:${getCategoryColor(c)}"></i>
+              <span>${esc(c)}</span>
+              <b>${money(v)}</b>
+              <em>${Math.round(v / exp * 100)}%</em>
+            </li>`).join('')}
+          </ul>
         </div>`;
     } else {
-      $('donutBody').innerHTML = '<p class="muted">No spending logged this month.</p>';
+      $('donutBody').innerHTML = '<p class="muted center-text" style="padding:16px 0;">No spending logged this month.</p>';
     }
   }
 
+  // 6-MONTH BAR CHART
   const months = [];
   for (let i = 5; i >= 0; i--) {
     const d = new Date(view.getFullYear(), view.getMonth() - i, 1);
@@ -491,20 +502,23 @@ function renderHome() {
   const max = Math.max(...months.map(m => m.spent), 1);
   const bw = 34, gap = (300 - 6 * bw) / 6;
   const bars = months.map((m, i) => {
-    const targetH = m.spent > 0 ? Math.max(3, m.spent / max * 78) : 2;
-    const x = gap / 2 + i * (bw + gap);
-    const initialY = 100;
-    const finalY = 100 - targetH;
-    return `<g class="animated-bar" style="animation: growBar 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) ${i * 0.08}s forwards; transform-origin: bottom;"><title>${esc(m.d.toLocaleDateString(undefined, { month: 'long' }))}: ${money(m.spent)}</title>
-      <rect x="${x}" y="${initialY}" width="${bw}" height="0" rx="5" style="fill:var(--accent);opacity:${m.cur ? 1 : .22}; animation: expandHeight 0.6s cubic-bezier(0.1, 0.9, 0.2, 1) ${i * 0.08}s forwards; --target-y: ${finalY}px; --target-h: ${targetH}px;" />
-      ${m.spent > 0 ? `<text x="${x + bw / 2}" y="${finalY - 5}" class="b-val" style="font-size: 11px; opacity:0; animation: fadeInLabel 0.4s ease ${0.3 + i * 0.08}s forwards;">${short(m.spent)}</text>` : ''}
-      <text x="${x + bw / 2}" y="117" class="b-lbl${m.cur ? ' cur' : ''}">${m.d.toLocaleDateString(undefined, { month: 'short' })}</text></g>`;
+    const targetH = m.spent > 0 ? Math.max(4, (m.spent / max) * 78) : 2;
+    const x = Math.round(gap / 2 + i * (bw + gap));
+    const finalY = Math.round(100 - targetH);
+    return `<g class="animated-bar-group">
+      <title>${esc(m.d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }))}: ${money(m.spent)}</title>
+      <rect x="${x}" y="${finalY}" width="${bw}" height="${targetH}" rx="5" 
+        style="fill:var(--accent); opacity:${m.cur ? 1 : 0.25}; transform-origin: ${x + bw/2}px 100px; animation: barGrow 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) ${i * 0.08}s both;" />
+      ${m.spent > 0 ? `<text x="${x + bw / 2}" y="${finalY - 6}" class="b-val" text-anchor="middle" style="font-size: 11px; fill: var(--text); animation: fadeInLabel 0.4s ease ${0.2 + i * 0.08}s both;">${short(m.spent)}</text>` : ''}
+      <text x="${x + bw / 2}" y="117" class="b-lbl${m.cur ? ' cur' : ''}" text-anchor="middle" style="font-size: 11px; fill: var(--text); opacity: ${m.cur ? 1 : 0.6};">${m.d.toLocaleDateString(undefined, { month: 'short' })}</text>
+    </g>`;
   }).join('');
 
   if ($('barsBody')) {
-    $('barsBody').innerHTML = `<div class="bars"><svg viewBox="0 0 300 126" role="img" aria-label="Spending over six months">${bars}</svg></div>`;
+    $('barsBody').innerHTML = `<div class="bars" style="overflow: visible;"><svg viewBox="0 0 300 126" role="img" aria-label="Spending over six months" style="width:100%; height:auto;">${bars}</svg></div>`;
   }
 
+  // PAYMENT METHOD BREAKDOWN BAR
   const cash  = txs.filter(t => t.type === 'expense' && t.method === 'cash').reduce((s, t) => s + t.amount, 0);
   const debit = txs.filter(t => t.type === 'expense' && t.method === 'debit').reduce((s, t) => s + t.amount, 0);
   const card  = txs.filter(t => t.type === 'expense' && t.method === 'card').reduce((s, t) => s + t.amount, 0);
@@ -512,18 +526,18 @@ function renderHome() {
   if ($('splitBody')) {
     if (exp > 0) {
       $('splitBody').innerHTML = `
-        <div class="split" role="img" aria-label="Cash ${Math.round(cash / exp * 100)}%, Debit ${Math.round(debit / exp * 100)}%, Credit ${Math.round(card / exp * 100)}%">
-          <i style="width:${cash / exp * 100}%;background:var(--c-cash)"></i>
-          <i style="width:${debit / exp * 100}%;background:var(--c-debit)"></i>
-          <i style="width:${card / exp * 100}%;background:var(--c-card)"></i>
+        <div class="split" role="img" aria-label="Cash ${Math.round(cash / exp * 100)}%, Debit ${Math.round(debit / exp * 100)}%, Credit ${Math.round(card / exp * 100)}%" style="display:flex; height:12px; border-radius:6px; overflow:hidden; margin-bottom:12px; background:var(--bar);">
+          <i style="width:${cash / exp * 100}%; background:var(--c-cash, #10b981); transition: width 0.5s ease;"></i>
+          <i style="width:${debit / exp * 100}%; background:var(--c-debit, #3b82f6); transition: width 0.5s ease;"></i>
+          <i style="width:${card / exp * 100}%; background:var(--c-card, #f59e0b); transition: width 0.5s ease;"></i>
         </div>
-        <div class="split-legend">
-          <div><small><i style="background:var(--c-cash)"></i>Cash · ${Math.round(cash / exp * 100)}%</small><b>${money(cash)}</b></div>
-          <div><small><i style="background:var(--c-debit)"></i>Debit · ${Math.round(debit / exp * 100)}%</small><b>${money(debit)}</b></div>
-          <div><small><i style="background:var(--c-card)"></i>Credit · ${Math.round(card / exp * 100)}%</small><b>${money(card)}</b></div>
+        <div class="split-legend" style="display:flex; justify-content:space-between; gap:8px;">
+          <div><small style="display:flex; align-items:center; gap:4px; font-size:12px; opacity:0.8;"><i style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--c-cash, #10b981)"></i>Cash · ${Math.round(cash / exp * 100)}%</small><b style="display:block; font-size:14px; margin-top:2px;">${money(cash)}</b></div>
+          <div><small style="display:flex; align-items:center; gap:4px; font-size:12px; opacity:0.8;"><i style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--c-debit, #3b82f6)"></i>Debit · ${Math.round(debit / exp * 100)}%</small><b style="display:block; font-size:14px; margin-top:2px;">${money(debit)}</b></div>
+          <div><small style="display:flex; align-items:center; gap:4px; font-size:12px; opacity:0.8;"><i style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--c-card, #f59e0b)"></i>Credit · ${Math.round(card / exp * 100)}%</small><b style="display:block; font-size:14px; margin-top:2px;">${money(card)}</b></div>
         </div>`;
     } else {
-      $('splitBody').innerHTML = '<p class="muted">No spending logged this month.</p>';
+      $('splitBody').innerHTML = '<p class="muted center-text" style="padding:16px 0;">No spending logged this month.</p>';
     }
   }
 }
@@ -982,7 +996,6 @@ function calculateGroupBalance(group) {
     beneficiaries.forEach(p => { balances[p] = (balances[p] || 0) - share; });
   });
 
-  // Dynamically deduct payments & reimbursements from participant balances
   (group.settlements || []).forEach(s => {
     const amt = Number(s.amount) || 0;
     balances[s.from] = (balances[s.from] || 0) + amt;
