@@ -36,6 +36,23 @@
 
   .history-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: var(--fs-sm); }
 
+  /* Group Cards Spacing Fix */
+  .tricounts-list { display: flex; flex-direction: column; gap: 8px; }
+
+  /* Logged Expenses Divider Style (No background cards, divided by border line) */
+  #list { list-style: none; padding: 0; margin: 0; }
+  #list li.tx {
+    background: transparent !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 10px 0 !important;
+    margin: 0 !important;
+    border-bottom: 1px solid var(--border) !important;
+  }
+  #list li.tx:last-child {
+    border-bottom: none !important;
+  }
+
   /* Chart Animations & Visual Styling */
   @keyframes barGrow {
     from { transform: scaleY(0); }
@@ -173,7 +190,7 @@
       </div>
 
       <div id="tabExpensesView">
-        <div class="filters">
+        <div class="filters" style="margin-bottom: 12px;">
           <div class="chips" id="methodChips">
             <button type="button" class="chip on" data-v="all">All</button>
             <button type="button" class="chip" data-v="cash">Cash</button>
@@ -182,15 +199,12 @@
           </div>
         </div>
 
-        <p class="fine muted center-text" style="margin: 16px 0 12px;">💡 Tap any item to edit or delete</p>
-
         <ul id="list"></ul>
         <div class="empty" id="empty">Nothing here yet.</div>
-        <button type="button" class="secondary see-more-btn" id="btnSeeMoreExpenses" hidden>See More</button>
+        <button type="button" class="secondary see-more-btn" id="btnSeeMoreExpenses" style="margin-top: 12px;" hidden>See More</button>
       </div>
 
       <div id="tabRecurringView" hidden>
-        <p class="fine muted center-text" style="margin: 0 0 12px;">💡 Tap any item to edit, or use the ✕ to remove schedule</p>
         <div id="fixedExpensesList"></div>
       </div>
     </div>
@@ -207,10 +221,9 @@
         </div>
       </header>
 
-      <button type="button" class="secondary" id="btnAddPersonFabTop" style="width: 100%; margin-bottom: 16px; font-weight: 700; border: 1.5px solid var(--accent);">+ Add a Bill</button>
+      <button type="button" class="secondary" id="btnAddPersonFabTop" style="width: 100%; margin-bottom: 12px; font-weight: 700; border: 1.5px solid var(--accent);">+ Add a Bill</button>
 
-      <p class="muted split-subhead">Track shared expenses with friends & sync in real-time</p>
-      <p class="fine muted" style="margin-bottom: 12px;">💡 Tap any group card to open details, or hold down for options</p>
+      <p class="muted split-subhead" style="margin-bottom: 12px;">Track shared expenses with friends & sync in real-time</p>
       
       <div id="tricountsList" class="tricounts-list"></div>
     </div>
@@ -223,7 +236,7 @@
         </div>
         <div></div>
       </header>
-      <p class="muted split-subhead">Manage or restore archived groups and balances</p>
+      <p class="muted split-subhead" style="margin-bottom: 12px;">Manage or restore archived groups and balances</p>
       <div id="archivedTricountsList" class="tricounts-list"></div>
     </div>
 
@@ -238,7 +251,7 @@
         <button type="button" class="icon-btn edit-group-title-btn" id="btnEditGroupTitle">Edit</button>
       </header>
 
-      <!-- CONSOLIDATED BILL HERO CARD (Fixed Invite Code Font Size) -->
+      <!-- CONSOLIDATED BILL HERO CARD -->
       <div class="card bill-hero-card" style="padding: 12px 14px; margin-bottom: 12px; border-radius: 14px;">
         <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 10px; font-size: 13px;">
           <div style="display: flex; align-items: center; gap: 6px; font-size: 13px;">
@@ -252,7 +265,7 @@
           </div>
         </div>
 
-        <div style="display: flex; justify-content: space-around; text-align: center;">
+        <div style="display: flex; justify-around; text-align: center;">
           <div>
             <small style="display: block; font-size: 11px; opacity: 0.7; margin-bottom: 2px;">My Net Share</small>
             <b id="splitMyExpensesVal" style="font-size: 18px; font-weight: 700;">₱0.00</b>
