@@ -100,7 +100,7 @@
     </div>
   </section>
 
-<!-- EXPENSES PAGE -->
+  <!-- EXPENSES PAGE -->
   <section class="page" id="page-expenses" hidden>
     <header class="top" style="margin-bottom: 12px;">
       <h1>Expenses</h1>
@@ -145,7 +145,7 @@
     </div>
   </section>
 
-<!-- BILL SPLITTER PAGE -->
+  <!-- BILL SPLITTER PAGE -->
   <section class="page" id="page-split" hidden>
     <div id="splitMainView">
       <header class="top" style="margin-bottom: 12px;">
@@ -237,7 +237,7 @@
     </div>
   </section>
 
-<!-- SETTINGS PAGE -->
+  <!-- SETTINGS PAGE -->
   <section class="page" id="page-settings" hidden>
     <header class="top"><h1>Settings</h1></header>
 
@@ -331,26 +331,38 @@
   </div>
 </div>
 
-<!-- ADD / EDIT BILL MODAL -->
+<!-- ADD / EDIT BILL MODAL WITH EMOJI POPOVER SELECTOR -->
 <div class="modal-backdrop" id="addPersonModal" hidden>
   <div class="modal-card">
     <h3 id="groupModalTitle">Add a Bill</h3>
     <form id="addPersonForm">
       <input type="hidden" id="editGroupId">
       
-      <!-- Inline Emoji Avatar Box and Bill Name -->
+      <!-- Inline Emoji Avatar Box with Popover Tray -->
       <div class="bill-name-section">
         <label class="lbl" for="personNameInput">Bill Name</label>
         <div class="bill-header-row">
-          <div class="emoji-avatar-wrap">
+          <div class="emoji-picker-container">
             <button type="button" id="emojiAvatarBtn" class="emoji-avatar-btn" title="Choose emoji avatar">💩</button>
-            <input id="customEmojiInput" type="text" class="emoji-hidden-input" value="💩" maxlength="4" aria-label="Emoji selector">
+            <input type="hidden" id="customEmojiInput" value="💩">
+            
+            <!-- Popover Emoji Selector Tray -->
+            <div id="emojiPickerPopover" class="emoji-popover" hidden>
+              <div class="emoji-popover-header">
+                <span>Choose Avatar Emoji</span>
+                <button type="button" id="closeEmojiPickerBtn" class="emoji-popover-close">&times;</button>
+              </div>
+              <div class="emoji-grid" id="emojiGrid"></div>
+              <div class="emoji-popover-footer">
+                <input type="text" id="typeEmojiInput" placeholder="Type or paste emoji..." maxlength="4" aria-label="Type custom emoji">
+              </div>
+            </div>
           </div>
           <input id="personNameInput" type="text" class="bill-name-input" placeholder="e.g. Eric, Dinner, Baguio Trip" required maxlength="30">
         </div>
       </div>
 
-      <!-- Participant Management -->
+      <!-- Participant Management with Inline Chips -->
       <div class="participants-section">
         <label class="lbl">Participants</label>
         <div class="add-participant-row">
@@ -358,7 +370,7 @@
           <button type="button" id="btnAddParticipantBtn" class="secondary add-part-btn">Add</button>
         </div>
         <ul id="billParticipantsList" class="participants-list">
-          <!-- Dynamically populated wrapping chips -->
+          <!-- Dynamically populated wrapping inline chips -->
         </ul>
       </div>
 

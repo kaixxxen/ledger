@@ -8,6 +8,13 @@ const KEY = 'ledger.v1';
 const BASE_EXPENSE_CATS = ['Food','Housing','Transport','Bills','Health','Fun','Shopping','Other'];
 const INCOME_CATS  = ['Salary','Side income','Gift','Other'];
 
+const DEFAULT_AVATAR_EMOJIS = [
+  '💩', '💸', '🍱', '🍻', '🛒', '🚗', '🏠', '✈️', 
+  '🍔', '☕', '🎬', '🏝️', '💳', '⚡', '🎁', '🛍️', 
+  '🍿', '🚲', '⛽', '🎟️', '🎨', '🏋️', '🎮', '🐾', 
+  '🎂', '🌟', '📍', '💼', '💊', '🏖️'
+];
+
 const CAT_COLORS = {
   'Food':      'var(--c-food)',
   'Housing':   'var(--c-housing)',
@@ -861,6 +868,63 @@ function updateModalEmojiDisplay(emojiVal) {
   if ($('customEmojiInput')) $('customEmojiInput').value = val;
 }
 
+function initEmojiPickerPopover() {
+  const btn = $('emojiAvatarBtn');
+  const hiddenInput = $('customEmojiInput');
+  const popover = $('emojiPickerPopover');
+  const grid = $('emojiGrid');
+  const typeInput = $('typeEmojiInput');
+  const closeBtn = $('closeEmojiPickerBtn');
+
+  if (!btn || !popover || !grid) return;
+
+  grid.innerHTML = DEFAULT_AVATAR_EMOJIS.map(e => `
+    <button type="button" class="emoji-grid-item" data-emoji="${e}">${e}</button>
+  `).join('');
+
+  const selectEmoji = (emoji) => {
+    const symbol = emoji || '💩';
+    btn.textContent = symbol;
+    if (hiddenInput) hiddenInput.value = symbol;
+    popover.hidden = true;
+  };
+
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    const isHidden = popover.hidden;
+    popover.hidden = !isHidden;
+    if (!popover.hidden && typeInput) {
+      typeInput.focus();
+    }
+  };
+
+  if (closeBtn) closeBtn.onclick = () => { popover.hidden = true; };
+
+  grid.onclick = (e) => {
+    const item = e.target.closest('.emoji-grid-item');
+    if (item && item.dataset.emoji) {
+      selectEmoji(item.dataset.emoji);
+    }
+  };
+
+  if (typeInput) {
+    typeInput.oninput = (e) => {
+      const val = e.target.value.trim();
+      if (val) {
+        const symbol = Array.from(val).pop() || '💩';
+        selectEmoji(symbol);
+        typeInput.value = '';
+      }
+    };
+  }
+
+  document.addEventListener('click', (e) => {
+    if (popover && !popover.hidden && !popover.contains(e.target) && e.target !== btn) {
+      popover.hidden = true;
+    }
+  });
+}
+
 function renderTricountsList() {
   const el = $('tricountsList');
   if (!el) return;
@@ -917,6 +981,7 @@ function renderTricountsList() {
             pendingParticipants = group.participants ? [...group.participants] : [state.nickname || 'Me'];
             renderPendingParticipants();
             
+            if ($('emojiPickerPopover')) $('emojiPickerPopover').hidden = true;
             $('addPersonModal').hidden = false;
             $('personNameInput').focus();
           }
@@ -1632,21 +1697,8 @@ function bind() {
     });
   }
 
-  // Emoji Avatar Keyboard Picker Handler
-  if ($('emojiAvatarBtn') && $('customEmojiInput')) {
-    $('emojiAvatarBtn').addEventListener('click', () => {
-      $('customEmojiInput').focus();
-      $('customEmojiInput').select();
-    });
-
-    $('customEmojiInput').addEventListener('input', (e) => {
-      const val = e.target.value.trim();
-      if (val) {
-        const symbol = Array.from(val).pop() || '💩';
-        updateModalEmojiDisplay(symbol);
-      }
-    });
-  }
+  // Initialize Emoji Popover Selector
+  initEmojiPickerPopover();
 
   on('txViewSeg', 'click', e => {
     const b = e.target.closest('button');
@@ -1873,6 +1925,7 @@ function bind() {
       pendingParticipants = [state.nickname || 'Me'];
       renderPendingParticipants();
 
+      if ($('emojiPickerPopover')) $('emojiPickerPopover').hidden = true;
       $('addPersonModal').hidden = false;
       $('personNameInput').focus();
     };
@@ -1889,6 +1942,7 @@ function bind() {
       pendingParticipants = [state.nickname || 'Me'];
       renderPendingParticipants();
 
+      if ($('emojiPickerPopover')) $('emojiPickerPopover').hidden = true;
       $('addPersonModal').hidden = false;
       $('personNameInput').focus();
     };
@@ -1907,6 +1961,7 @@ function bind() {
       pendingParticipants = group.participants ? [...group.participants] : [state.nickname || 'Me'];
       renderPendingParticipants();
       
+      if ($('emojiPickerPopover')) $('emojiPickerPopover').hidden = true;
       $('addPersonModal').hidden = false;
       $('personNameInput').focus();
     };
