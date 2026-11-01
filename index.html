@@ -156,14 +156,14 @@
         </div>
       </header>
 
-      <button type="button" class="secondary" id="btnAddPersonFabTop" style="width: 100%; margin-bottom: 16px; font-weight: 700; border: 1.5px solid var(--accent);">+ Add a Group/Person</button>
+      <button type="button" class="secondary" id="btnAddPersonFabTop" style="width: 100%; margin-bottom: 16px; font-weight: 700; border: 1.5px solid var(--accent);">+ Add a Bill</button>
 
       <p class="muted split-subhead">Track shared expenses with friends & sync in real-time</p>
       <p class="fine muted" style="margin-bottom: 12px;">💡 Tap any group card to open details, or hold down for options</p>
       
       <div id="tricountsList" class="tricounts-list"></div>
 
-      <button type="button" class="fab-btn" id="btnAddPersonFab" aria-label="Add group or person" hidden>
+      <button type="button" class="fab-btn" id="btnAddPersonFab" aria-label="Add a bill" hidden>
         <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       </button>
     </div>
@@ -171,7 +171,6 @@
     <div id="splitArchiveView" hidden>
       <div class="split-detail-header">
         <button type="button" class="icon back-btn" id="btnArchiveBack" aria-label="Back">‹</button>
-        <!-- Requirement 2: Not all-caps header -->
         <h2 class="person-name" style="text-transform: none; font-size: var(--fs-lg);">Archived Groups</h2>
         <div></div>
       </div>
@@ -184,7 +183,6 @@
         <button type="button" class="icon back-btn" id="btnSplitBack" aria-label="Back">‹</button>
         <div class="person-avatar-wrap">
           <span class="person-avatar" id="splitPersonAvatar">👥</span>
-          <!-- Requirement 2: Not all-caps Name header -->
           <h2 class="person-name" id="splitPersonName" style="text-transform: none;">Group / Person</h2>
         </div>
         <button type="button" class="icon-btn edit-group-title-btn" id="btnEditGroupTitle">Edit</button>
@@ -333,36 +331,34 @@
   </div>
 </div>
 
-<!-- ADD / EDIT GROUP OR PERSON MODAL -->
+<!-- ADD / EDIT BILL MODAL -->
 <div class="modal-backdrop" id="addPersonModal" hidden>
   <div class="modal-card">
-    <h3 id="groupModalTitle">Add Group or Person</h3>
+    <h3 id="groupModalTitle">Add a Bill</h3>
     <form id="addPersonForm">
       <input type="hidden" id="editGroupId">
-      <div>
-        <label class="lbl" for="personNameInput">Group / Person Name</label>
-        <input id="personNameInput" type="text" placeholder="e.g. Eric, Baguio Trip, Dinner" required maxlength="30">
+      
+      <!-- Inline Emoji Avatar and Bill Name -->
+      <div class="bill-header-row">
+        <input id="customEmojiInput" type="text" class="emoji-box" value="💸" maxlength="2" title="Select an emoji from keyboard" required>
+        <input id="personNameInput" type="text" class="bill-name-input" placeholder="Bill Name" required maxlength="30">
       </div>
-      <div>
-        <label class="lbl">Choose Emoji Avatar</label>
-        <div class="emoji-picker-grid" id="emojiPickerGrid">
-          <button type="button" class="emoji-opt on" data-emoji="👥">👥</button>
-          <button type="button" class="emoji-opt" data-emoji="🍕">🍕</button>
-          <button type="button" class="emoji-opt" data-emoji="✈️">✈️</button>
-          <button type="button" class="emoji-opt" data-emoji="🏠">🏠</button>
-          <button type="button" class="emoji-opt" data-emoji="🐰">🐰</button>
-          <button type="button" class="emoji-opt" data-emoji="🦊">🦊</button>
-          <button type="button" class="emoji-opt" data-emoji="🐱">🐱</button>
-          <button type="button" class="emoji-opt" data-emoji="🐼">🐼</button>
+
+      <!-- Participant Management -->
+      <div class="participants-section">
+        <label class="lbl">Participants</label>
+        <div class="add-participant-row">
+          <input type="text" id="newParticipantName" placeholder="Enter name">
+          <button type="button" id="btnAddParticipantBtn" class="secondary add-part-btn">Add</button>
         </div>
+        <ul id="billParticipantsList" class="participants-list">
+          <!-- Dynamically populated -->
+        </ul>
       </div>
-      <div class="custom-emoji-wrap">
-        <label class="lbl" for="customEmojiInput">Or Type Any Emoji</label>
-        <input id="customEmojiInput" type="text" placeholder="e.g. 🎒, 🍻, 🚴, 🍔" maxlength="4">
-      </div>
+
       <div class="btnrow modal-actions">
-        <button type="submit" class="primary">Save</button>
-        <button type="button" class="secondary danger" id="btnDeleteGroup" hidden>Delete Group / Person</button>
+        <button type="submit" class="primary">Save Bill</button>
+        <button type="button" class="secondary danger" id="btnDeleteGroup" hidden>Delete Bill</button>
         <button type="button" class="secondary" id="addPersonCancel">Cancel</button>
       </div>
     </form>
@@ -486,7 +482,6 @@
         <input id="splitExpPaidBy" type="text" placeholder="e.g. Me, Alex" required>
       </div>
 
-      <!-- Requirement 3: Split option selector (Equal, Parts, Amounts) -->
       <div>
         <label class="lbl">Split Method</label>
         <div class="split-mode-options" id="splitModeSeg">

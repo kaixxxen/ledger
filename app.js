@@ -61,10 +61,12 @@ let txViewTab = 'expenses';
 let expensesLimit = 10;
 
 let selectedGroupId = null;
-let selectedEmoji = '👥';
 let activeSplitTab = 'expenses';
 let activeRealtimeChannel = null;
-let splitMode = 'equal'; // 'equal', 'parts', 'amounts'
+let splitMode = 'equal'; 
+
+// Pending participants list for bill modal creation/editing
+let pendingParticipants = [];
 
 const money = n => {
   n = Number(n) || 0;
@@ -121,9 +123,10 @@ function normalize(raw) {
   s.tricounts = (Array.isArray(s.tricounts) ? s.tricounts : []).map(p => ({
     id: String(p.id || 'g_' + Date.now() + Math.random()),
     name: String(p.name || 'Shared Group / Person').trim(),
-    emoji: String(p.emoji || '👥'),
+    emoji: String(p.emoji || '💸'),
     archived: !!p.archived,
     inviteCode: String(p.inviteCode || generateInviteCode()),
+    participants: Array.isArray(p.participants) ? p.participants : [s.nickname || 'Me'],
     expenses: (Array.isArray(p.expenses) ? p.expenses : []).map(e => ({
       id: String(e.id || 'e_' + Date.now() + Math.random()),
       title: String(e.title || 'Expense').trim(),
@@ -834,6 +837,24 @@ function renderExpenses() {
   }
 }
 
+function renderPendingParticipants() {
+  const list = $('billParticipantsList');
+  if (!list) return;
+  list.innerHTML = pendingParticipants.map((p, idx) => `
+    <li class="participant-item">
+      <span style="font-weight: 500;">${esc(p)}</span>
+      <button type="button" class="del-participant-btn" data-idx="${idx}" aria-label="Remove participant">&times;</button>
+    </li>
+  `).join('');
+
+  $$('#billParticipantsList .del-participant-btn').forEach(btn => {
+    btn.onclick = () => {
+      pendingParticipants.splice(btn.dataset.idx, 1);
+      renderPendingParticipants();
+    };
+  });
+}
+
 function renderTricountsList() {
   const el = $('tricountsList');
   if (!el) return;
@@ -841,7 +862,7 @@ function renderTricountsList() {
   const activeGroups = (state.tricounts || []).filter(g => !g.archived);
 
   if (activeGroups.length === 0) {
-    el.innerHTML = '<div class="empty-card card">No active group or person added. Tap <b>+ Add a Group/Person</b> to add one or check <b>Archives</b>!</div>';
+    el.innerHTML = '<div class="empty-card card">No active bill added. Tap <b>+ Add a Bill</b> to add one or check <b>Archives</b>!</div>';
     return;
   }
 
@@ -870,7 +891,7 @@ function renderTricountsList() {
     attachLongPress(card, () => {
       showActionSheet(group.name, `Invite Code: ${group.inviteCode}`, [
         {
-          text: '📁 Archive Group',
+          text: '📁 Archive Bill',
           action: () => {
             group.archived = true;
             save();
@@ -879,27 +900,31 @@ function renderTricountsList() {
           }
         },
         {
-          text: '✏️ Edit Name & Avatar',
+          text: '✏️ Edit Bill Details',
           action: () => {
-            $('groupModalTitle').textContent = 'Edit Name';
+            $('groupModalTitle').textContent = 'Edit Bill';
             $('editGroupId').value = group.id;
             $('personNameInput').value = group.name;
-            if ($('customEmojiInput')) $('customEmojiInput').value = group.emoji || '';
+            if ($('customEmojiInput')) $('customEmojiInput').value = group.emoji || '💸';
             if ($('btnDeleteGroup')) $('btnDeleteGroup').hidden = false;
+            
+            pendingParticipants = group.participants ? [...group.participants] : [state.nickname || 'Me'];
+            renderPendingParticipants();
+            
             $('addPersonModal').hidden = false;
             $('personNameInput').focus();
           }
         },
         {
-          text: '🗑️ Delete Group / Person',
+          text: '🗑️ Delete Bill',
           danger: true,
           action: () => {
-            if (confirm(`Delete group "${group.name}" permanently?`)) {
+            if (confirm(`Delete bill "${group.name}" permanently?`)) {
               state.tricounts = state.tricounts.filter(g => g.id !== group.id);
               if (sb && mode === 'cloud') sb.from('split_groups').delete().eq('id', group.id);
               save();
               renderTricountsList();
-              toast('Group deleted');
+              toast('Bill deleted');
             }
           }
         }
@@ -915,7 +940,7 @@ function renderArchivedTricountsList() {
   const archivedGroups = (state.tricounts || []).filter(g => g.archived);
 
   if (archivedGroups.length === 0) {
-    el.innerHTML = '<div class="empty-card card">No archived groups.</div>';
+    el.innerHTML = '<div class="empty-card card">No archived bills.</div>';
     return;
   }
 
@@ -940,7 +965,7 @@ function renderArchivedTricountsList() {
 
       showActionSheet(`${group.name} (Archived)`, `Invite Code: ${group.inviteCode}`, [
         {
-          text: '↩️ Restore Group',
+          text: '↩️ Restore Bill',
           action: () => {
             group.archived = false;
             save();
@@ -952,12 +977,12 @@ function renderArchivedTricountsList() {
           text: '🗑️ Delete Permanently',
           danger: true,
           action: () => {
-            if (confirm(`Delete group "${group.name}" permanently?`)) {
+            if (confirm(`Delete bill "${group.name}" permanently?`)) {
               state.tricounts = state.tricounts.filter(g => g.id !== group.id);
               if (sb && mode === 'cloud') sb.from('split_groups').delete().eq('id', group.id);
               save();
               renderArchivedTricountsList();
-              toast('Group deleted');
+              toast('Bill deleted');
             }
           }
         }
@@ -1033,27 +1058,23 @@ async function syncSharedGroupExpenses(groupId) {
 }
 
 function calculateGroupBalance(group) {
-  // 1. Discover all unique participants from the expense list
-  const participants = new Set(['Me']);
+  const participants = new Set(group.participants || ['Me']);
   (group.expenses || []).forEach(e => participants.add(e.paidBy || 'Me'));
   
   const balances = {};
   participants.forEach(p => balances[p] = 0);
   
-  // 2. Tally total expenses and individual payments
   let totalExpenses = 0;
   (group.expenses || []).forEach(e => {
     const amt = Number(e.amount) || 0;
-    balances[e.paidBy || 'Me'] += amt; // Credit for paying
+    balances[e.paidBy || 'Me'] += amt; 
     totalExpenses += amt;
   });
   
-  // 3. Subtract each person's equal share
   const numParticipants = participants.size || 1;
   const share = totalExpenses / numParticipants;
   participants.forEach(p => { balances[p] -= share; });
   
-  // 4. Calculate settlements (Greedy debt simplification)
   const debtors = [];
   const creditors = [];
   for (const [person, balance] of Object.entries(balances)) {
@@ -1076,14 +1097,15 @@ function calculateGroupBalance(group) {
     if (creditor.amount < 0.01) j++;
   }
   
-  return { balances, settlements, totalExpenses, myNet: balances['Me'] || 0, perPersonShare: share };
+  const meStr = state.nickname || 'Me';
+  return { balances, settlements, totalExpenses, myNet: balances[meStr] || balances['Me'] || 0, perPersonShare: share };
 }
 
 function renderTricountDetail() {
   const group = (state.tricounts || []).find(g => g.id === selectedGroupId);
   if (!group) { closeTricountDetail(); return; }
 
-  if ($('splitPersonAvatar')) $('splitPersonAvatar').textContent = group.emoji || '👥';
+  if ($('splitPersonAvatar')) $('splitPersonAvatar').textContent = group.emoji || '💸';
   if ($('splitPersonName')) $('splitPersonName').textContent = group.name;
   if ($('groupInviteCode')) $('groupInviteCode').textContent = group.inviteCode || '—';
 
@@ -1199,18 +1221,9 @@ function parseCsvLine(line) {
   for (let i = 0; i < line.length; i++) {
     const char = line[i];
     if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        current += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (char === ',' && !inQuotes) {
-      result.push(current.trim());
-      current = '';
-    } else {
-      current += char;
-    }
+      if (inQuotes && line[i + 1] === '"') { current += '"'; i++; } else { inQuotes = !inQuotes; }
+    } else if (char === ',' && !inQuotes) { result.push(current.trim()); current = '';
+    } else { current += char; }
   }
   result.push(current.trim());
   return result;
@@ -1222,10 +1235,7 @@ function importSplitwiseCsv(file) {
   reader.onload = async e => {
     const text = e.target.result;
     const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-    if (lines.length < 2) {
-      toast('CSV file is empty or invalid.');
-      return;
-    }
+    if (lines.length < 2) { toast('CSV file is empty or invalid.'); return; }
 
     const header = parseCsvLine(lines[0]).map(h => h.toLowerCase().replace(/[^a-z0-9_ ]/g, ''));
     
@@ -1259,10 +1269,7 @@ function importSplitwiseCsv(file) {
         imported++;
       }
     }
-
-    save();
-    renderTricountDetail();
-    toast(`Successfully imported ${imported} expenses!`);
+    save(); renderTricountDetail(); toast(`Successfully imported ${imported} expenses!`);
   };
   reader.readAsText(file);
 }
@@ -1337,8 +1344,7 @@ async function importFromTricountUrl(url) {
     }
 
     if (count > 0) {
-      save();
-      renderTricountDetail();
+      save(); renderTricountDetail();
       if ($('importUrlModal')) $('importUrlModal').hidden = true;
       toast(`Successfully imported ${count} expenses from Tricount!`);
     } else {
@@ -1359,10 +1365,7 @@ function importCsv(file) {
   reader.onload = e => {
     const text = e.target.result;
     const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-    if (lines.length < 2) {
-      toast('CSV file is empty or invalid.');
-      return;
-    }
+    if (lines.length < 2) { toast('CSV file is empty or invalid.'); return; }
 
     const header = parseCsvLine(lines[0]).map(h => h.toLowerCase().replace(/[^a-z_]/g, ''));
     
@@ -1396,27 +1399,16 @@ function importCsv(file) {
 
       newTxList.push({
         id: Date.now() + Math.random(),
-        type,
-        amount: amtVal,
-        category: cat,
-        method,
-        cardId: '',
-        note: noteVal,
-        date: dateVal
+        type, amount: amtVal, category: cat, method, cardId: '', note: noteVal, date: dateVal
       });
       importedCount++;
     }
 
     if (importedCount > 0) {
       const replace = confirm(`Found ${importedCount} transactions. Click OK to REPLACE current data, or Cancel to MERGE into existing ledger.`);
-      if (replace) {
-        state.tx = newTxList;
-      } else {
-        state.tx = state.tx.concat(newTxList);
-      }
-      save();
-      renderAll();
-      toast(`Successfully imported ${importedCount} transactions!`);
+      if (replace) state.tx = newTxList;
+      else state.tx = state.tx.concat(newTxList);
+      save(); renderAll(); toast(`Successfully imported ${importedCount} transactions!`);
     } else {
       toast('Could not find valid transactions in CSV.');
     }
@@ -1480,15 +1472,13 @@ function saveCard(cardData) {
     cardData.id = 'c_' + Date.now();
     state.cards.push(cardData);
   }
-  save();
-  renderAll();
+  save(); renderAll();
 }
 
 function deleteCard(id) {
   if (!confirm('Delete this credit card reminder? Existing transactions will stay intact.')) return;
   state.cards = state.cards.filter(c => c.id !== id);
-  save();
-  renderAll();
+  save(); renderAll();
 }
 
 function loadScript(src) {
@@ -1555,8 +1545,7 @@ async function pull() {
 }
 
 function enterLocal() {
-  mode = 'local'; user = null;
-  lsSet('ledger.mode', 'local');
+  mode = 'local'; user = null; lsSet('ledger.mode', 'local');
   state = readStore(KEY) || blank();
   showApp();
 }
@@ -1567,9 +1556,7 @@ async function enterCloud(u) {
   lsSet('ledger.lastUser', JSON.stringify({ id: u.id, email: u.email || '' }));
   const cached = readStore(storeKey());
   state = cached || blank();
-  showApp();
-  setSync('Syncing…');
-  await pull();
+  showApp(); setSync('Syncing…'); await pull();
 }
 
 async function signOut() {
@@ -1582,8 +1569,7 @@ async function signOut() {
   if (uid) { lsDel('ledger.cloud.' + uid); lsDel('ledger.dirty.' + uid); }
   lsDel('ledger.lastUser'); lsDel('ledger.mode');
   mode = 'none'; user = null; state = blank();
-  location.hash = '';
-  showAuth();
+  location.hash = ''; showAuth();
 }
 
 function authMsg(text, ok) { const m = $('authMsg'); if (m) { m.textContent = text || ''; m.classList.toggle('ok', !!ok); } }
@@ -1735,29 +1721,17 @@ function bind() {
 
     if (recurringChecked) {
       state.fixedTx.push({
-        id: 'f_' + Date.now(),
-        title: noteVal || catVal,
-        amount,
-        category: catVal,
-        type: formType,
-        method: formType === 'expense' ? formMethod : 'cash',
-        cardId,
-        indefinite: isIndefinite,
-        totalMonths: totalMonths,
-        monthsElapsed: 1,
-        startDate: dateVal
+        id: 'f_' + Date.now(), title: noteVal || catVal, amount, category: catVal, type: formType,
+        method: formType === 'expense' ? formMethod : 'cash', cardId,
+        indefinite: isIndefinite, totalMonths: totalMonths, monthsElapsed: 1, startDate: dateVal
       });
       toast('Recurring schedule saved!');
     }
 
     addTx({
-      type: formType,
-      amount,
-      category: catVal,
+      type: formType, amount, category: catVal,
       method: formType === 'expense' ? formMethod : 'cash',
-      cardId,
-      note: noteVal,
-      date: dateVal
+      cardId, note: noteVal, date: dateVal
     });
     
     $('amount').value = ''; $('note').value = ''; 
@@ -1776,16 +1750,14 @@ function bind() {
 
   on('editTypeSeg', 'click', e => {
     const b = e.target.closest('button'); if (!b) return;
-    const tVal = b.dataset.v;
-    setSeg('editTypeSeg', tVal);
+    const tVal = b.dataset.v; setSeg('editTypeSeg', tVal);
     if ($('editMethodWrap')) $('editMethodWrap').hidden = tVal !== 'expense';
     fillCats($('editCategory'), tVal);
   });
 
   on('editMethodSeg', 'click', e => {
     const b = e.target.closest('button'); if (!b) return;
-    const mVal = b.dataset.v;
-    setSeg('editMethodSeg', mVal);
+    const mVal = b.dataset.v; setSeg('editMethodSeg', mVal);
     if ($('editCardSelectWrap')) $('editCardSelectWrap').hidden = mVal !== 'card';
   });
 
@@ -1805,33 +1777,18 @@ function bind() {
     if (isRecur) {
       const f = state.fixedTx.find(x => x.id === id);
       if (f) {
-        f.amount = amt;
-        f.category = cat;
-        f.title = note || cat;
-        f.type = activeType;
-        f.method = activeMethod;
-        f.cardId = cardId;
+        f.amount = amt; f.category = cat; f.title = note || cat; f.type = activeType;
+        f.method = activeMethod; f.cardId = cardId;
         f.indefinite = $('editIsIndefinite').checked;
         f.totalMonths = parseInt($('editRecurTotalMonths').value) || 12;
-        save();
-        $('editExpenseModal').hidden = true;
-        renderAll();
-        toast('Recurring expense updated!');
+        save(); $('editExpenseModal').hidden = true; renderAll(); toast('Recurring expense updated!');
       }
     } else {
       const tx = state.tx.find(t => String(t.id) === id);
       if (tx) {
-        tx.amount = amt;
-        tx.category = cat;
-        tx.note = note;
-        tx.date = date;
-        tx.type = activeType;
-        tx.method = activeMethod;
-        tx.cardId = cardId;
-        save();
-        $('editExpenseModal').hidden = true;
-        renderAll();
-        toast('Expense updated!');
+        tx.amount = amt; tx.category = cat; tx.note = note; tx.date = date;
+        tx.type = activeType; tx.method = activeMethod; tx.cardId = cardId;
+        save(); $('editExpenseModal').hidden = true; renderAll(); toast('Expense updated!');
       }
     }
   });
@@ -1845,22 +1802,14 @@ function bind() {
 
       if (isRecur) {
         const f = state.fixedTx.find(x => x.id === id);
-        if (f) {
-          state.tx = state.tx.filter(t => !String(t.id).startsWith('auto_' + f.id));
-        }
+        if (f) state.tx = state.tx.filter(t => !String(t.id).startsWith('auto_' + f.id));
         state.fixedTx = state.fixedTx.filter(x => x.id !== id);
-        save();
-        $('editExpenseModal').hidden = true;
-        renderAll();
-        toast('Recurring schedule and its entries deleted');
+        save(); $('editExpenseModal').hidden = true; renderAll(); toast('Recurring schedule and its entries deleted');
       } else {
         const idx = state.tx.findIndex(t => String(t.id) === id);
         if (idx >= 0) {
           state.tx.splice(idx, 1);
-          save();
-          $('editExpenseModal').hidden = true;
-          renderAll();
-          toast('Expense deleted');
+          save(); $('editExpenseModal').hidden = true; renderAll(); toast('Expense deleted');
         }
       }
     };
@@ -1893,11 +1842,15 @@ function bind() {
 
   if ($('btnAddPersonFabTop')) {
     $('btnAddPersonFabTop').onclick = () => {
-      $('groupModalTitle').textContent = 'Add Group or Person';
+      $('groupModalTitle').textContent = 'Add a Bill';
       $('editGroupId').value = '';
       $('personNameInput').value = '';
-      if ($('customEmojiInput')) $('customEmojiInput').value = '';
+      if ($('customEmojiInput')) $('customEmojiInput').value = '💸';
       if ($('btnDeleteGroup')) $('btnDeleteGroup').hidden = true;
+      
+      pendingParticipants = [state.nickname || 'Me'];
+      renderPendingParticipants();
+
       $('addPersonModal').hidden = false;
       $('personNameInput').focus();
     };
@@ -1905,11 +1858,15 @@ function bind() {
 
   if ($('btnAddPersonFab')) {
     $('btnAddPersonFab').onclick = () => {
-      $('groupModalTitle').textContent = 'Add Group or Person';
+      $('groupModalTitle').textContent = 'Add a Bill';
       $('editGroupId').value = '';
       $('personNameInput').value = '';
-      if ($('customEmojiInput')) $('customEmojiInput').value = '';
+      if ($('customEmojiInput')) $('customEmojiInput').value = '💸';
       if ($('btnDeleteGroup')) $('btnDeleteGroup').hidden = true;
+      
+      pendingParticipants = [state.nickname || 'Me'];
+      renderPendingParticipants();
+
       $('addPersonModal').hidden = false;
       $('personNameInput').focus();
     };
@@ -1919,11 +1876,15 @@ function bind() {
     $('btnEditGroupTitle').onclick = () => {
       const group = state.tricounts.find(g => g.id === selectedGroupId);
       if (!group) return;
-      $('groupModalTitle').textContent = 'Edit Name';
+      $('groupModalTitle').textContent = 'Edit Bill';
       $('editGroupId').value = group.id;
       $('personNameInput').value = group.name;
-      if ($('customEmojiInput')) $('customEmojiInput').value = group.emoji || '';
+      if ($('customEmojiInput')) $('customEmojiInput').value = group.emoji || '💸';
       if ($('btnDeleteGroup')) $('btnDeleteGroup').hidden = false;
+      
+      pendingParticipants = group.participants ? [...group.participants] : [state.nickname || 'Me'];
+      renderPendingParticipants();
+      
       $('addPersonModal').hidden = false;
       $('personNameInput').focus();
     };
@@ -1933,40 +1894,60 @@ function bind() {
     $('btnDeleteGroup').onclick = async () => {
       const editId = $('editGroupId').value;
       const group = state.tricounts.find(g => g.id === editId);
-      if (group && confirm(`Delete group "${group.name}" permanently?`)) {
+      if (group && confirm(`Delete bill "${group.name}" permanently?`)) {
         state.tricounts = state.tricounts.filter(g => g.id !== editId);
         if (sb && mode === 'cloud') await sb.from('split_groups').delete().eq('id', editId);
         save();
         $('addPersonModal').hidden = true;
         closeTricountDetail();
-        toast('Group deleted');
+        toast('Bill deleted');
       }
     };
   }
 
   if ($('addPersonCancel')) $('addPersonCancel').onclick = () => { $('addPersonModal').hidden = true; };
 
-  on('emojiPickerGrid', 'click', e => {
-    const opt = e.target.closest('.emoji-opt');
-    if (!opt) return;
-    selectedEmoji = opt.dataset.emoji;
-    $$('#emojiPickerGrid .emoji-opt').forEach(b => b.classList.toggle('on', b === opt));
-  });
+  if ($('btnAddParticipantBtn')) {
+    $('btnAddParticipantBtn').onclick = () => {
+      const nameInput = $('newParticipantName');
+      const name = nameInput.value.trim();
+      if (name && !pendingParticipants.includes(name)) {
+        pendingParticipants.push(name);
+        nameInput.value = '';
+        renderPendingParticipants();
+      }
+    };
+  }
+
+  if ($('newParticipantName')) {
+    $('newParticipantName').addEventListener('keypress', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        $('btnAddParticipantBtn').click();
+      }
+    });
+  }
 
   on('addPersonForm', 'submit', async e => {
     e.preventDefault();
     const name = $('personNameInput').value.trim();
     const editId = $('editGroupId').value;
     const customEmoji = $('customEmojiInput') ? $('customEmojiInput').value.trim() : '';
-    const finalEmoji = customEmoji || selectedEmoji || '👥';
+    const finalEmoji = customEmoji || '💸';
 
     if (!name) return;
+    
+    if (pendingParticipants.length === 0) {
+      toast('Please add at least one participant.');
+      return;
+    }
 
     if (editId) {
       const group = state.tricounts.find(g => g.id === editId);
       if (group) {
         group.name = name;
         group.emoji = finalEmoji;
+        group.participants = [...pendingParticipants];
         if (sb && mode === 'cloud') {
           await sb.from('split_groups').update({ name: group.name, emoji: group.emoji }).eq('id', group.id);
         }
@@ -1978,23 +1959,20 @@ function bind() {
         emoji: finalEmoji,
         archived: false,
         inviteCode: generateInviteCode(),
+        participants: [...pendingParticipants],
         expenses: []
       };
       state.tricounts.push(newGroup);
 
       if (sb && mode === 'cloud') {
         const { data } = await sb.from('split_groups').insert({
-          name: newGroup.name,
-          emoji: newGroup.emoji,
-          invite_code: newGroup.inviteCode
+          name: newGroup.name, emoji: newGroup.emoji, invite_code: newGroup.inviteCode
         }).select().single();
 
         if (data) {
           newGroup.id = data.id;
           await sb.from('group_members').insert({
-            group_id: data.id,
-            user_id: user.id,
-            display_name: user.email ? user.email.split('@')[0] : 'Member'
+            group_id: data.id, user_id: user.id, display_name: user.email ? user.email.split('@')[0] : 'Member'
           });
         }
       }
@@ -2002,7 +1980,7 @@ function bind() {
 
     save();
     $('addPersonModal').hidden = true;
-    renderAll();
+    if (selectedGroupId) renderTricountDetail(); else renderTricountsList();
     toast(editId ? 'Saved updates!' : 'Added successfully!');
   });
 
@@ -2051,26 +2029,16 @@ function bind() {
         if (error || !group) { toast('Invite code not found.'); return; }
 
         await sb.from('group_members').upsert({
-          group_id: group.id,
-          user_id: user.id,
-          display_name: user.email ? user.email.split('@')[0] : 'Member'
+          group_id: group.id, user_id: user.id, display_name: user.email ? user.email.split('@')[0] : 'Member'
         });
 
         const { data: expData } = await sb.from('group_expenses').select('*').eq('group_id', group.id);
 
         const joinedGroup = {
-          id: group.id,
-          name: group.name,
-          emoji: group.emoji,
-          archived: false,
-          inviteCode: group.invite_code,
+          id: group.id, name: group.name, emoji: group.emoji, archived: false, inviteCode: group.invite_code,
+          participants: [state.nickname || 'Me'],
           expenses: (expData || []).map(e => ({
-            id: e.id,
-            title: e.title,
-            amount: Number(e.amount),
-            paidBy: e.paid_by_name,
-            splitMode: e.split_mode || 'equal',
-            date: e.date
+            id: e.id, title: e.title, amount: Number(e.amount), paidBy: e.paid_by_name, splitMode: e.split_mode || 'equal', date: e.date
           }))
         };
 
@@ -2078,27 +2046,19 @@ function bind() {
         if (existingIdx >= 0) state.tricounts[existingIdx] = joinedGroup;
         else state.tricounts.push(joinedGroup);
 
-        save();
-        $('joinGroupModal').hidden = true;
-        renderTricountsList();
-        toast(`Joined ${group.name}!`);
-        openTricountDetail(group.id);
-      } catch (err) {
-        toast('Could not join group.');
-      }
-    } else {
-      toast('Cloud sign in required to join shared groups.');
-    }
+        save(); $('joinGroupModal').hidden = true; renderTricountsList();
+        toast(`Joined ${group.name}!`); openTricountDetail(group.id);
+      } catch (err) { toast('Could not join group.'); }
+    } else { toast('Cloud sign in required to join shared groups.'); }
   });
 
   if ($('btnCopyInviteCode')) {
     $('btnCopyInviteCode').onclick = () => {
       const group = state.tricounts.find(g => g.id === selectedGroupId);
       if (group && group.inviteCode) {
-        const shareText = `Join my shared group '${group.name}' on Ledger!\nInvite Code: ${group.inviteCode}`;
-        
+        const shareText = `Join my shared bill '${group.name}' on Ledger!\nInvite Code: ${group.inviteCode}`;
         if (navigator.share) {
-          navigator.share({ title: 'Join Group', text: shareText }).catch(() => {});
+          navigator.share({ title: 'Join Bill', text: shareText }).catch(() => {});
         } else {
           navigator.clipboard.writeText(group.inviteCode);
           toast(`Copied code: ${group.inviteCode}`);
@@ -2121,7 +2081,7 @@ function bind() {
       $('splitExpTitle').value = '';
       $('splitExpAmount').value = '';
       $('splitExpDate').value = today();
-      $('splitExpPaidBy').value = 'Me';
+      $('splitExpPaidBy').value = state.nickname || 'Me';
       splitMode = 'equal';
       $$('#splitModeSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === 'equal'));
       updateSplitInputsUI();
@@ -2172,9 +2132,7 @@ function bind() {
 
       if (confirm('Delete this expense?')) {
         group.expenses = group.expenses.filter(e => e.id !== expId);
-        if (sb && mode === 'cloud') {
-          await sb.from('group_expenses').delete().eq('id', expId);
-        }
+        if (sb && mode === 'cloud') await sb.from('group_expenses').delete().eq('id', expId);
         save();
         $('addSplitExpenseModal').hidden = true;
         renderTricountDetail();
@@ -2189,7 +2147,7 @@ function bind() {
     const title = $('splitExpTitle').value.trim();
     const amount = parseFloat($('splitExpAmount').value) || 0;
     const dateVal = $('splitExpDate').value || today();
-    const paidBy = $('splitExpPaidBy').value.trim() || 'Me';
+    const paidBy = $('splitExpPaidBy').value.trim() || state.nickname || 'Me';
 
     if (!title || !(amount > 0)) return;
 
@@ -2198,12 +2156,7 @@ function bind() {
       if (expId) {
         const exp = group.expenses.find(e => e.id === expId);
         if (exp) {
-          exp.title = title;
-          exp.amount = amount;
-          exp.date = dateVal;
-          exp.paidBy = paidBy;
-          exp.splitMode = splitMode;
-
+          exp.title = title; exp.amount = amount; exp.date = dateVal; exp.paidBy = paidBy; exp.splitMode = splitMode;
           if (sb && mode === 'cloud') {
             await sb.from('group_expenses').update({
               title, amount, date: dateVal, paid_by_name: paidBy, split_mode: splitMode
@@ -2211,31 +2164,16 @@ function bind() {
           }
         }
       } else {
-        const newExp = {
-          id: 'e_' + Date.now(),
-          title, amount, paidBy, splitMode, date: dateVal
-        };
+        const newExp = { id: 'e_' + Date.now(), title, amount, paidBy, splitMode, date: dateVal };
         group.expenses.push(newExp);
-
         if (sb && mode === 'cloud') {
           const { data } = await sb.from('group_expenses').insert({
-            group_id: group.id,
-            title,
-            amount,
-            paid_by_name: paidBy,
-            split_mode: splitMode,
-            paid_by_user_id: user ? user.id : null,
-            date: dateVal
+            group_id: group.id, title, amount, paid_by_name: paidBy, split_mode: splitMode, paid_by_user_id: user ? user.id : null, date: dateVal
           }).select().single();
-
           if (data) newExp.id = data.id;
         }
       }
-
-      save();
-      $('addSplitExpenseModal').hidden = true;
-      renderTricountDetail();
-      toast('Expense saved & synced!');
+      save(); $('addSplitExpenseModal').hidden = true; renderTricountDetail(); toast('Expense saved & synced!');
     }
   });
 
@@ -2245,24 +2183,15 @@ function bind() {
       if (!group) return;
 
       const { myNet } = calculateGroupBalance(group);
-      if (Math.abs(myNet) < 0.01) {
-        toast('Fully settled up.');
-        return;
-      }
+      if (Math.abs(myNet) < 0.01) { toast('Fully settled up.'); return; }
 
       const shareAmount = Math.abs(myNet);
       const isExpense = myNet < 0;
 
       addTx({
-        type: isExpense ? 'expense' : 'income',
-        amount: shareAmount,
-        category: 'Bills',
-        method: 'cash',
-        cardId: '',
-        note: `Split balance for ${group.name}`,
-        date: today()
+        type: isExpense ? 'expense' : 'income', amount: shareAmount, category: 'Bills', method: 'cash',
+        cardId: '', note: `Split balance for ${group.name}`, date: today()
       });
-
       toast(`Logged ${money(shareAmount)} as ${isExpense ? 'expense' : 'income'} to Main Expenses!`);
       location.hash = '#expenses';
     };
@@ -2274,20 +2203,15 @@ function bind() {
       if (!group) return;
       if (confirm(`Clear and settle up all balances for ${group.name}?`)) {
         group.expenses = [];
-        if (sb && mode === 'cloud') {
-          await sb.from('group_expenses').delete().eq('group_id', group.id);
-        }
-        save();
-        renderTricountDetail();
-        toast(`Settled up ${group.name}!`);
+        if (sb && mode === 'cloud') await sb.from('group_expenses').delete().eq('group_id', group.id);
+        save(); renderTricountDetail(); toast(`Settled up ${group.name}!`);
       }
     };
   }
 
   on('methodChips', 'click', e => {
     const b = e.target.closest('.chip'); if (!b) return;
-    fMethod = b.dataset.v;
-    expensesLimit = 10;
+    fMethod = b.dataset.v; expensesLimit = 10;
     $$('#methodChips .chip').forEach(c => c.classList.toggle('on', c === b));
     renderExpenses();
   });
@@ -2305,8 +2229,7 @@ function bind() {
 
     if (!bank || !name) return;
     saveCard({ id, bank, name, statementDay, dueDaysAfter });
-    closeCardModal();
-    toast('Credit card saved');
+    closeCardModal(); toast('Credit card saved');
   });
 
   on('cardsList', 'click', e => {
@@ -2327,16 +2250,11 @@ function bind() {
 
   on('setNickname', 'input', () => {
     state.nickname = $('setNickname').value.trim();
-    save();
-    renderAll();
+    save(); renderAll();
   });
 
   on('setNickname', 'keydown', e => {
-    if (e.key === 'Enter') {
-      e.target.blur();
-      save();
-      renderAll();
-    }
+    if (e.key === 'Enter') { e.target.blur(); save(); renderAll(); }
   });
 
   on('setCur', 'change', () => {
@@ -2352,8 +2270,7 @@ function bind() {
   if ($('csv')) $('csv').onclick = exportCsv;
   if ($('importCsvBtn')) $('importCsvBtn').onclick = () => $('csvFileInput').click();
   on('csvFileInput', 'change', e => {
-    importCsv(e.target.files[0]);
-    e.target.value = '';
+    importCsv(e.target.files[0]); e.target.value = '';
   });
 
   if ($('wipe')) {
@@ -2363,16 +2280,11 @@ function bind() {
           ? '⚠️ Are you sure you want to erase all transactions and settings? This will delete them from your cloud account and cannot be undone.'
           : '⚠️ Are you sure you want to erase all transactions and settings from this device? This cannot be undone.'
       );
-      
       if (!firstCheck) return;
-
       const secondCheck = confirm('⚠️ FINAL WARNING: This action is permanent. Do you really want to delete all your data?');
       if (!secondCheck) return;
 
-      state = blank(); 
-      save(); 
-      renderAll(); 
-      toast('All data erased');
+      state = blank(); save(); renderAll(); toast('All data erased');
     };
   }
 
@@ -2381,16 +2293,13 @@ function bind() {
 
   if ($('authGoogle')) $('authGoogle').onclick = signInWithGoogle;
   if ($('authLocal')) {
-    $('authLocal').onclick = () => {
-      if (mode === 'cloud') showApp(); else enterLocal();
-    };
+    $('authLocal').onclick = () => { if (mode === 'cloud') showApp(); else enterLocal(); };
   }
 
   window.addEventListener('online', () => { if (mode === 'cloud') (isDirty() ? push() : pull()); });
   document.addEventListener('visibilitychange', () => {
     if (mode !== 'cloud') return;
-    if (document.visibilityState === 'visible') pull();
-    else if (isDirty()) push();
+    if (document.visibilityState === 'visible') pull(); else if (isDirty()) push();
   });
 
   fillCats($('category'), 'expense');
