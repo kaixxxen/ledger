@@ -8,11 +8,12 @@ const KEY = 'ledger.v1';
 const BASE_EXPENSE_CATS = ['Food','Housing','Transport','Bills','Health','Fun','Shopping','Other'];
 const INCOME_CATS  = ['Salary','Side income','Gift','Other'];
 
+// Preset Animal Avatar Emojis
 const DEFAULT_AVATAR_EMOJIS = [
-  '💩', '💸', '🍱', '🍻', '🛒', '🚗', '🏠', '✈️', 
-  '🍔', '☕', '🎬', '🏝️', '💳', '⚡', '🎁', '🛍️', 
-  '🍿', '🚲', '⛽', '🎟️', '🎨', '🏋️', '🎮', '🐾', 
-  '🎂', '🌟', '📍', '💼', '💊', '🏖️'
+  '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', 
+  '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', 
+  '🐧', '🐦', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗', 
+  '🐴', '🦄', '🐝', '🐛', '🦋', '🐢'
 ];
 
 const CAT_COLORS = {
@@ -130,7 +131,7 @@ function normalize(raw) {
   s.tricounts = (Array.isArray(s.tricounts) ? s.tricounts : []).map(p => ({
     id: String(p.id || 'g_' + Date.now() + Math.random()),
     name: String(p.name || 'Shared Group / Person').trim(),
-    emoji: String(p.emoji || '💩'),
+    emoji: String(p.emoji || '🐶'),
     archived: !!p.archived,
     inviteCode: String(p.inviteCode || generateInviteCode()),
     participants: Array.isArray(p.participants) ? p.participants : [s.nickname || 'Me'],
@@ -863,7 +864,7 @@ function renderPendingParticipants() {
 }
 
 function updateModalEmojiDisplay(emojiVal) {
-  const val = emojiVal || '💩';
+  const val = emojiVal || '🐶';
   if ($('emojiAvatarBtn')) $('emojiAvatarBtn').textContent = val;
   if ($('customEmojiInput')) $('customEmojiInput').value = val;
 }
@@ -883,7 +884,7 @@ function initEmojiPickerPopover() {
   `).join('');
 
   const selectEmoji = (emoji) => {
-    const symbol = emoji || '💩';
+    const symbol = emoji || '🐶';
     btn.textContent = symbol;
     if (hiddenInput) hiddenInput.value = symbol;
     popover.hidden = true;
@@ -911,7 +912,7 @@ function initEmojiPickerPopover() {
     typeInput.oninput = (e) => {
       const val = e.target.value.trim();
       if (val) {
-        const symbol = Array.from(val).pop() || '💩';
+        const symbol = Array.from(val).pop() || '🐶';
         selectEmoji(symbol);
         typeInput.value = '';
       }
@@ -975,7 +976,7 @@ function renderTricountsList() {
             $('groupModalTitle').textContent = 'Edit Bill';
             $('editGroupId').value = group.id;
             $('personNameInput').value = group.name;
-            updateModalEmojiDisplay(group.emoji || '💩');
+            updateModalEmojiDisplay(group.emoji || '🐶');
             if ($('btnDeleteGroup')) $('btnDeleteGroup').hidden = false;
             
             pendingParticipants = group.participants ? [...group.participants] : [state.nickname || 'Me'];
@@ -1176,7 +1177,7 @@ function renderTricountDetail() {
   const group = (state.tricounts || []).find(g => g.id === selectedGroupId);
   if (!group) { closeTricountDetail(); return; }
 
-  if ($('splitPersonAvatar')) $('splitPersonAvatar').textContent = group.emoji || '💩';
+  if ($('splitPersonAvatar')) $('splitPersonAvatar').textContent = group.emoji || '🐶';
   if ($('splitPersonName')) $('splitPersonName').textContent = group.name;
   if ($('groupInviteCode')) $('groupInviteCode').textContent = group.inviteCode || '—';
 
@@ -1919,7 +1920,7 @@ function bind() {
       $('groupModalTitle').textContent = 'Add a Bill';
       $('editGroupId').value = '';
       $('personNameInput').value = '';
-      updateModalEmojiDisplay('💩');
+      updateModalEmojiDisplay('🐶');
       if ($('btnDeleteGroup')) $('btnDeleteGroup').hidden = true;
       
       pendingParticipants = [state.nickname || 'Me'];
@@ -1936,7 +1937,7 @@ function bind() {
       $('groupModalTitle').textContent = 'Add a Bill';
       $('editGroupId').value = '';
       $('personNameInput').value = '';
-      updateModalEmojiDisplay('💩');
+      updateModalEmojiDisplay('🐶');
       if ($('btnDeleteGroup')) $('btnDeleteGroup').hidden = true;
       
       pendingParticipants = [state.nickname || 'Me'];
@@ -1955,7 +1956,7 @@ function bind() {
       $('groupModalTitle').textContent = 'Edit Bill';
       $('editGroupId').value = group.id;
       $('personNameInput').value = group.name;
-      updateModalEmojiDisplay(group.emoji || '💩');
+      updateModalEmojiDisplay(group.emoji || '🐶');
       if ($('btnDeleteGroup')) $('btnDeleteGroup').hidden = false;
       
       pendingParticipants = group.participants ? [...group.participants] : [state.nickname || 'Me'];
@@ -2010,7 +2011,7 @@ function bind() {
     const name = $('personNameInput').value.trim();
     const editId = $('editGroupId').value;
     const customEmoji = $('customEmojiInput') ? $('customEmojiInput').value.trim() : '';
-    const finalEmoji = customEmoji || '💩';
+    const finalEmoji = customEmoji || '🐶';
 
     if (!name) return;
     
