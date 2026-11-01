@@ -118,8 +118,13 @@ function fallbackCopy(text) {
   document.body.removeChild(ta);
 }
 
+function generateUserCode() {
+  return 'USR-' + Math.floor(1000 + Math.random() * 9000);
+}
+
 function blank() {
   return {
+    userCode: generateUserCode(),
     nickname: '',
     tx: [],
     customCats: [],
@@ -134,6 +139,7 @@ function blank() {
 
 function normalize(raw) {
   const s = Object.assign(blank(), raw && typeof raw === 'object' ? raw : {});
+  s.userCode = String(s.userCode || generateUserCode()).toUpperCase();
   s.nickname = String(s.nickname || '').trim();
 
   s.cards = (Array.isArray(s.cards) ? s.cards : []).map(c => ({
@@ -157,19 +163,20 @@ function normalize(raw) {
     date: String((t && t.date) || today())
   })).filter(t => t.amount > 0);
 
+  const meIdentifier = s.nickname || s.userCode || 'Me';
+
   s.tricounts = (Array.isArray(s.tricounts) ? s.tricounts : []).map(p => ({
     id: String(p.id || 'g_' + Date.now() + Math.random()),
     name: String(p.name || 'Shared Group / Person').trim(),
     emoji: String(p.emoji || '🐶'),
     archived: !!p.archived,
-    inviteCode: String(p.inviteCode || generateInviteCode()),
-    participants: Array.isArray(p.participants) ? p.participants : [s.nickname || 'Me'],
+    participants: Array.isArray(p.participants) ? p.participants : [meIdentifier],
     settlements: Array.isArray(p.settlements) ? p.settlements : [],
     expenses: (Array.isArray(p.expenses) ? p.expenses : []).map(e => ({
       id: String(e.id || 'e_' + Date.now() + Math.random()),
       title: String(e.title || 'Expense').trim(),
       amount: Number(e.amount) || 0,
-      paidBy: String(e.paidBy || 'Me').trim(),
+      paidBy: String(e.paidBy || meIdentifier).trim(),
       participants: Array.isArray(e.participants) ? e.participants : [],
       date: String(e.date || today())
     }))
@@ -194,8 +201,6 @@ function normalize(raw) {
   s.updated = Number(s.updated) || 0;
   return s;
 }
-
-function generateInviteCode() { return 'GRP-' + Math.floor(1000 + Math.random() * 9000); }
 
 function readStore(key) {
   const raw = lsGet(key);
@@ -863,7 +868,7 @@ function renderTricountsList() {
         <span class="tricount-emoji">${esc(g.emoji)}</span>
         <div>
           <div class="tricount-name">${esc(g.name)}</div>
-          <small class="muted fine">Invite Code: ${esc(g.inviteCode)} · ${g.participants ? g.participants.length : 1} members</small>
+          <small class="muted fine">${g.participants ? g.participants.length : 1} members (${g.participants.join(', ')})</small>
         </div>
       </div>
       <span class="tricount-chevron">›</span>
@@ -875,7 +880,7 @@ function renderTricountsList() {
     card.onclick = () => openTricountDetail(group.id);
 
     attachLongPress(card, () => {
-      showActionSheet(group.name, `Invite Code: ${group.inviteCode}`, [
+      showActionSheet(group.name, `Members: ${group.participants ? group.participants.join(', ') : ''}`, [
         {
           text: '📁 Archive Bill',
           action: () => {
@@ -890,7 +895,7 @@ function renderTricountsList() {
             $('personNameInput').value = group.name;
             updateModalEmojiDisplay(group.emoji || '🐶');
             if ($('btnDeleteGroup')) $('btnDeleteGroup').hidden = false;
-            pendingParticipants = group.participants ? [...group.participants] : [state.nickname || 'Me'];
+            pendingParticipants = group.participants ? [...group.participants] : [state.nickname || state.userCode || 'Me'];
             renderPendingParticipants();
             $('addPersonModal').hidden = false;
           }
@@ -1005,9 +1010,10 @@ async function syncSharedGroupExpenses(groupId) {
 }
 
 function calculateGroupBalance(group) {
-  const participants = new Set(group.participants || ['Me']);
+  const meStr = state.nickname || state.userCode || 'Me';
+  const participants = new Set(group.participants || [meStr]);
   (group.expenses || []).forEach(e => {
-    participants.add(e.paidBy || 'Me');
+    participants.add(e.paidBy || meStr);
     if (Array.isArray(e.participants)) e.participants.forEach(p => participants.add(p));
   });
 
@@ -1017,7 +1023,7 @@ function calculateGroupBalance(group) {
   let totalExpenses = 0;
   (group.expenses || []).forEach(e => {
     const amt = Number(e.amount) || 0;
-    const paidBy = e.paidBy || 'Me';
+    const paidBy = e.paidBy || meStr;
     balances[paidBy] = (balances[paidBy] || 0) + amt;
     totalExpenses += amt;
 
@@ -1054,8 +1060,7 @@ function calculateGroupBalance(group) {
     if (creditor.amount < 0.01) j++;
   }
 
-  const meStr = state.nickname || 'Me';
-  const myNet = balances[meStr] !== undefined ? balances[meStr] : (balances['Me'] || 0);
+  const myNet = balances[meStr] !== undefined ? balances[meStr] : (balances[state.userCode] !== undefined ? balances[state.userCode] : (balances['Me'] || 0));
   return { balances, settlements, totalExpenses, myNet };
 }
 
@@ -1065,7 +1070,6 @@ function renderTricountDetail() {
 
   if ($('splitPersonAvatar')) $('splitPersonAvatar').textContent = group.emoji || '🐶';
   if ($('splitPersonName')) $('splitPersonName').textContent = group.name;
-  if ($('groupInviteCode')) $('groupInviteCode').textContent = group.inviteCode || '—';
 
   const { totalExpenses, myNet } = calculateGroupBalance(group);
 
@@ -1245,12 +1249,14 @@ function importSplitwiseCsv(file) {
     const group = state.tricounts.find(g => g.id === selectedGroupId);
     if (!group) return;
 
+    const meStr = state.nickname || state.userCode || 'Me';
+
     for (let i = 1; i < lines.length; i++) {
       const cols = parseCsvLine(lines[i]);
       if (cols.length < 2) continue;
       const title = cols[descIdx >= 0 ? descIdx : 1] || 'Imported Expense';
       const amount = parseFloat((cols[costIdx >= 0 ? costIdx : 2] || '0').replace(/[^0-9.]/g, '')) || 0;
-      const paidBy = cols[payerIdx >= 0 ? payerIdx : 3] || 'Me';
+      const paidBy = cols[payerIdx >= 0 ? payerIdx : 3] || meStr;
       const date = cols[dateIdx >= 0 ? dateIdx : 0] || today();
 
       if (amount > 0) {
@@ -1332,6 +1338,7 @@ function renderSettings() {
     }
   }
 
+  if ($('displayUserCode')) $('displayUserCode').textContent = state.userCode || 'USR-0000';
   if ($('acctCloud')) $('acctCloud').hidden = mode !== 'cloud';
   if ($('acctLocal')) $('acctLocal').hidden = mode === 'cloud';
   if (mode === 'cloud' && user && $('acctEmail')) $('acctEmail').textContent = user.email || '';
@@ -1509,6 +1516,15 @@ function bind() {
 
   initEmojiPickerPopover();
 
+  if ($('displayUserCode')) {
+    $('displayUserCode').onclick = () => {
+      if (state.userCode) {
+        copyToClipboard(state.userCode);
+        toast(`Copied Account ID: ${state.userCode}`);
+      }
+    };
+  }
+
   on('txViewSeg', 'click', e => {
     const b = e.target.closest('button'); if (!b) return;
     txViewTab = b.dataset.v; setSeg('txViewSeg', txViewTab);
@@ -1603,7 +1619,6 @@ function bind() {
   if ($('btnArchiveBack')) {
     $('btnArchiveBack').onclick = () => {
       $('splitArchiveView').hidden = true;
-      $('splitMainView').false;
       $('splitMainView').hidden = false;
       renderTricountsList();
     };
@@ -1618,7 +1633,7 @@ function bind() {
       $('personNameInput').value = '';
       updateModalEmojiDisplay('🐶');
       if ($('btnDeleteGroup')) $('btnDeleteGroup').hidden = true;
-      pendingParticipants = [state.nickname || 'Me'];
+      pendingParticipants = [state.nickname || state.userCode || 'Me'];
       renderPendingParticipants();
       $('addPersonModal').hidden = false;
       $('personNameInput').focus();
@@ -1634,7 +1649,7 @@ function bind() {
       $('personNameInput').value = group.name;
       updateModalEmojiDisplay(group.emoji || '🐶');
       if ($('btnDeleteGroup')) $('btnDeleteGroup').hidden = false;
-      pendingParticipants = group.participants ? [...group.participants] : [state.nickname || 'Me'];
+      pendingParticipants = group.participants ? [...group.participants] : [state.nickname || state.userCode || 'Me'];
       renderPendingParticipants();
       $('addPersonModal').hidden = false;
     };
@@ -1672,7 +1687,7 @@ function bind() {
       }
     } else {
       state.tricounts.push({
-        id: 'g_' + Date.now(), name, emoji: finalEmoji, archived: false, inviteCode: generateInviteCode(),
+        id: 'g_' + Date.now(), name, emoji: finalEmoji, archived: false,
         participants: [...pendingParticipants], settlements: [], expenses: []
       });
     }
@@ -1682,82 +1697,9 @@ function bind() {
     toast(editId ? 'Saved bill updates!' : 'Bill created!');
   });
 
-  /* Click-to-copy with iOS Clipboard Fallback Support */
-  if ($('groupInviteCode')) {
-    $('groupInviteCode').onclick = () => {
-      const code = $('groupInviteCode').textContent.trim();
-      if (code && code !== '—') {
-        copyToClipboard(code);
-        toast(`Copied invite code: ${code}`);
-      }
-    };
-  }
-
   if ($('btnImportSplitwise')) $('btnImportSplitwise').onclick = () => $('splitwiseCsvInput').click();
   on('splitwiseCsvInput', 'change', e => {
     importSplitwiseCsv(e.target.files[0]); e.target.value = '';
-  });
-
-  /* JOIN GROUP FEATURE FIX */
-  if ($('btnOpenJoinModal')) {
-    $('btnOpenJoinModal').onclick = () => {
-      $('joinCodeInput').value = ''; $('joinGroupModal').hidden = false; $('joinCodeInput').focus();
-    };
-  }
-
-  if ($('joinGroupCancel')) $('joinGroupCancel').onclick = () => { $('joinGroupModal').hidden = true; };
-
-  on('joinGroupForm', 'submit', async e => {
-    e.preventDefault();
-    const code = $('joinCodeInput').value.trim().toUpperCase();
-    if (!code) return;
-
-    const myName = state.nickname || (user && user.email ? user.email.split('@')[0] : 'Me');
-
-    // 1. Search local state for matching invite code
-    let group = (state.tricounts || []).find(g => (g.inviteCode || '').toUpperCase() === code);
-
-    // 2. In Cloud mode, search Supabase if not found locally
-    if (!group && sb && mode === 'cloud') {
-      try {
-        const { data, error } = await sb.from('split_groups').select('*').or(`invite_code.eq.${code},invite_code.ilike.${code}`).maybeSingle();
-        if (data && !error) {
-          group = {
-            id: data.id || ('g_' + Date.now()),
-            name: data.name || 'Shared Group',
-            emoji: data.emoji || '🐶',
-            archived: false,
-            inviteCode: data.invite_code || code,
-            participants: Array.isArray(data.participants) ? data.participants : [myName],
-            settlements: Array.isArray(data.settlements) ? data.settlements : [],
-            expenses: []
-          };
-          state.tricounts.push(group);
-        }
-      } catch (err) {
-        console.error('Error fetching group by invite code:', err);
-      }
-    }
-
-    if (!group) {
-      toast('Invalid invite code. No matching group found.');
-      return;
-    }
-
-    // Add current user to participants list if not already present
-    if (!group.participants) group.participants = [];
-    if (!group.participants.includes(myName)) {
-      group.participants.push(myName);
-    }
-
-    group.archived = false;
-    save();
-
-    $('joinGroupModal').hidden = true;
-    $('joinCodeInput').value = '';
-
-    openTricountDetail(group.id);
-    toast(`Joined group "${group.name}"!`);
   });
 
   on('splitDetailTabs', 'click', e => {
@@ -1787,7 +1729,7 @@ function bind() {
       $('splitExpPaidBy').innerHTML = group.participants.map(p => `
         <option value="${esc(p)}">${esc(p)}</option>
       `).join('');
-      $('splitExpPaidBy').value = state.nickname || group.participants[0] || 'Me';
+      $('splitExpPaidBy').value = state.nickname || state.userCode || group.participants[0] || 'Me';
 
       selectedSplitParticipants = [...group.participants];
       renderParticipantToggleGrid(group);

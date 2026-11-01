@@ -126,7 +126,7 @@
     border-bottom: none !important;
   }
 
-  /* Clickable Invite Code Badge */
+  /* Clickable Code Badge */
   .clickable-code {
     cursor: pointer;
     font-weight: 600;
@@ -304,7 +304,6 @@
         <h1>Bill Splitter</h1>
         <div class="top-actions">
           <button type="button" class="text-link" id="btnOpenArchiveSubpage">📁 Archives</button>
-          <button type="button" class="text-link" id="btnOpenJoinModal">🔗 Join</button>
         </div>
       </header>
 
@@ -340,15 +339,9 @@
 
       <!-- CONSOLIDATED BILL HERO CARD -->
       <div class="card bill-hero-card" style="padding: 12px 14px; margin-bottom: 12px; border-radius: 14px;">
-        <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 10px; font-size: 13px;">
-          <div style="display: flex; align-items: center; gap: 4px; font-size: 13px;">
-            <span style="opacity: 0.7;">Invite Code:</span>
-            <span id="groupInviteCode" class="clickable-code" title="Click to copy invite code">—</span>
-          </div>
-          <div>
-            <button type="button" id="btnImportSplitwise" style="font-size: 11px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bar); cursor: pointer; color: var(--text);">📥 Import CSV</button>
-            <input id="splitwiseCsvInput" type="file" accept=".csv,text/csv" hidden>
-          </div>
+        <div style="display: flex; align-items: center; justify-content: flex-end; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 10px; font-size: 13px;">
+          <button type="button" id="btnImportSplitwise" style="font-size: 11px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bar); cursor: pointer; color: var(--text);">📥 Import CSV</button>
+          <input id="splitwiseCsvInput" type="file" accept=".csv,text/csv" hidden>
         </div>
 
         <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
@@ -419,6 +412,10 @@
 
     <h2>Profile & Preferences</h2>
     <div class="card group">
+      <div class="srow">
+        <span class="k">Your Account ID</span>
+        <span class="v"><code id="displayUserCode" class="clickable-code" title="Click to copy Account ID">—</code></span>
+      </div>
       <div class="srow">
         <label class="k" for="setNickname">Nickname</label>
         <input class="mini-in" id="setNickname" type="text" maxlength="20" placeholder="e.g. Eric" style="width:140px;">
@@ -537,9 +534,9 @@
       </div>
 
       <div class="participants-section">
-        <label class="lbl">Participants</label>
+        <label class="lbl">Participants (Nickname or Account ID)</label>
         <div class="add-participant-row">
-          <input type="text" id="newParticipantName" placeholder="Enter name">
+          <input type="text" id="newParticipantName" placeholder="Enter nickname or User ID (USR-XXXX)">
           <button type="button" id="btnAddParticipantBtn" class="secondary add-part-btn">Add</button>
         </div>
         <ul id="billParticipantsList" class="participants-list"></ul>
@@ -696,23 +693,6 @@
         <button type="submit" class="primary">Save Changes</button>
         <button type="button" class="secondary danger" id="btnDeleteExpenseFromModal">Delete</button>
         <button type="button" class="secondary" id="editExpenseCancel">Cancel</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- JOIN GROUP MODAL -->
-<div class="modal-backdrop" id="joinGroupModal" hidden>
-  <div class="modal-card">
-    <h3>Join Shared Group</h3>
-    <form id="joinGroupForm">
-      <div>
-        <label class="lbl" for="joinCodeInput">Invite Code</label>
-        <input id="joinCodeInput" type="text" placeholder="e.g. GRP-8921" required style="text-transform:uppercase;">
-      </div>
-      <div class="btnrow modal-actions">
-        <button type="submit" class="primary">Join Group</button>
-        <button type="button" class="secondary" id="joinGroupCancel">Cancel</button>
       </div>
     </form>
   </div>
