@@ -69,11 +69,9 @@ let expensesLimit = 10;
 let selectedGroupId = null;
 let activeSplitTab = 'expenses';
 let activeRealtimeChannel = null;
-let splitMode = 'equal';
-
 let selectedSplitParticipants = [];
 let pendingParticipants = [];
-let itemizedItems = [];
+let groupExpensesExpanded = false;
 
 const money = n => {
   n = Number(n) || 0;
@@ -138,11 +136,8 @@ function normalize(raw) {
       id: String(e.id || 'e_' + Date.now() + Math.random()),
       title: String(e.title || 'Expense').trim(),
       amount: Number(e.amount) || 0,
-      category: String(e.category || 'Food'),
       paidBy: String(e.paidBy || 'Me').trim(),
-      splitMode: String(e.splitMode || 'equal'),
       participants: Array.isArray(e.participants) ? e.participants : [],
-      splitDetails: e.splitDetails || {},
       date: String(e.date || today())
     }))
   }));
@@ -871,6 +866,7 @@ function renderTricountsList() {
 
 function openTricountDetail(id) {
   selectedGroupId = id;
+  groupExpensesExpanded = false;
   $('splitMainView').hidden = true;
   if ($('splitArchiveView')) $('splitArchiveView').hidden = true;
   $('splitDetailView').hidden = false;
@@ -883,6 +879,7 @@ function closeTricountDetail() {
     sb.removeChannel(activeRealtimeChannel); activeRealtimeChannel = null;
   }
   selectedGroupId = null;
+  groupExpensesExpanded = false;
   $('splitDetailView').hidden = true;
   if ($('splitArchiveView')) $('splitArchiveView').hidden = true;
   $('splitMainView').hidden = false;
@@ -906,8 +903,8 @@ async function syncSharedGroupExpenses(groupId) {
     const group = state.tricounts.find(g => g.id === groupId);
     if (group && data) {
       group.expenses = data.map(e => ({
-        id: e.id, title: e.title, amount: Number(e.amount), category: e.category || 'Food',
-        paidBy: e.paid_by_name, splitMode: e.split_mode || 'equal', date: e.date
+        id: e.id, title: e.title, amount: Number(e.amount),
+        paidBy: e.paid_by_name, date: e.date
       }));
       save(); renderTricountDetail();
     }
@@ -935,29 +932,8 @@ function calculateGroupBalance(group) {
       ? e.participants
       : Array.from(participants);
 
-    const detail = e.splitDetails || {};
-    const modeStr = e.splitMode || 'equal';
-
-    if (modeStr === 'amounts' && detail.amounts) {
-      beneficiaries.forEach(p => {
-        balances[p] = (balances[p] || 0) - (Number(detail.amounts[p]) || 0);
-      });
-    } else if (modeStr === 'parts' && detail.parts) {
-      let totalParts = 0;
-      beneficiaries.forEach(p => totalParts += (Number(detail.parts[p]) || 1));
-      beneficiaries.forEach(p => {
-        const share = totalParts > 0 ? (amt * (Number(detail.parts[p]) || 1) / totalParts) : 0;
-        balances[p] = (balances[p] || 0) - share;
-      });
-    } else if (modeStr === 'percent' && detail.percent) {
-      beneficiaries.forEach(p => {
-        const pct = Number(detail.percent[p]) || 0;
-        balances[p] = (balances[p] || 0) - (amt * (pct / 100));
-      });
-    } else {
-      const share = amt / (beneficiaries.length || 1);
-      beneficiaries.forEach(p => { balances[p] = (balances[p] || 0) - share; });
-    }
+    const share = amt / (beneficiaries.length || 1);
+    beneficiaries.forEach(p => { balances[p] = (balances[p] || 0) - share; });
   });
 
   (group.settlements || []).forEach(s => {
@@ -1018,15 +994,29 @@ function renderTricountDetail() {
 
 function renderTricountExpensesList(group) {
   const el = $('splitExpensesGroupedList');
+  const seeAllBtn = $('btnSeeAllGroupExpenses');
   if (!el) return;
 
   if (!group.expenses || group.expenses.length === 0) {
     el.innerHTML = '<div class="empty card" style="padding: 20px 16px;">No expenses logged in <b>' + esc(group.name) + '</b>. Tap <b>+ Add Expense to Bill</b> above to start logging.</div>';
+    if (seeAllBtn) seeAllBtn.hidden = true;
     return;
   }
 
+  const totalCount = group.expenses.length;
+  let allSortedExps = group.expenses.slice().sort((a, b) => b.date.localeCompare(a.date) || Number(b.id) - Number(a.id));
+
+  if (!groupExpensesExpanded && totalCount > 10) {
+    allSortedExps = allSortedExps.slice(0, 10);
+  }
+
+  if (seeAllBtn) {
+    seeAllBtn.hidden = totalCount <= 10;
+    seeAllBtn.textContent = groupExpensesExpanded ? 'Show Less' : `See All Expenses (${totalCount - 10} more)`;
+  }
+
   const groups = {};
-  group.expenses.forEach(e => {
+  allSortedExps.forEach(e => {
     const dateStr = e.date || today();
     if (!groups[dateStr]) groups[dateStr] = [];
     groups[dateStr].push(e);
@@ -1038,7 +1028,6 @@ function renderTricountExpensesList(group) {
     const d = new Date(dateKey + 'T00:00');
     const dateLabel = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     const items = groups[dateKey].map(exp => {
-      const catColor = getCategoryColor(exp.category || 'Food');
       const beneficiaries = (Array.isArray(exp.participants) && exp.participants.length > 0)
         ? exp.participants
         : (group.participants || ['Me']);
@@ -1050,13 +1039,11 @@ function renderTricountExpensesList(group) {
       return `
         <div class="tricount-expense-card edit-split-exp-btn" data-id="${esc(exp.id)}" style="cursor: pointer;">
           <div class="exp-left">
-            <span class="cat-dot" style="background:${catColor}; width: 10px; height: 10px; border-radius: 50%; margin-top: 4px;"></span>
             <div>
               <div class="exp-title">
-                <span class="exp-cat-badge" style="background:${catColor}22; color:${catColor};">${esc(exp.category || 'Food')}</span>
                 <b>${esc(exp.title)}</b>
               </div>
-              <div class="exp-sub" style="margin-top: 2px;">Paid by <b>${esc(exp.paidBy)}</b> · ${exp.splitMode || 'equal'}</div>
+              <div class="exp-sub" style="margin-top: 2px;">Paid by <b>${esc(exp.paidBy)}</b></div>
               <div class="shares-chips-row">${chipsHtml}</div>
             </div>
           </div>
@@ -1174,7 +1161,7 @@ function importSplitwiseCsv(file) {
       const date = cols[dateIdx >= 0 ? dateIdx : 0] || today();
 
       if (amount > 0) {
-        group.expenses.push({ id: 'e_' + Date.now() + Math.random(), title, amount, category: 'Food', paidBy, splitMode: 'equal', participants: [...group.participants], date });
+        group.expenses.push({ id: 'e_' + Date.now() + Math.random(), title, amount, paidBy, participants: [...group.participants], date });
         imported++;
       }
     }
@@ -1404,113 +1391,17 @@ async function signInWithGoogle() {
   }
 }
 
-function updateSplitInputsUI(group) {
-  const container = $('splitModeDynamicInputs');
-  if (!container || !group) return;
-
-  const activeParticipants = selectedSplitParticipants.length > 0 ? selectedSplitParticipants : group.participants;
-
-  if (splitMode === 'equal') {
-    container.innerHTML = `<span class="fine muted">Split equally amongst ${activeParticipants.length} selected participant(s).</span>`;
-  } else if (splitMode === 'parts') {
-    container.innerHTML = `
-      <label class="lbl">Enter Shares / Parts</label>
-      <div style="display: flex; flex-direction: column; gap: 6px;">
-        ${activeParticipants.map(p => `
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: var(--fs-sm);">${esc(p)}</span>
-            <input type="number" class="part-input mini-in" data-person="${esc(p)}" value="1" min="1" max="20" style="width: 80px;">
-          </div>
-        `).join('')}
-      </div>
-    `;
-  } else if (splitMode === 'amounts') {
-    container.innerHTML = `
-      <label class="lbl">Enter Exact Amount Owed by Each</label>
-      <div style="display: flex; flex-direction: column; gap: 6px;">
-        ${activeParticipants.map(p => `
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: var(--fs-sm);">${esc(p)}</span>
-            <input type="number" step="0.01" class="amount-input mini-in" data-person="${esc(p)}" placeholder="0.00" style="width: 100px;">
-          </div>
-        `).join('')}
-      </div>
-    `;
-  } else if (splitMode === 'percent') {
-    container.innerHTML = `
-      <label class="lbl">Enter Percentage Split (% must add up to 100%)</label>
-      <div style="display: flex; flex-direction: column; gap: 6px;">
-        ${activeParticipants.map(p => `
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: var(--fs-sm);">${esc(p)}</span>
-            <div style="display: flex; align-items: center; gap: 4px;">
-              <input type="number" step="1" class="percent-input mini-in" data-person="${esc(p)}" placeholder="0" style="width: 70px;">
-              <span class="fine muted">%</span>
-            </div>
-          </div>
-        `).join('')}
-      </div>
-    `;
-  } else if (splitMode === 'itemized') {
-    container.innerHTML = `
-      <label class="lbl">Itemized Dish / Receipt Line Items</label>
-      <div id="itemizedList"></div>
-      <button type="button" class="secondary-btn-link" id="btnAddItemizedRow" style="margin-top: 6px;">+ Add Line Item</button>
-      <div class="row2" style="margin-top: 10px;">
-        <div>
-          <label class="lbl" for="splitTaxPct">Tax %</label>
-          <input type="number" id="splitTaxPct" placeholder="0" min="0" step="0.1" class="mini-in">
-        </div>
-        <div>
-          <label class="lbl" for="splitTipPct">Tip %</label>
-          <input type="number" id="splitTipPct" placeholder="0" min="0" step="0.1" class="mini-in">
-        </div>
-      </div>
-    `;
-
-    renderItemizedRows(group);
-
-    const addBtn = $('btnAddItemizedRow');
-    if (addBtn) {
-      addBtn.onclick = () => {
-        itemizedItems.push({ name: '', price: 0, person: activeParticipants[0] || 'Me' });
-        renderItemizedRows(group);
-      };
-    }
+function updateSplitCalculationExplanation() {
+  const textEl = $('splitCalcExplanation');
+  if (!textEl) return;
+  const count = selectedSplitParticipants.length;
+  if (count === 0) {
+    textEl.textContent = 'Please select at least 1 participant.';
+  } else if (count === 1) {
+    textEl.textContent = `The selected participant (${selectedSplitParticipants[0]}) will owe 100% of the bill.`;
+  } else {
+    textEl.textContent = `The bill total will be split equally among the ${count} selected participants.`;
   }
-}
-
-function renderItemizedRows(group) {
-  const container = $('itemizedList');
-  if (!container) return;
-  const activeParticipants = selectedSplitParticipants.length > 0 ? selectedSplitParticipants : group.participants;
-
-  if (itemizedItems.length === 0) itemizedItems.push({ name: 'Dish / Item 1', price: '', person: activeParticipants[0] || 'Me' });
-
-  container.innerHTML = itemizedItems.map((item, idx) => `
-    <div class="itemized-row">
-      <input type="text" placeholder="Item name" value="${esc(item.name)}" class="item-name-in mini-in" data-idx="${idx}" style="flex: 2;">
-      <input type="number" step="0.01" placeholder="Price" value="${item.price}" class="item-price-in mini-in" data-idx="${idx}" style="flex: 1;">
-      <select class="item-person-in mini-in" data-idx="${idx}" style="flex: 1.2;">
-        ${activeParticipants.map(p => `<option value="${esc(p)}" ${item.person === p ? 'selected' : ''}>${esc(p)}</option>`).join('')}
-      </select>
-    </div>
-  `).join('');
-
-  $$('.item-name-in').forEach(inp => inp.oninput = e => { itemizedItems[e.target.dataset.idx].name = e.target.value; });
-  $$('.item-price-in').forEach(inp => inp.oninput = e => {
-    itemizedItems[e.target.dataset.idx].price = parseFloat(e.target.value) || 0;
-    recalculateItemizedTotal();
-  });
-  $$('.item-person-in').forEach(sel => sel.onchange = e => { itemizedItems[e.target.dataset.idx].person = e.target.value; });
-}
-
-function recalculateItemizedTotal() {
-  const sumItems = itemizedItems.reduce((acc, curr) => acc + (Number(curr.price) || 0), 0);
-  const taxPct = parseFloat($('splitTaxPct') ? $('splitTaxPct').value : 0) || 0;
-  const tipPct = parseFloat($('splitTipPct') ? $('splitTipPct').value : 0) || 0;
-  const total = sumItems * (1 + (taxPct + tipPct) / 100);
-  if ($('splitExpAmount')) $('splitExpAmount').value = total > 0 ? total.toFixed(2) : '';
 }
 
 function bind() {
@@ -1715,6 +1606,14 @@ function bind() {
     activeSplitTab = b.dataset.v; renderTricountDetail();
   });
 
+  if ($('btnSeeAllGroupExpenses')) {
+    $('btnSeeAllGroupExpenses').onclick = () => {
+      groupExpensesExpanded = !groupExpensesExpanded;
+      const group = state.tricounts.find(g => g.id === selectedGroupId);
+      if (group) renderTricountExpensesList(group);
+    };
+  }
+
   if ($('btnOpenAddSplitExpense')) {
     $('btnOpenAddSplitExpense').onclick = () => {
       const group = state.tricounts.find(g => g.id === selectedGroupId);
@@ -1724,7 +1623,6 @@ function bind() {
       $('splitExpId').value = '';
       $('splitExpTitle').value = '';
       $('splitExpAmount').value = '';
-      $('splitExpCategory').value = 'Food';
       $('splitExpDate').value = today();
 
       $('splitExpPaidBy').innerHTML = group.participants.map(p => `
@@ -1734,10 +1632,6 @@ function bind() {
 
       selectedSplitParticipants = [...group.participants];
       renderParticipantToggleGrid(group);
-
-      splitMode = 'equal';
-      $$('#splitModeSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === 'equal'));
-      updateSplitInputsUI(group);
 
       if ($('btnDeleteSplitExpense')) $('btnDeleteSplitExpense').hidden = true;
       $('addSplitExpenseModal').hidden = false;
@@ -1766,18 +1660,11 @@ function bind() {
           selectedSplitParticipants.push(person);
         }
         renderParticipantToggleGrid(group);
-        updateSplitInputsUI(group);
+        updateSplitCalculationExplanation();
       };
     });
+    updateSplitCalculationExplanation();
   }
-
-  on('splitModeSeg', 'click', e => {
-    const b = e.target.closest('button'); if (!b) return;
-    splitMode = b.dataset.v;
-    $$('#splitModeSeg button').forEach(btn => btn.classList.toggle('on', btn === b));
-    const group = state.tricounts.find(g => g.id === selectedGroupId);
-    updateSplitInputsUI(group);
-  });
 
   if ($('addSplitExpenseCancel')) $('addSplitExpenseCancel').onclick = () => { $('addSplitExpenseModal').hidden = true; };
 
@@ -1786,7 +1673,6 @@ function bind() {
     const expId = $('splitExpId').value;
     const title = $('splitExpTitle').value.trim();
     const amount = parseFloat($('splitExpAmount').value) || 0;
-    const category = $('splitExpCategory').value || 'Food';
     const dateVal = $('splitExpDate').value || today();
     const paidBy = $('splitExpPaidBy').value.trim();
 
@@ -1794,37 +1680,16 @@ function bind() {
 
     const group = state.tricounts.find(g => g.id === selectedGroupId);
     if (group) {
-      const splitDetails = {};
-      if (splitMode === 'parts') {
-        splitDetails.parts = {};
-        $$('.part-input').forEach(inp => { splitDetails.parts[inp.dataset.person] = parseFloat(inp.value) || 1; });
-      } else if (splitMode === 'amounts') {
-        splitDetails.amounts = {};
-        $$('.amount-input').forEach(inp => { splitDetails.amounts[inp.dataset.person] = parseFloat(inp.value) || 0; });
-      } else if (splitMode === 'percent') {
-        splitDetails.percent = {};
-        let sumPct = 0;
-        $$('.percent-input').forEach(inp => {
-          const val = parseFloat(inp.value) || 0;
-          splitDetails.percent[inp.dataset.person] = val;
-          sumPct += val;
-        });
-        if (Math.abs(sumPct - 100) > 0.5) {
-          toast(`Percentages add up to ${sumPct}%. They must total 100%.`);
-          return;
-        }
-      }
-
       if (expId) {
         const exp = group.expenses.find(e => e.id === expId);
         if (exp) {
-          exp.title = title; exp.amount = amount; exp.category = category; exp.date = dateVal; exp.paidBy = paidBy;
-          exp.splitMode = splitMode; exp.participants = [...selectedSplitParticipants]; exp.splitDetails = splitDetails;
+          exp.title = title; exp.amount = amount; exp.date = dateVal; exp.paidBy = paidBy;
+          exp.participants = [...selectedSplitParticipants];
         }
       } else {
         group.expenses.push({
-          id: 'e_' + Date.now(), title, amount, category, paidBy, splitMode,
-          participants: [...selectedSplitParticipants], splitDetails, date: dateVal
+          id: 'e_' + Date.now(), title, amount, paidBy,
+          participants: [...selectedSplitParticipants], date: dateVal
         });
       }
       save(); $('addSplitExpenseModal').hidden = true; renderTricountDetail(); toast('Expense saved to bill!');
@@ -1843,7 +1708,6 @@ function bind() {
       $('splitExpId').value = exp.id;
       $('splitExpTitle').value = exp.title;
       $('splitExpAmount').value = exp.amount;
-      $('splitExpCategory').value = exp.category || 'Food';
       $('splitExpDate').value = exp.date;
 
       $('splitExpPaidBy').innerHTML = group.participants.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
@@ -1851,10 +1715,6 @@ function bind() {
 
       selectedSplitParticipants = Array.isArray(exp.participants) && exp.participants.length > 0 ? [...exp.participants] : [...group.participants];
       renderParticipantToggleGrid(group);
-
-      splitMode = exp.splitMode || 'equal';
-      $$('#splitModeSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === splitMode));
-      updateSplitInputsUI(group);
 
       if ($('btnDeleteSplitExpense')) $('btnDeleteSplitExpense').hidden = false;
       $('addSplitExpenseModal').hidden = false;
@@ -2020,7 +1880,6 @@ async function boot() {
         await loadSupabase();
         sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
 
-        // Listen for OAuth sign-in callbacks & session events
         sb.auth.onAuthStateChange(async (event, session) => {
           if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
             await enterCloud(session.user);

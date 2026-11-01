@@ -22,22 +22,21 @@
 </script>
 <link rel="stylesheet" href="styles.css">
 <style>
-  /* Supplementary Styles for Inside-Bill UI & Itemized Splits */
+  /* Header & Split Modal UI Enhancements */
   .top-split-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
   .split-header-left { display: flex; align-items: center; gap: 10px; }
   .split-header-left h1 { margin: 0; font-size: var(--fs-xl); text-transform: none; line-height: 1.2; }
   
-  .participant-select-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; margin-bottom: 12px; }
-  .part-chip-toggle { padding: 5px 12px; border-radius: 20px; font-size: var(--fs-xs); border: 1px solid var(--border); background: var(--card); cursor: pointer; user-select: none; transition: all 0.15s ease; }
-  .part-chip-toggle.on { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
-
-  .exp-cat-badge { font-size: 11px; padding: 2px 7px; border-radius: 10px; font-weight: 600; text-transform: uppercase; margin-right: 4px; display: inline-block; }
-  .shares-chips-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
-  .share-avatar-chip { font-size: 11px; padding: 2px 6px; border-radius: 12px; background: var(--bar); color: var(--text); border: 1px solid var(--border); display: inline-flex; align-items: center; gap: 3px; }
-
-  .itemized-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
-  .itemized-row input { margin: 0; }
+  .group-share-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; padding: 10px 14px; }
+  .group-share-left { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm); }
   
+  .participant-select-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .part-chip-toggle { padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 500; border: 1px solid var(--border); background: var(--card); color: var(--text); cursor: pointer; user-select: none; transition: all 0.15s ease; display: inline-flex; align-items: center; gap: 4px; }
+  .part-chip-toggle.on { background: var(--accent); color: #ffffff; border-color: var(--accent); font-weight: 600; }
+
+  .shares-chips-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .share-avatar-chip { font-size: 11px; padding: 2px 7px; border-radius: 12px; background: var(--bar); color: var(--text); border: 1px solid var(--border); display: inline-flex; align-items: center; gap: 3px; }
+
   .history-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: var(--fs-sm); }
 </style>
 </head>
@@ -197,7 +196,6 @@
 
     <!-- INSIDE BILL VIEW -->
     <div id="splitDetailView" hidden>
-      <!-- COMPACT HEADER ALIGNED WITH OTHER HEADERS -->
       <header class="top top-split-header">
         <div class="split-header-left">
           <button type="button" class="icon back-btn" id="btnSplitBack" aria-label="Back">‹</button>
@@ -207,9 +205,16 @@
         <button type="button" class="icon-btn edit-group-title-btn" id="btnEditGroupTitle">Edit</button>
       </header>
 
-      <div class="group-share-bar card" id="groupShareBar" style="margin-bottom: 12px;">
-        <span>Invite Code: <b id="groupInviteCode">—</b></span>
-        <button type="button" class="text-link" id="btnCopyInviteCode">Copy Code</button>
+      <!-- INVITE BAR WITH IMPORT SPLITWISE BUTTON BESIDE IT -->
+      <div class="group-share-bar card" id="groupShareBar">
+        <div class="group-share-left">
+          <span>Invite Code: <b id="groupInviteCode">—</b></span>
+          <button type="button" class="text-link" id="btnCopyInviteCode" style="font-size: 12px;">Copy</button>
+        </div>
+        <div>
+          <button type="button" class="secondary-btn-link" id="btnImportSplitwise" style="font-size: 12px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bar);">📥 Import Splitwise (CSV)</button>
+          <input id="splitwiseCsvInput" type="file" accept=".csv,text/csv" hidden>
+        </div>
       </div>
 
       <div class="seg" id="splitDetailTabs" style="margin-bottom: 12px;">
@@ -229,12 +234,9 @@
         <button type="button" class="secondary" id="btnOpenAddSplitExpense" style="width: 100%; margin-bottom: 14px; font-weight: 700; border: 1.5px solid var(--accent);">+ Add Expense to Bill</button>
 
         <div id="splitExpensesGroupedList"></div>
-
-        <!-- BOTTOM RELOCATED IMPORT CSV LINK -->
-        <div class="import-splitwise-bar" style="margin-top: 24px; text-align: center;">
-          <button type="button" class="secondary-btn-link" id="btnImportSplitwise">📥 Import Splitwise (CSV)</button>
-          <input id="splitwiseCsvInput" type="file" accept=".csv,text/csv" hidden>
-        </div>
+        
+        <!-- SEE ALL EXPENSES BUTTON -->
+        <button type="button" class="secondary see-more-btn" id="btnSeeAllGroupExpenses" style="width: 100%; margin-top: 12px;" hidden>See All Expenses</button>
       </div>
 
       <!-- BALANCES TAB -->
@@ -345,7 +347,7 @@
       <div>
         <div class="who">Made by Eric S.</div>
         <p>Hi, I'm Eric, the maker of Ledger. I built it as a calm, clutter-free way to keep track of everyday spending.</p>
-        <p class="fine">Ledger · Made on October 31, 2026 · Version 1.7</p>
+        <p class="fine">Ledger · Made on October 31, 2026 · Version 1.8</p>
       </div>
     </div>
   </section>
@@ -453,35 +455,24 @@
   </div>
 </div>
 
-<!-- ADD / EDIT SPLIT EXPENSE MODAL WITH ADVANCED SPLITS & CATEGORIES -->
+<!-- SIMPLIFIED ADD / EDIT SHARED EXPENSE MODAL -->
 <div class="modal-backdrop" id="addSplitExpenseModal" hidden>
   <div class="modal-card" style="max-width: 440px; width: 100%;">
-    <h3 id="splitExpenseModalTitle">Add Shared Expense</h3>
+    <h3 id="splitExpenseModalTitle" style="margin-bottom: 16px;">Add Shared Expense</h3>
     <form id="addSplitExpenseForm">
       <input type="hidden" id="splitExpId">
-      <div>
+      
+      <div style="margin-bottom: 12px;">
         <label class="lbl" for="splitExpTitle">Title / Description</label>
-        <input id="splitExpTitle" type="text" placeholder="e.g. Dinner, Coffee, Taxi" required maxlength="60">
+        <input id="splitExpTitle" type="text" placeholder="e.g. Dinner, Taxi, Groceries" required maxlength="60">
       </div>
-      <div class="row2">
-        <div>
-          <label class="lbl" for="splitExpAmount">Total Amount</label>
-          <input id="splitExpAmount" type="number" inputmode="decimal" step="0.01" min="0.01" placeholder="0.00" required>
-        </div>
-        <div>
-          <label class="lbl" for="splitExpCategory">Category</label>
-          <select id="splitExpCategory">
-            <option value="Food">Food 🍲</option>
-            <option value="Transport">Transport 🚗</option>
-            <option value="Lodging">Lodging 🏨</option>
-            <option value="Bills">Bills 💡</option>
-            <option value="Fun">Fun 🎉</option>
-            <option value="Shopping">Shopping 🛍️</option>
-            <option value="Other">Other 📦</option>
-          </select>
-        </div>
+
+      <div style="margin-bottom: 12px;">
+        <label class="lbl" for="splitExpAmount">Total Amount</label>
+        <input id="splitExpAmount" type="number" inputmode="decimal" step="0.01" min="0.01" placeholder="0.00" required>
       </div>
-      <div class="row2">
+
+      <div class="row2" style="margin-bottom: 12px;">
         <div>
           <label class="lbl" for="splitExpPaidBy">Paid By</label>
           <select id="splitExpPaidBy" required></select>
@@ -493,25 +484,15 @@
       </div>
 
       <!-- Split Participants Checkbox Selector -->
-      <div>
+      <div style="margin-bottom: 16px;">
         <label class="lbl">Shared By (Participants)</label>
         <div id="splitParticipantsToggleGrid" class="participant-select-grid"></div>
+        <p class="fine muted" id="splitCalcExplanation" style="margin-top: 8px; font-size: 12px; line-height: 1.4; opacity: 0.85;">
+          The bill total will be split equally among the selected participant(s).
+        </p>
       </div>
 
-      <!-- Split Mode Selector -->
-      <div>
-        <label class="lbl">Split Method</label>
-        <div class="split-mode-options" id="splitModeSeg" style="display: flex; gap: 4px; overflow-x: auto; padding-bottom: 4px;">
-          <button type="button" data-v="equal" class="on">Equally</button>
-          <button type="button" data-v="parts">By Shares</button>
-          <button type="button" data-v="amounts">By Amount</button>
-          <button type="button" data-v="percent">By %</button>
-          <button type="button" data-v="itemized">Itemized</button>
-        </div>
-        <div id="splitModeDynamicInputs" class="split-dynamic-inputs" style="margin-top: 10px;"></div>
-      </div>
-
-      <div class="btnrow modal-actions" style="margin-top: 16px;">
+      <div class="btnrow modal-actions" style="margin-top: 20px;">
         <button type="submit" class="primary">Save Expense</button>
         <button type="button" class="secondary danger" id="btnDeleteSplitExpense" hidden>Delete Expense</button>
         <button type="button" class="secondary" id="addSplitExpenseCancel">Cancel</button>
