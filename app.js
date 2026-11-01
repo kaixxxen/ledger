@@ -85,6 +85,39 @@ const short = n => {
   return String(Math.round(n));
 };
 
+/* iOS Compatible Clipboard Helper */
+function copyToClipboard(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+  } else {
+    fallbackCopy(text);
+    return Promise.resolve();
+  }
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  ta.style.top = '0';
+  ta.setAttribute('readonly', '');
+  document.body.appendChild(ta);
+  ta.focus();
+  
+  const range = document.createRange();
+  range.selectNodeContents(ta);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+  ta.setSelectionRange(0, 999999);
+
+  try {
+    document.execCommand('copy');
+  } catch (err) {}
+  document.body.removeChild(ta);
+}
+
 function blank() {
   return {
     nickname: '',
@@ -624,7 +657,7 @@ function renderFixedExpenses() {
     return;
   }
   el.innerHTML = state.fixedTx.map(f => `
-    <div class="fixed-item" data-id="${esc(f.id)}" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); cursor: pointer;">
+    <div class="fixed-item" data-id="${esc(f.id)}" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
       <div>
         <strong>${esc(f.title)}</strong>
         <small class="muted" style="display: block;">${esc(f.category)} (${f.type === 'income' ? 'Income' : 'Expense'}) · ${f.indefinite ? 'Ongoing monthly' : `Month ${f.monthsElapsed || 0} of ${f.totalMonths}`}</small>
@@ -1649,11 +1682,12 @@ function bind() {
     toast(editId ? 'Saved bill updates!' : 'Bill created!');
   });
 
+  /* Click-to-copy with iOS Clipboard Fallback Support */
   if ($('groupInviteCode')) {
     $('groupInviteCode').onclick = () => {
       const code = $('groupInviteCode').textContent.trim();
       if (code && code !== '—') {
-        navigator.clipboard.writeText(code);
+        copyToClipboard(code);
         toast(`Copied invite code: ${code}`);
       }
     };

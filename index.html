@@ -36,7 +36,7 @@
 
   .history-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: var(--fs-sm); }
 
-  /* Group Cards Spacing Fix (Halved space) */
+  /* Group Cards Spacing (Halved space) */
   .tricounts-list { display: flex; flex-direction: column; gap: 4px; }
 
   /* Archived Groups Layout & Card Cleanup */
@@ -79,7 +79,7 @@
   }
   #archivedTricountsList .tricount-name {
     font-weight: 600;
-    font-size: 13px;
+    font-size: 15px;
     line-height: 1.3;
     white-space: nowrap;
     overflow: hidden;
@@ -109,17 +109,20 @@
     transform: scale(0.96);
   }
 
-  /* Logged Expenses Visible Divider Style */
+  /* Visible Grey Dividers for Logged Expenses & Recurring Expenses */
   #list { list-style: none; padding: 0; margin: 0; }
-  #list li.tx {
+  #list li.tx,
+  #fixedExpensesList .fixed-item {
     background: transparent !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     padding: 12px 0 !important;
     margin: 0 !important;
-    border-bottom: 1px solid var(--border) !important;
+    border-bottom: 1px solid rgba(142, 142, 147, 0.3) !important;
   }
-  #list li.tx:last-child {
+
+  #list li.tx:last-child,
+  #fixedExpensesList .fixed-item:last-child {
     border-bottom: none !important;
   }
 
@@ -127,12 +130,14 @@
   .clickable-code {
     cursor: pointer;
     font-weight: 600;
-    font-size: 11px;
+    font-size: 13px;
     letter-spacing: 0.5px;
+    user-select: all;
+    -webkit-user-select: all;
     transition: opacity 0.15s ease;
   }
-  .clickable-code:hover {
-    opacity: 0.8;
+  .clickable-code:hover, .clickable-code:active {
+    opacity: 0.7;
   }
 
   /* Chart Animations & Visual Styling */
@@ -336,7 +341,7 @@
       <!-- CONSOLIDATED BILL HERO CARD -->
       <div class="card bill-hero-card" style="padding: 12px 14px; margin-bottom: 12px; border-radius: 14px;">
         <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 10px; font-size: 13px;">
-          <div style="display: flex; align-items: center; gap: 4px; font-size: 11px;">
+          <div style="display: flex; align-items: center; gap: 4px; font-size: 13px;">
             <span style="opacity: 0.7;">Invite Code:</span>
             <span id="groupInviteCode" class="clickable-code" title="Click to copy invite code">—</span>
           </div>
