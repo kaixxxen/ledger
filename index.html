@@ -413,8 +413,8 @@
     <h2>Profile & Preferences</h2>
     <div class="card group">
       <div class="srow">
-        <span class="k">Your Account ID</span>
-        <span class="v"><code id="displayUserCode" class="clickable-code" title="Click to copy Account ID">—</code></span>
+        <span class="k">Your Ledger ID</span>
+        <span class="v"><code id="displayUserCode" class="clickable-code" title="Tap to copy your Ledger ID">—</code></span>
       </div>
       <div class="srow">
         <label class="k" for="setNickname">Nickname</label>
@@ -534,11 +534,12 @@
       </div>
 
       <div class="participants-section">
-        <label class="lbl">Participants (Nickname or Account ID)</label>
+        <label class="lbl">Participants (name or Ledger ID)</label>
         <div class="add-participant-row">
-          <input type="text" id="newParticipantName" placeholder="Enter nickname or User ID (USR-XXXX)">
+          <input type="text" id="newParticipantName" placeholder="Name, or Ledger ID (ABC-123456)" autocomplete="off" autocapitalize="off">
           <button type="button" id="btnAddParticipantBtn" class="secondary add-part-btn">Add</button>
         </div>
+        <p class="fine" style="margin:-4px 0 10px;">Enter someone's Ledger ID to share this bill: it shows up on their Split tab and you can both edit it. Plain names work for people without an account.</p>
         <ul id="billParticipantsList" class="participants-list"></ul>
       </div>
 

@@ -73,6 +73,41 @@ let selectedSplitParticipants = [];
 let pendingParticipants = [];
 let groupExpensesExpanded = false;
 
+// ---- shared bills / permanent Ledger ID ----
+let profile = null;            // { code, nick } - permanent Ledger ID issued by the server
+let profileTried = false;
+let sharedChannel = null;
+let sharedReloadTimer = null;
+let sharedPollTimer = null;
+let loadingShared = false, loadSharedAgain = false;
+let nickTimer = null;
+
+const uid = () => (window.crypto && crypto.randomUUID)
+  ? crypto.randomUUID()
+  : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+
+const ID_RE = /^#?\s*([A-Za-z]{3})\s*-?\s*(\d{6})\s*$/;
+function parseLedgerId(s) {
+  const m = ID_RE.exec(String(s || ''));
+  return m ? (m[1] + '-' + m[2]).toUpperCase() : null;
+}
+function displayName() {
+  if (state.nickname) return state.nickname;
+  if (user && user.email) { const n = user.email.split('@')[0]; return n.charAt(0).toUpperCase() + n.slice(1); }
+  return 'Me';
+}
+const legacyMe = () => state.nickname || state.userCode || 'Me';
+const myKeyFor = g => g.shared ? (profile ? profile.code : '') : (g.meKey || legacyMe());
+function meParticipant() {
+  if (mode === 'cloud' && profile) return { key: profile.code, name: displayName(), code: profile.code };
+  const n = state.nickname || 'Me';
+  return { key: n, name: n, code: null };
+}
+const isMeParticipant = p => mode === 'cloud' && profile && p.code === profile.code;
+const partLabel = p => p.code ? `${p.name || 'Ledger user'} (#${p.code})` : p.name;
+const labelFor = (g, key) => { const p = (g.participants || []).find(x => x.key === key); return p ? partLabel(p) : String(key); };
+const shortFor = (g, key) => { const p = (g.participants || []).find(x => x.key === key); return p ? p.name : String(key); };
+
 const money = n => {
   n = Number(n) || 0;
   const frac = Math.abs(n - Math.round(n)) > 0.004 ? 2 : 0;
@@ -164,23 +199,41 @@ function normalize(raw) {
   })).filter(t => t.amount > 0);
 
   const meIdentifier = s.nickname || s.userCode || 'Me';
+  const toPart = x => (x && typeof x === 'object')
+    ? { key: String(x.key || x.name || '').trim(), name: String(x.name || x.key || '').trim(), code: x.code ? String(x.code).toUpperCase() : null }
+    : { key: String(x == null ? '' : x).trim(), name: String(x == null ? '' : x).trim(), code: null };
 
-  s.tricounts = (Array.isArray(s.tricounts) ? s.tricounts : []).map(p => ({
-    id: String(p.id || 'g_' + Date.now() + Math.random()),
-    name: String(p.name || 'Shared Group / Person').trim(),
-    emoji: String(p.emoji || '🐶'),
-    archived: !!p.archived,
-    participants: Array.isArray(p.participants) ? p.participants : [meIdentifier],
-    settlements: Array.isArray(p.settlements) ? p.settlements : [],
-    expenses: (Array.isArray(p.expenses) ? p.expenses : []).map(e => ({
-      id: String(e.id || 'e_' + Date.now() + Math.random()),
-      title: String(e.title || 'Expense').trim(),
-      amount: Number(e.amount) || 0,
-      paidBy: String(e.paidBy || meIdentifier).trim(),
-      participants: Array.isArray(e.participants) ? e.participants : [],
-      date: String(e.date || today())
-    }))
-  }));
+  s.tricounts = (Array.isArray(s.tricounts) ? s.tricounts : []).map(p => {
+    const seen = new Set();
+    const parts = (Array.isArray(p.participants) ? p.participants : [meIdentifier]).map(toPart)
+      .filter(x => x.key && !seen.has(x.key) && seen.add(x.key));
+    if (!parts.length) parts.push(toPart(meIdentifier));
+    return {
+      id: String(p.id || 'g_' + Date.now() + Math.random()),
+      name: String(p.name || 'Shared Group / Person').trim(),
+      emoji: String(p.emoji || '🐶'),
+      archived: !!p.archived,
+      shared: !!p.shared,
+      createdBy: String(p.createdBy || ''),
+      meKey: String(p.meKey || ''),
+      participants: parts,
+      settlements: (Array.isArray(p.settlements) ? p.settlements : []).map(x => ({
+        id: String(x.id || 's_' + Date.now() + Math.random()),
+        from: String(x.from || ''), to: String(x.to || ''),
+        amount: Number(x.amount) || 0,
+        method: String(x.method || ''), note: String(x.note || ''),
+        date: String(x.date || today())
+      })),
+      expenses: (Array.isArray(p.expenses) ? p.expenses : []).map(e => ({
+        id: String(e.id || 'e_' + Date.now() + Math.random()),
+        title: String(e.title || 'Expense').trim(),
+        amount: Number(e.amount) || 0,
+        paidBy: String(e.paidBy || meIdentifier).trim(),
+        participants: Array.isArray(e.participants) ? e.participants.map(String) : [],
+        date: String(e.date || today())
+      }))
+    };
+  });
 
   s.fixedTx = (Array.isArray(s.fixedTx) ? s.fixedTx : []).map(f => ({
     id: String(f.id || 'f_' + Date.now() + Math.random()),
@@ -783,13 +836,13 @@ function renderPendingParticipants() {
   if (!list) return;
   list.innerHTML = pendingParticipants.map((p, idx) => `
     <li class="participant-item">
-      <span class="participant-name">${esc(p)}</span>
-      <button type="button" class="del-participant-btn" data-idx="${idx}" aria-label="Remove participant">&times;</button>
+      <span class="participant-name" style="max-width:220px;">${esc(partLabel(p))}</span>
+      ${isMeParticipant(p) ? '' : `<button type="button" class="del-participant-btn" data-idx="${idx}" aria-label="Remove participant">&times;</button>`}
     </li>`).join('');
 
   $$('#billParticipantsList .del-participant-btn').forEach(btn => {
     btn.onclick = () => {
-      pendingParticipants.splice(btn.dataset.idx, 1);
+      pendingParticipants.splice(Number(btn.dataset.idx), 1);
       renderPendingParticipants();
     };
   });
@@ -867,8 +920,8 @@ function renderTricountsList() {
       <div class="tricount-card-left">
         <span class="tricount-emoji">${esc(g.emoji)}</span>
         <div>
-          <div class="tricount-name">${esc(g.name)}</div>
-          <small class="muted fine">${g.participants ? g.participants.length : 1} members (${g.participants.join(', ')})</small>
+          <div class="tricount-name">${esc(g.name)}${g.shared ? ' <span class="tag">Shared</span>' : ''}</div>
+          <small class="muted fine">${g.participants.length} members (${esc(g.participants.map(p => p.name).join(', '))})</small>
         </div>
       </div>
       <span class="tricount-chevron">›</span>
@@ -880,37 +933,16 @@ function renderTricountsList() {
     card.onclick = () => openTricountDetail(group.id);
 
     attachLongPress(card, () => {
-      showActionSheet(group.name, `Members: ${group.participants ? group.participants.join(', ') : ''}`, [
+      const leaving = group.shared && user && group.createdBy !== user.id;
+      showActionSheet(group.name, `Members: ${group.participants.map(p => p.name).join(', ')}`, [
         {
           text: '📁 Archive Bill',
-          action: () => {
-            group.archived = true; save(); renderTricountsList(); toast(`Archived ${group.name}`);
+          action: async () => {
+            if (await setArchived(group, true)) { renderTricountsList(); toast(`Archived ${group.name}`); }
           }
         },
-        {
-          text: '✏️ Edit Bill Details',
-          action: () => {
-            $('groupModalTitle').textContent = 'Edit Bill';
-            $('editGroupId').value = group.id;
-            $('personNameInput').value = group.name;
-            updateModalEmojiDisplay(group.emoji || '🐶');
-            if ($('btnDeleteGroup')) $('btnDeleteGroup').hidden = false;
-            pendingParticipants = group.participants ? [...group.participants] : [state.nickname || state.userCode || 'Me'];
-            renderPendingParticipants();
-            $('addPersonModal').hidden = false;
-          }
-        },
-        {
-          text: '🗑️ Delete Bill',
-          danger: true,
-          action: () => {
-            if (confirm(`Delete bill "${group.name}" permanently?`)) {
-              state.tricounts = state.tricounts.filter(g => g.id !== group.id);
-              if (sb && mode === 'cloud') sb.from('split_groups').delete().eq('id', group.id);
-              save(); renderTricountsList(); toast('Bill deleted');
-            }
-          }
-        }
+        { text: '✏️ Edit Bill Details', action: () => openBillEditor(group) },
+        { text: leaving ? '🚪 Leave Bill' : '🗑️ Delete Bill', danger: true, action: () => removeBill(group) }
       ]);
     });
   });
@@ -932,7 +964,7 @@ function renderArchivedTricountsList() {
         <span class="tricount-emoji">${esc(g.emoji)}</span>
         <div class="tricount-card-info">
           <div class="tricount-name">${esc(g.name)}</div>
-          <small class="muted fine">Archived · ${g.participants ? g.participants.length : 1} members</small>
+          <small class="muted fine">Archived · ${g.participants.length} members</small>
         </div>
       </div>
       <button type="button" class="unarchive-btn" data-id="${esc(g.id)}">Restore</button>
@@ -948,12 +980,10 @@ function renderArchivedTricountsList() {
   });
 
   $$('#archivedTricountsList .unarchive-btn').forEach(btn => {
-    btn.onclick = (e) => {
+    btn.onclick = async (e) => {
       e.stopPropagation();
       const group = state.tricounts.find(g => g.id === btn.dataset.id);
-      if (group) {
-        group.archived = false;
-        save();
+      if (group && await setArchived(group, false)) {
         renderArchivedTricountsList();
         renderTricountsList();
         toast(`Restored "${group.name}" to active bills!`);
@@ -968,14 +998,11 @@ function openTricountDetail(id) {
   $('splitMainView').hidden = true;
   if ($('splitArchiveView')) $('splitArchiveView').hidden = true;
   $('splitDetailView').hidden = false;
-  subscribeRealtimeGroup(id);
   renderTricountDetail();
+  if (mode === 'cloud') scheduleSharedReload(0);
 }
 
 function closeTricountDetail() {
-  if (activeRealtimeChannel && sb) {
-    sb.removeChannel(activeRealtimeChannel); activeRealtimeChannel = null;
-  }
   selectedGroupId = null;
   groupExpensesExpanded = false;
   $('splitDetailView').hidden = true;
@@ -984,55 +1011,208 @@ function closeTricountDetail() {
   renderTricountsList();
 }
 
-function subscribeRealtimeGroup(groupId) {
-  if (!sb || mode !== 'cloud') return;
-  if (activeRealtimeChannel) sb.removeChannel(activeRealtimeChannel);
 
-  activeRealtimeChannel = sb.channel('group:' + groupId)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'group_expenses', filter: 'group_id=eq.' + groupId }, () => {
-      syncSharedGroupExpenses(groupId);
-    }).subscribe();
+async function rpcOk(promise, failMsg) {
+  try {
+    const r = await promise;
+    if (r && r.error) throw r.error;
+    return r || {};
+  } catch (e) {
+    console.error(e);
+    toast(failMsg || "Couldn't sync. Check your connection and try again.");
+    return null;
+  }
 }
 
-async function syncSharedGroupExpenses(groupId) {
-  if (!sb || mode !== 'cloud') return;
+async function loadProfile() {
+  if (!sb || mode !== 'cloud' || !user) return;
   try {
-    const { data } = await sb.from('group_expenses').select('*').eq('group_id', groupId).order('date', { ascending: false });
-    const group = state.tricounts.find(g => g.id === groupId);
-    if (group && data) {
-      group.expenses = data.map(e => ({
-        id: e.id, title: e.title, amount: Number(e.amount),
-        paidBy: e.paid_by_name, date: e.date
-      }));
-      save(); renderTricountDetail();
+    const { data, error } = await sb.rpc('ensure_profile', { p_nickname: displayName() });
+    if (error) throw error;
+    const row = Array.isArray(data) ? data[0] : data;
+    if (row && row.code) {
+      profile = { code: row.code, nick: row.nick || '' };
+      lsSet('ledger.profile.' + user.id, JSON.stringify(profile));
     }
-  } catch (err) {}
+  } catch (e) {
+    console.error('Profile error (did you run supabase-sharing.sql?):', e);
+  }
+  profileTried = true;
+  renderSettings();
+}
+
+function scheduleNicknameSync() {
+  clearTimeout(nickTimer);
+  nickTimer = setTimeout(async () => { await loadProfile(); scheduleSharedReload(0); }, 900);
+}
+
+async function loadSharedBills() {
+  if (!sb || mode !== 'cloud' || !user) return;
+  if (loadingShared) { loadSharedAgain = true; return; }
+  loadingShared = true;
+  try {
+    const [b, m, e, s] = await Promise.all([
+      sb.from('bills').select('*'),
+      sb.from('bill_members').select('bill_id,archived').eq('user_id', user.id),
+      sb.from('bill_expenses').select('*'),
+      sb.from('bill_settlements').select('*')
+    ]);
+    for (const r of [b, m, e, s]) if (r.error) throw r.error;
+
+    const codes = new Set();
+    (b.data || []).forEach(x => (x.participants || []).forEach(p => p && p.code && codes.add(p.code)));
+    const nick = {};
+    if (codes.size) {
+      const r = await sb.rpc('lookup_profiles', { p_codes: Array.from(codes) });
+      (r.data || []).forEach(x => { nick[x.code] = x.nick; });
+    }
+    const arch = {};
+    (m.data || []).forEach(x => { arch[x.bill_id] = !!x.archived; });
+
+    const shared = (b.data || []).map(x => ({
+      id: x.id, name: x.name, emoji: x.emoji || '🐶', shared: true,
+      createdBy: x.created_by, archived: !!arch[x.id],
+      participants: (x.participants || []).map(p => ({
+        key: p.key || p.code || p.name, code: p.code || null,
+        name: (p.code && nick[p.code]) || p.name || 'Ledger user'
+      })),
+      expenses: (e.data || []).filter(r => r.bill_id === x.id).map(r => ({
+        id: r.id, title: r.title, amount: Number(r.amount), paidBy: r.paid_by,
+        participants: r.participants || [], date: r.date
+      })),
+      settlements: (s.data || []).filter(r => r.bill_id === x.id).map(r => ({
+        id: r.id, from: r.from_key, to: r.to_key, amount: Number(r.amount),
+        method: r.method || '', note: r.note || '', date: r.date
+      }))
+    }));
+
+    state.tricounts = (state.tricounts || []).filter(g => !g.shared).concat(shared);
+    cacheWrite();
+    refreshSplitUi();
+  } catch (err) {
+    console.error('Shared bills load error:', err);
+  }
+  loadingShared = false;
+  if (loadSharedAgain) { loadSharedAgain = false; scheduleSharedReload(200); }
+}
+
+function refreshSplitUi() {
+  if (selectedGroupId && !state.tricounts.some(g => g.id === selectedGroupId)) {
+    closeTricountDetail(); toast('That bill is no longer available.');
+  } else if (selectedGroupId) {
+    renderTricountDetail();
+  }
+  renderTricountsList();
+  if ($('splitArchiveView') && !$('splitArchiveView').hidden) renderArchivedTricountsList();
+}
+
+function scheduleSharedReload(ms) {
+  clearTimeout(sharedReloadTimer);
+  sharedReloadTimer = setTimeout(loadSharedBills, ms == null ? 400 : ms);
+}
+
+function startSharedSync() {
+  if (!sb || mode !== 'cloud' || !user) return;
+  if (!sharedChannel) {
+    try {
+      sharedChannel = sb.channel('ledger-shared-' + user.id);
+      ['bills', 'bill_members', 'bill_expenses', 'bill_settlements'].forEach(t => {
+        sharedChannel.on('postgres_changes', { event: '*', schema: 'public', table: t }, () => scheduleSharedReload());
+      });
+      sharedChannel.subscribe();
+    } catch (e) { console.error('Realtime error:', e); sharedChannel = null; }
+  }
+  // Safety net in case a realtime message is missed (e.g. a deleted row).
+  if (!sharedPollTimer) sharedPollTimer = setInterval(() => { if (!document.hidden) loadSharedBills(); }, 30000);
+}
+
+function stopSharedSync() {
+  clearTimeout(sharedReloadTimer); clearInterval(sharedPollTimer); sharedPollTimer = null;
+  if (sharedChannel && sb) { try { sb.removeChannel(sharedChannel); } catch {} }
+  sharedChannel = null;
+}
+
+const partsPayload = parts => parts.map(p => ({ key: p.key, name: p.name, code: p.code || null }));
+const saveBillRemote = (id, name, emoji, parts) =>
+  rpcOk(sb.rpc('upsert_bill', { p_id: id, p_name: name, p_emoji: emoji, p_participants: partsPayload(parts) }),
+        "Couldn't save the bill. Check your connection and try again.");
+const expenseRow = (billId, e) => ({
+  id: e.id, bill_id: billId, title: e.title, amount: e.amount, paid_by: e.paidBy,
+  participants: e.participants, date: e.date, updated_at: new Date().toISOString()
+});
+const persistGroup = g => { if (g.shared) cacheWrite(); else save(); };
+
+function openBillEditor(group) {
+  $('groupModalTitle').textContent = group ? 'Edit Bill' : 'Add a Bill';
+  $('editGroupId').value = group ? group.id : '';
+  $('personNameInput').value = group ? group.name : '';
+  updateModalEmojiDisplay(group ? (group.emoji || '🐶') : '🐶');
+  if ($('btnDeleteGroup')) {
+    $('btnDeleteGroup').hidden = !group;
+    const others = group && group.shared && user && group.createdBy !== user.id;
+    $('btnDeleteGroup').textContent = others ? 'Leave Bill' : 'Delete Bill';
+  }
+  pendingParticipants = group ? group.participants.map(p => ({ ...p })) : [meParticipant()];
+  renderPendingParticipants();
+  $('addPersonModal').hidden = false;
+  if (!group) $('personNameInput').focus();
+}
+
+async function setArchived(group, val) {
+  if (group.shared) {
+    const r = await rpcOk(sb.from('bill_members').update({ archived: val }).eq('bill_id', group.id).eq('user_id', user.id),
+                          "Couldn't update the bill.");
+    if (!r) return false;
+  }
+  group.archived = val; persistGroup(group);
+  return true;
+}
+
+async function removeBill(group) {
+  const creator = !group.shared || (user && group.createdBy === user.id);
+  const msg = !group.shared ? `Delete bill "${group.name}" permanently?`
+    : creator ? `Delete "${group.name}" for everyone? This can't be undone.`
+    : `Leave "${group.name}"? It will disappear from your Split tab.`;
+  if (!confirm(msg)) return;
+  if (group.shared) {
+    const r = creator
+      ? await rpcOk(sb.from('bills').delete().eq('id', group.id), "Couldn't delete the bill.")
+      : await rpcOk(sb.rpc('leave_bill', { p_bill: group.id }), "Couldn't leave the bill.");
+    if (!r) return;
+  }
+  state.tricounts = state.tricounts.filter(g => g.id !== group.id);
+  persistGroup(group);
+  if (selectedGroupId === group.id) closeTricountDetail(); else renderTricountsList();
+  if ($('splitArchiveView') && !$('splitArchiveView').hidden) renderArchivedTricountsList();
+  toast(creator ? 'Bill deleted' : 'You left the bill');
 }
 
 function calculateGroupBalance(group) {
-  const meStr = state.nickname || state.userCode || 'Me';
-  const participants = new Set(group.participants || [meStr]);
+  const me = myKeyFor(group);
+  const keys = new Set((group.participants || []).map(p => p.key));
+  if (!group.shared && me) keys.add(me);
   (group.expenses || []).forEach(e => {
-    participants.add(e.paidBy || meStr);
-    if (Array.isArray(e.participants)) e.participants.forEach(p => participants.add(p));
+    keys.add(e.paidBy || me);
+    if (Array.isArray(e.participants)) e.participants.forEach(k => keys.add(k));
   });
+  (group.settlements || []).forEach(s => { keys.add(s.from); keys.add(s.to); });
 
   const balances = {};
-  participants.forEach(p => balances[p] = 0);
+  keys.forEach(k => balances[k] = 0);
 
   let totalExpenses = 0;
   (group.expenses || []).forEach(e => {
     const amt = Number(e.amount) || 0;
-    const paidBy = e.paidBy || meStr;
+    const paidBy = e.paidBy || me;
     balances[paidBy] = (balances[paidBy] || 0) + amt;
     totalExpenses += amt;
 
     const beneficiaries = (Array.isArray(e.participants) && e.participants.length > 0)
       ? e.participants
-      : Array.from(participants);
+      : (group.participants || []).map(p => p.key);
 
     const share = amt / (beneficiaries.length || 1);
-    beneficiaries.forEach(p => { balances[p] = (balances[p] || 0) - share; });
+    beneficiaries.forEach(k => { balances[k] = (balances[k] || 0) - share; });
   });
 
   (group.settlements || []).forEach(s => {
@@ -1060,7 +1240,7 @@ function calculateGroupBalance(group) {
     if (creditor.amount < 0.01) j++;
   }
 
-  const myNet = balances[meStr] !== undefined ? balances[meStr] : (balances[state.userCode] !== undefined ? balances[state.userCode] : (balances['Me'] || 0));
+  const myNet = balances[me] || 0;
   return { balances, settlements, totalExpenses, myNet };
 }
 
@@ -1101,7 +1281,7 @@ function renderTricountExpensesList(group) {
   }
 
   const totalCount = group.expenses.length;
-  let allSortedExps = group.expenses.slice().sort((a, b) => b.date.localeCompare(a.date) || Number(b.id) - Number(a.id));
+  let allSortedExps = group.expenses.slice().sort((a, b) => b.date.localeCompare(a.date) || String(b.id).localeCompare(String(a.id)));
 
   if (!groupExpensesExpanded && totalCount > 10) {
     allSortedExps = allSortedExps.slice(0, 10);
@@ -1127,10 +1307,10 @@ function renderTricountExpensesList(group) {
     const items = groups[dateKey].map(exp => {
       const beneficiaries = (Array.isArray(exp.participants) && exp.participants.length > 0)
         ? exp.participants
-        : (group.participants || ['Me']);
+        : (group.participants || []).map(p => p.key);
 
-      const chipsHtml = beneficiaries.map(p => `
-        <span class="share-avatar-chip">👤 ${esc(p)}</span>
+      const chipsHtml = beneficiaries.map(k => `
+        <span class="share-avatar-chip">👤 ${esc(shortFor(group, k))}</span>
       `).join('');
 
       return `
@@ -1140,7 +1320,7 @@ function renderTricountExpensesList(group) {
               <div class="exp-title">
                 <b>${esc(exp.title)}</b>
               </div>
-              <div class="exp-sub" style="margin-top: 2px;">Paid by <b>${esc(exp.paidBy)}</b></div>
+              <div class="exp-sub" style="margin-top: 2px;">Paid by <b>${esc(labelFor(group, exp.paidBy))}</b></div>
               <div class="shares-chips-row">${chipsHtml}</div>
             </div>
           </div>
@@ -1190,7 +1370,7 @@ function renderTricountBalancesTab(group) {
     <div class="srow">
       <div class="user-item">
         <div class="user-avatar-circle" style="background: var(--bar); color: var(--text);">💸</div>
-        <div><strong>${esc(s.from)}</strong> owes <strong>${esc(s.to)}</strong></div>
+        <div><strong>${esc(labelFor(group, s.from))}</strong> owes <strong>${esc(labelFor(group, s.to))}</strong></div>
       </div>
       <span class="bold">${money(s.amount)}</span>
     </div>`).join('');
@@ -1209,7 +1389,7 @@ function renderTricountHistoryTab(group) {
   el.innerHTML = history.slice().reverse().map(s => `
     <div class="history-item">
       <div>
-        <strong>${esc(s.from)}</strong> paid <strong>${esc(s.to)}</strong>
+        <strong>${esc(labelFor(group, s.from))}</strong> paid <strong>${esc(labelFor(group, s.to))}</strong>
         <small class="muted" style="display: block;">${esc(s.method || 'GCash')} · ${s.date || today()} ${s.note ? '· ' + esc(s.note) : ''}</small>
       </div>
       <b class="pos-text">+${money(s.amount)}</b>
@@ -1245,26 +1425,38 @@ function importSplitwiseCsv(file) {
     const costIdx = header.findIndex(h => h.includes('cost') || h.includes('amount') || h.includes('total'));
     const payerIdx = header.findIndex(h => h.includes('paid') || h.includes('payer') || h.includes('who paid'));
 
-    let imported = 0;
     const group = state.tricounts.find(g => g.id === selectedGroupId);
     if (!group) return;
 
-    const meStr = state.nickname || state.userCode || 'Me';
+    const me = myKeyFor(group);
+    const allKeys = group.participants.map(p => p.key);
+    const keyForName = n => {
+      const t = String(n || '').trim().toLowerCase();
+      const hit = group.participants.find(p => p.key.toLowerCase() === t || p.name.toLowerCase() === t);
+      return hit ? hit.key : me;
+    };
 
+    const imported = [];
     for (let i = 1; i < lines.length; i++) {
       const cols = parseCsvLine(lines[i]);
       if (cols.length < 2) continue;
       const title = cols[descIdx >= 0 ? descIdx : 1] || 'Imported Expense';
-      const amount = parseFloat((cols[costIdx >= 0 ? costIdx : 2] || '0').replace(/[^0-9.]/g, '')) || 0;
-      const paidBy = cols[payerIdx >= 0 ? payerIdx : 3] || meStr;
-      const date = cols[dateIdx >= 0 ? dateIdx : 0] || today();
-
-      if (amount > 0) {
-        group.expenses.push({ id: 'e_' + Date.now() + Math.random(), title, amount, paidBy, participants: [...group.participants], date });
-        imported++;
-      }
+      const amount = Math.round((parseFloat((cols[costIdx >= 0 ? costIdx : 2] || '0').replace(/[^0-9.]/g, '')) || 0) * 100) / 100;
+      const paidBy = keyForName(cols[payerIdx >= 0 ? payerIdx : 3]);
+      const rawDate = cols[dateIdx >= 0 ? dateIdx : 0] || '';
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : today();
+      if (amount > 0) imported.push({ id: uid(), title, amount, paidBy, participants: [...allKeys], date });
     }
-    save(); renderTricountDetail(); toast(`Successfully imported ${imported} expenses!`);
+    if (!imported.length) { toast('No valid expenses found in that file.'); return; }
+
+    if (group.shared) {
+      const r = await rpcOk(sb.from('bill_expenses').insert(imported.map(x => expenseRow(group.id, x))),
+                            "Couldn't import. Check your connection and try again.");
+      if (!r) return;
+    }
+    group.expenses.push(...imported);
+    persistGroup(group);
+    renderTricountDetail(); toast(`Successfully imported ${imported.length} expenses!`);
   };
   reader.readAsText(file);
 }
@@ -1338,7 +1530,11 @@ function renderSettings() {
     }
   }
 
-  if ($('displayUserCode')) $('displayUserCode').textContent = state.userCode || 'USR-0000';
+  if ($('displayUserCode')) {
+    $('displayUserCode').textContent = mode === 'cloud'
+      ? (profile ? '#' + profile.code : (profileTried ? 'Unavailable' : 'Loading…'))
+      : 'Sign in to get one';
+  }
   if ($('acctCloud')) $('acctCloud').hidden = mode !== 'cloud';
   if ($('acctLocal')) $('acctLocal').hidden = mode === 'cloud';
   if (mode === 'cloud' && user && $('acctEmail')) $('acctEmail').textContent = user.email || '';
@@ -1394,6 +1590,13 @@ const loadSupabase = () => window.supabase ? Promise.resolve() : loadScript('htt
 
 function setSync(text) { const el = $('syncState'); if (el) el.textContent = text; }
 
+// Shared bills live in their own server tables, so they are never copied into the private ledger_data row.
+function ledgerSnapshot() {
+  const snap = JSON.parse(JSON.stringify(state));
+  snap.tricounts = (snap.tricounts || []).filter(g => !g.shared);
+  return snap;
+}
+
 let pushTimer = null, pushing = false, pushAgain = false;
 function schedulePush(ms) { clearTimeout(pushTimer); pushTimer = setTimeout(push, ms == null ? 800 : ms); }
 
@@ -1404,7 +1607,7 @@ async function push() {
   const stamp = state.updated;
   try {
     const { error } = await sb.from('ledger_data').upsert({
-      user_id: user.id, data: JSON.parse(JSON.stringify(state)), updated_at: new Date().toISOString()
+      user_id: user.id, data: ledgerSnapshot(), updated_at: new Date().toISOString()
     });
     if (error) throw error;
     if (state.updated === stamp) setDirty(false);
@@ -1427,7 +1630,10 @@ async function pull() {
       if (isDirty() || state.updated > remote.updated) {
         schedulePush(0);
       } else if (remote.updated > state.updated) {
-        state = remote; cacheWrite(); renderAll();
+        const keepShared = (state.tricounts || []).filter(g => g.shared);
+        state = remote;
+        state.tricounts = (remote.tricounts || []).filter(g => !g.shared).concat(keepShared);
+        cacheWrite(); renderAll();
       }
     }
     if (!pushing && !isDirty()) setSync('Synced');
@@ -1443,11 +1649,18 @@ function enterLocal() {
 }
 
 async function enterCloud(u) {
+  if (mode === 'cloud' && user && user.id === u.id) { user = u; return; }
   mode = 'cloud'; user = u;
   lsDel('ledger.mode');
   lsSet('ledger.lastUser', JSON.stringify({ id: u.id, email: u.email || '' }));
   state = readStore(storeKey()) || blank();
-  showApp(); setSync('Syncing…'); await pull();
+  try { profile = JSON.parse(lsGet('ledger.profile.' + u.id) || 'null'); } catch { profile = null; }
+  profileTried = !!profile;
+  showApp(); setSync('Syncing…');
+  await pull();
+  await loadProfile();
+  await loadSharedBills();
+  startSharedSync();
 }
 
 async function signOut() {
@@ -1455,11 +1668,13 @@ async function signOut() {
     await push();
     if (isDirty() && !confirm('Unsynced changes exist. Sign out anyway?')) return;
   }
-  const uid = user && user.id;
+  const uid0 = user && user.id;
+  stopSharedSync();
   try { if (sb) await sb.auth.signOut(); } catch {}
-  if (uid) { lsDel('ledger.cloud.' + uid); lsDel('ledger.dirty.' + uid); }
+  if (uid0) { lsDel('ledger.cloud.' + uid0); lsDel('ledger.dirty.' + uid0); lsDel('ledger.profile.' + uid0); }
   lsDel('ledger.lastUser'); lsDel('ledger.mode');
-  mode = 'none'; user = null; state = blank();
+  mode = 'none'; user = null; profile = null; profileTried = false; state = blank();
+  selectedGroupId = null;
   location.hash = ''; showAuth();
 }
 
@@ -1516,11 +1731,16 @@ function bind() {
 
   initEmojiPickerPopover();
 
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && mode === 'cloud') loadSharedBills();
+  });
+  window.addEventListener('online', () => { if (mode === 'cloud') { schedulePush(0); loadSharedBills(); } });
+
   if ($('displayUserCode')) {
     $('displayUserCode').onclick = () => {
-      if (state.userCode) {
-        copyToClipboard(state.userCode);
-        toast(`Copied Account ID: ${state.userCode}`);
+      if (profile && profile.code) {
+        copyToClipboard('#' + profile.code);
+        toast(`Copied your Ledger ID: #${profile.code}`);
       }
     };
   }
@@ -1626,48 +1846,45 @@ function bind() {
 
   if ($('btnSplitBack')) $('btnSplitBack').onclick = closeTricountDetail;
 
-  if ($('btnAddPersonFabTop')) {
-    $('btnAddPersonFabTop').onclick = () => {
-      $('groupModalTitle').textContent = 'Add a Bill';
-      $('editGroupId').value = '';
-      $('personNameInput').value = '';
-      updateModalEmojiDisplay('🐶');
-      if ($('btnDeleteGroup')) $('btnDeleteGroup').hidden = true;
-      pendingParticipants = [state.nickname || state.userCode || 'Me'];
-      renderPendingParticipants();
-      $('addPersonModal').hidden = false;
-      $('personNameInput').focus();
-    };
-  }
+  if ($('btnAddPersonFabTop')) $('btnAddPersonFabTop').onclick = () => openBillEditor(null);
 
   if ($('btnEditGroupTitle')) {
     $('btnEditGroupTitle').onclick = () => {
       const group = state.tricounts.find(g => g.id === selectedGroupId);
-      if (!group) return;
-      $('groupModalTitle').textContent = 'Edit Bill';
-      $('editGroupId').value = group.id;
-      $('personNameInput').value = group.name;
-      updateModalEmojiDisplay(group.emoji || '🐶');
-      if ($('btnDeleteGroup')) $('btnDeleteGroup').hidden = false;
-      pendingParticipants = group.participants ? [...group.participants] : [state.nickname || state.userCode || 'Me'];
-      renderPendingParticipants();
-      $('addPersonModal').hidden = false;
+      if (group) openBillEditor(group);
     };
   }
 
   if ($('addPersonCancel')) $('addPersonCancel').onclick = () => { $('addPersonModal').hidden = true; };
 
-  if ($('btnAddParticipantBtn')) {
-    $('btnAddParticipantBtn').onclick = () => {
-      const nameInput = $('newParticipantName');
-      const name = nameInput.value.trim();
-      if (name && !pendingParticipants.includes(name)) {
-        pendingParticipants.push(name);
-        nameInput.value = '';
-        renderPendingParticipants();
-      }
-    };
+  async function addPendingParticipant() {
+    const input = $('newParticipantName');
+    const btn = $('btnAddParticipantBtn');
+    const raw = input.value.trim();
+    if (!raw) return;
+    const code = parseLedgerId(raw);
+
+    if (code) {
+      if (mode !== 'cloud' || !sb) { toast('Sign in to add people by Ledger ID.'); return; }
+      if (pendingParticipants.some(p => p.code === code)) { toast('That person is already added.'); return; }
+      btn.disabled = true;
+      const r = await rpcOk(sb.rpc('lookup_profiles', { p_codes: [code] }), "Couldn't look up that ID. Check your connection.");
+      btn.disabled = false;
+      if (!r) return;
+      const hit = (r.data || [])[0];
+      if (!hit) { toast(`No Ledger account found for #${code}.`); return; }
+      pendingParticipants.push({ key: code, name: hit.nick || 'Ledger user', code });
+      toast(`Added ${hit.nick || 'Ledger user'} (#${code})`);
+    } else {
+      if (pendingParticipants.some(p => !p.code && p.name.toLowerCase() === raw.toLowerCase())) { toast('That name is already added.'); return; }
+      pendingParticipants.push({ key: raw, name: raw, code: null });
+    }
+    input.value = '';
+    renderPendingParticipants();
   }
+
+  if ($('btnAddParticipantBtn')) $('btnAddParticipantBtn').onclick = addPendingParticipant;
+  on('newParticipantName', 'keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addPendingParticipant(); } });
 
   on('addPersonForm', 'submit', async e => {
     e.preventDefault();
@@ -1679,23 +1896,46 @@ function bind() {
       toast('Please enter a bill name and add at least 1 participant.');
       return;
     }
+    const parts = pendingParticipants.map(p => ({ ...p }));
+    let sharedWith = 0;
 
     if (editId) {
       const group = state.tricounts.find(g => g.id === editId);
-      if (group) {
-        group.name = name; group.emoji = finalEmoji; group.participants = [...pendingParticipants];
-      }
+      if (!group) return;
+      if (group.shared && !(await saveBillRemote(group.id, name, finalEmoji, parts))) return;
+      group.name = name; group.emoji = finalEmoji; group.participants = parts;
+      persistGroup(group);
+      sharedWith = group.shared ? parts.filter(p => p.code && !isMeParticipant(p)).length : 0;
+    } else if (mode === 'cloud' && sb && profile) {
+      const g = {
+        id: uid(), name, emoji: finalEmoji, archived: false, shared: true,
+        createdBy: user.id, meKey: profile.code, participants: parts, settlements: [], expenses: []
+      };
+      if (!(await saveBillRemote(g.id, name, finalEmoji, parts))) return;
+      state.tricounts.push(g); cacheWrite();
+      sharedWith = parts.filter(p => p.code && !isMeParticipant(p)).length;
     } else {
+      if (mode === 'cloud') toast('Sync is not set up yet, so this bill stays on this device.');
       state.tricounts.push({
-        id: 'g_' + Date.now(), name, emoji: finalEmoji, archived: false,
-        participants: [...pendingParticipants], settlements: [], expenses: []
+        id: 'g_' + Date.now(), name, emoji: finalEmoji, archived: false, shared: false,
+        meKey: meParticipant().key, participants: parts, settlements: [], expenses: []
       });
+      save();
     }
 
-    save(); $('addPersonModal').hidden = true;
+    $('addPersonModal').hidden = true;
     if (selectedGroupId) renderTricountDetail(); else renderTricountsList();
-    toast(editId ? 'Saved bill updates!' : 'Bill created!');
+    toast(sharedWith ? `Saved and shared with ${sharedWith} ${sharedWith === 1 ? 'person' : 'people'}` : (editId ? 'Saved bill updates!' : 'Bill created!'));
   });
+
+  if ($('btnDeleteGroup')) {
+    $('btnDeleteGroup').onclick = () => {
+      const g = state.tricounts.find(x => x.id === $('editGroupId').value);
+      if (!g) return;
+      $('addPersonModal').hidden = true;
+      removeBill(g);
+    };
+  }
 
   if ($('btnImportSplitwise')) $('btnImportSplitwise').onclick = () => $('splitwiseCsvInput').click();
   on('splitwiseCsvInput', 'change', e => {
@@ -1715,37 +1955,12 @@ function bind() {
     };
   }
 
-  if ($('btnOpenAddSplitExpense')) {
-    $('btnOpenAddSplitExpense').onclick = () => {
-      const group = state.tricounts.find(g => g.id === selectedGroupId);
-      if (!group) return;
-
-      $('splitExpenseModalTitle').textContent = 'Add Shared Expense';
-      $('splitExpId').value = '';
-      $('splitExpTitle').value = '';
-      $('splitExpAmount').value = '';
-      $('splitExpDate').value = today();
-
-      $('splitExpPaidBy').innerHTML = group.participants.map(p => `
-        <option value="${esc(p)}">${esc(p)}</option>
-      `).join('');
-      $('splitExpPaidBy').value = state.nickname || state.userCode || group.participants[0] || 'Me';
-
-      selectedSplitParticipants = [...group.participants];
-      renderParticipantToggleGrid(group);
-
-      if ($('btnDeleteSplitExpense')) $('btnDeleteSplitExpense').hidden = true;
-      $('addSplitExpenseModal').hidden = false;
-      $('splitExpTitle').focus();
-    };
-  }
-
   function renderParticipantToggleGrid(group) {
     const grid = $('splitParticipantsToggleGrid');
     if (!grid) return;
     grid.innerHTML = group.participants.map(p => {
-      const isSelected = selectedSplitParticipants.includes(p);
-      return `<button type="button" class="part-chip-toggle ${isSelected ? 'on' : ''}" data-person="${esc(p)}">${isSelected ? '✓ ' : ''}${esc(p)}</button>`;
+      const isSelected = selectedSplitParticipants.includes(p.key);
+      return `<button type="button" class="part-chip-toggle ${isSelected ? 'on' : ''}" data-person="${esc(p.key)}">${isSelected ? '✓ ' : ''}${esc(partLabel(p))}</button>`;
     }).join('');
 
     $$('#splitParticipantsToggleGrid .part-chip-toggle').forEach(btn => {
@@ -1767,34 +1982,56 @@ function bind() {
     updateSplitCalculationExplanation();
   }
 
+  const paidByOptions = group => group.participants.map(p => `<option value="${esc(p.key)}">${esc(partLabel(p))}</option>`).join('');
+
+  if ($('btnOpenAddSplitExpense')) {
+    $('btnOpenAddSplitExpense').onclick = () => {
+      const group = state.tricounts.find(g => g.id === selectedGroupId);
+      if (!group) return;
+      if (!group.participants.length) { toast('Add participants to this bill first.'); return; }
+
+      $('splitExpenseModalTitle').textContent = 'Add Shared Expense';
+      $('splitExpId').value = '';
+      $('splitExpTitle').value = '';
+      $('splitExpAmount').value = '';
+      $('splitExpDate').value = today();
+
+      $('splitExpPaidBy').innerHTML = paidByOptions(group);
+      const me = myKeyFor(group);
+      $('splitExpPaidBy').value = group.participants.some(p => p.key === me) ? me : group.participants[0].key;
+
+      selectedSplitParticipants = group.participants.map(p => p.key);
+      renderParticipantToggleGrid(group);
+
+      if ($('btnDeleteSplitExpense')) $('btnDeleteSplitExpense').hidden = true;
+      $('addSplitExpenseModal').hidden = false;
+      $('splitExpTitle').focus();
+    };
+  }
+
   if ($('addSplitExpenseCancel')) $('addSplitExpenseCancel').onclick = () => { $('addSplitExpenseModal').hidden = true; };
 
   on('addSplitExpenseForm', 'submit', async e => {
     e.preventDefault();
     const expId = $('splitExpId').value;
     const title = $('splitExpTitle').value.trim();
-    const amount = parseFloat($('splitExpAmount').value) || 0;
+    const amount = Math.round((parseFloat($('splitExpAmount').value) || 0) * 100) / 100;
     const dateVal = $('splitExpDate').value || today();
-    const paidBy = $('splitExpPaidBy').value.trim();
-
-    if (!title || !(amount > 0)) return;
+    const paidBy = $('splitExpPaidBy').value;
 
     const group = state.tricounts.find(g => g.id === selectedGroupId);
-    if (group) {
-      if (expId) {
-        const exp = group.expenses.find(e => e.id === expId);
-        if (exp) {
-          exp.title = title; exp.amount = amount; exp.date = dateVal; exp.paidBy = paidBy;
-          exp.participants = [...selectedSplitParticipants];
-        }
-      } else {
-        group.expenses.push({
-          id: 'e_' + Date.now(), title, amount, paidBy,
-          participants: [...selectedSplitParticipants], date: dateVal
-        });
-      }
-      save(); $('addSplitExpenseModal').hidden = true; renderTricountDetail(); toast('Expense saved to bill!');
+    if (!group || !title || !(amount > 0)) return;
+
+    const existing = expId ? group.expenses.find(x => x.id === expId) : null;
+    const exp = { id: existing ? existing.id : uid(), title, amount, paidBy, participants: [...selectedSplitParticipants], date: dateVal };
+
+    if (group.shared) {
+      const r = await rpcOk(sb.from('bill_expenses').upsert(expenseRow(group.id, exp)), "Couldn't save the expense. Check your connection and try again.");
+      if (!r) return;
     }
+    if (existing) Object.assign(existing, exp); else group.expenses.push(exp);
+    persistGroup(group);
+    $('addSplitExpenseModal').hidden = true; renderTricountDetail(); toast('Expense saved to bill!');
   });
 
   on('splitExpensesGroupedList', 'click', e => {
@@ -1803,7 +2040,7 @@ function bind() {
     const group = state.tricounts.find(g => g.id === selectedGroupId);
     if (!group) return;
 
-    const exp = group.expenses.find(e => e.id === card.dataset.id);
+    const exp = group.expenses.find(x => String(x.id) === card.dataset.id);
     if (exp) {
       $('splitExpenseModalTitle').textContent = 'Edit Shared Expense';
       $('splitExpId').value = exp.id;
@@ -1811,10 +2048,11 @@ function bind() {
       $('splitExpAmount').value = exp.amount;
       $('splitExpDate').value = exp.date;
 
-      $('splitExpPaidBy').innerHTML = group.participants.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+      $('splitExpPaidBy').innerHTML = paidByOptions(group);
       $('splitExpPaidBy').value = exp.paidBy;
 
-      selectedSplitParticipants = Array.isArray(exp.participants) && exp.participants.length > 0 ? [...exp.participants] : [...group.participants];
+      selectedSplitParticipants = Array.isArray(exp.participants) && exp.participants.length > 0
+        ? [...exp.participants] : group.participants.map(p => p.key);
       renderParticipantToggleGrid(group);
 
       if ($('btnDeleteSplitExpense')) $('btnDeleteSplitExpense').hidden = false;
@@ -1823,13 +2061,17 @@ function bind() {
   });
 
   if ($('btnDeleteSplitExpense')) {
-    $('btnDeleteSplitExpense').onclick = () => {
+    $('btnDeleteSplitExpense').onclick = async () => {
       const expId = $('splitExpId').value;
       const group = state.tricounts.find(g => g.id === selectedGroupId);
-      if (group && expId && confirm('Delete this bill expense?')) {
-        group.expenses = group.expenses.filter(e => e.id !== expId);
-        save(); $('addSplitExpenseModal').hidden = true; renderTricountDetail(); toast('Expense deleted');
+      if (!group || !expId || !confirm('Delete this bill expense?')) return;
+      if (group.shared) {
+        const r = await rpcOk(sb.from('bill_expenses').delete().eq('id', expId), "Couldn't delete the expense.");
+        if (!r) return;
       }
+      group.expenses = group.expenses.filter(x => String(x.id) !== expId);
+      persistGroup(group);
+      $('addSplitExpenseModal').hidden = true; renderTricountDetail(); toast('Expense deleted');
     };
   }
 
@@ -1838,9 +2080,13 @@ function bind() {
       const group = state.tricounts.find(g => g.id === selectedGroupId);
       if (!group) return;
 
-      const opts = group.participants.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+      const opts = paidByOptions(group);
       if ($('settlePayer')) $('settlePayer').innerHTML = opts;
       if ($('settleReceiver')) $('settleReceiver').innerHTML = opts;
+      const me = myKeyFor(group);
+      if ($('settlePayer') && group.participants.some(p => p.key === me)) $('settlePayer').value = me;
+      const other = group.participants.find(p => p.key !== $('settlePayer').value);
+      if ($('settleReceiver') && other) $('settleReceiver').value = other.key;
       if ($('settleAmount')) $('settleAmount').value = '';
       if ($('settleNote')) $('settleNote').value = '';
       if ($('settleModal')) $('settleModal').hidden = false;
@@ -1849,24 +2095,31 @@ function bind() {
 
   if ($('settleCancel')) $('settleCancel').onclick = () => { if ($('settleModal')) $('settleModal').hidden = true; };
 
-  on('settleForm', 'submit', e => {
+  on('settleForm', 'submit', async e => {
     e.preventDefault();
     const group = state.tricounts.find(g => g.id === selectedGroupId);
     if (!group) return;
 
     const from = $('settlePayer').value;
     const to = $('settleReceiver').value;
-    const amount = parseFloat($('settleAmount').value) || 0;
+    const amount = Math.round((parseFloat($('settleAmount').value) || 0) * 100) / 100;
     const method = $('settleMethod').value;
     const note = $('settleNote').value.trim();
 
     if (from === to) { toast('Payer and receiver cannot be the same person.'); return; }
     if (!(amount > 0)) return;
 
+    const s = { id: uid(), from, to, amount, method, note, date: today() };
+    if (group.shared) {
+      const r = await rpcOk(sb.from('bill_settlements').insert({
+        id: s.id, bill_id: group.id, from_key: from, to_key: to, amount, method, note, date: s.date
+      }), "Couldn't record the payment. Check your connection and try again.");
+      if (!r) return;
+    }
     if (!group.settlements) group.settlements = [];
-    group.settlements.push({ id: 's_' + Date.now(), from, to, amount, method, note, date: today() });
-
-    save(); $('settleModal').hidden = true; renderTricountDetail(); toast(`Recorded payment of ${money(amount)}!`);
+    group.settlements.push(s);
+    persistGroup(group);
+    $('settleModal').hidden = true; renderTricountDetail(); toast(`Recorded payment of ${money(amount)}!`);
   });
 
   if ($('btnLogShareToMainExpenses')) {
@@ -1927,7 +2180,7 @@ function bind() {
     lsSet('ledger.theme', b.dataset.v); applyTheme(b.dataset.v);
   });
 
-  on('setNickname', 'input', () => { state.nickname = $('setNickname').value.trim(); save(); renderAll(); });
+  on('setNickname', 'input', () => { state.nickname = $('setNickname').value.trim(); save(); renderAll(); if (mode === 'cloud') scheduleNicknameSync(); });
   on('setCur', 'change', () => {
     const v = $('setCur').value.trim();
     if (v) { state.cur = v.slice(0, 4); save(); renderAll(); }
