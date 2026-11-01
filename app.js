@@ -864,6 +864,52 @@ function renderTricountsList() {
   });
 }
 
+function renderArchivedTricountsList() {
+  const el = $('archivedTricountsList');
+  if (!el) return;
+  const archivedGroups = (state.tricounts || []).filter(g => g.archived);
+
+  if (archivedGroups.length === 0) {
+    el.innerHTML = '<div class="empty-card card">No archived bills found.</div>';
+    return;
+  }
+
+  el.innerHTML = archivedGroups.map(g => `
+    <div class="tricount-card" data-id="${esc(g.id)}" style="display: flex; justify-content: space-between; align-items: center;">
+      <div class="tricount-card-left">
+        <span class="tricount-emoji">${esc(g.emoji)}</span>
+        <div>
+          <div class="tricount-name">${esc(g.name)}</div>
+          <small class="muted fine">Archived · ${g.participants ? g.participants.length : 1} members</small>
+        </div>
+      </div>
+      <button type="button" class="secondary-btn-link unarchive-btn" data-id="${esc(g.id)}" style="font-size: 12px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); cursor: pointer;">Restore</button>
+    </div>`).join('');
+
+  $$('#archivedTricountsList .tricount-card').forEach(card => {
+    const group = state.tricounts.find(g => g.id === card.dataset.id);
+    if (!group) return;
+    card.onclick = (e) => {
+      if (e.target.closest('.unarchive-btn')) return;
+      openTricountDetail(group.id);
+    };
+  });
+
+  $$('#archivedTricountsList .unarchive-btn').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const group = state.tricounts.find(g => g.id === btn.dataset.id);
+      if (group) {
+        group.archived = false;
+        save();
+        renderArchivedTricountsList();
+        renderTricountsList();
+        toast(`Restored "${group.name}" to active bills!`);
+      }
+    };
+  });
+}
+
 function openTricountDetail(id) {
   selectedGroupId = id;
   groupExpensesExpanded = false;
