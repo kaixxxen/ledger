@@ -21,6 +21,25 @@
   } catch (e) {}
 </script>
 <link rel="stylesheet" href="styles.css">
+<style>
+  /* Supplementary Styles for Inside-Bill UI & Itemized Splits */
+  .top-split-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .split-header-left { display: flex; align-items: center; gap: 10px; }
+  .split-header-left h1 { margin: 0; font-size: var(--fs-xl); text-transform: none; line-height: 1.2; }
+  
+  .participant-select-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; margin-bottom: 12px; }
+  .part-chip-toggle { padding: 5px 12px; border-radius: 20px; font-size: var(--fs-xs); border: 1px solid var(--border); background: var(--card); cursor: pointer; user-select: none; transition: all 0.15s ease; }
+  .part-chip-toggle.on { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+
+  .exp-cat-badge { font-size: 11px; padding: 2px 7px; border-radius: 10px; font-weight: 600; text-transform: uppercase; margin-right: 4px; display: inline-block; }
+  .shares-chips-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .share-avatar-chip { font-size: 11px; padding: 2px 6px; border-radius: 12px; background: var(--bar); color: var(--text); border: 1px solid var(--border); display: inline-flex; align-items: center; gap: 3px; }
+
+  .itemized-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .itemized-row input { margin: 0; }
+  
+  .history-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: var(--fs-sm); }
+</style>
 </head>
 <body>
 
@@ -162,63 +181,65 @@
       <p class="fine muted" style="margin-bottom: 12px;">💡 Tap any group card to open details, or hold down for options</p>
       
       <div id="tricountsList" class="tricounts-list"></div>
-
-      <button type="button" class="fab-btn" id="btnAddPersonFab" aria-label="Add a bill" hidden>
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      </button>
     </div>
 
     <div id="splitArchiveView" hidden>
-      <div class="split-detail-header">
-        <button type="button" class="icon back-btn" id="btnArchiveBack" aria-label="Back">‹</button>
-        <h2 class="person-name" style="text-transform: none; font-size: var(--fs-lg);">Archived Groups</h2>
+      <header class="top" style="margin-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button type="button" class="icon back-btn" id="btnArchiveBack" aria-label="Back">‹</button>
+          <h1 style="font-size: var(--fs-xl); margin:0;">Archived Groups</h1>
+        </div>
         <div></div>
-      </div>
+      </header>
       <p class="muted split-subhead">Manage or restore archived groups and balances</p>
       <div id="archivedTricountsList" class="tricounts-list"></div>
     </div>
 
+    <!-- INSIDE BILL VIEW -->
     <div id="splitDetailView" hidden>
-      <div class="split-detail-header">
-        <button type="button" class="icon back-btn" id="btnSplitBack" aria-label="Back">‹</button>
-        <div class="person-avatar-wrap">
-          <span class="person-avatar" id="splitPersonAvatar">🐶</span>
-          <h2 class="person-name" id="splitPersonName" style="text-transform: none;">Group / Person</h2>
+      <!-- COMPACT HEADER ALIGNED WITH OTHER HEADERS -->
+      <header class="top top-split-header">
+        <div class="split-header-left">
+          <button type="button" class="icon back-btn" id="btnSplitBack" aria-label="Back">‹</button>
+          <span id="splitPersonAvatar" style="font-size: 22px; line-height: 1;">🐶</span>
+          <h1 id="splitPersonName">Group Name</h1>
         </div>
         <button type="button" class="icon-btn edit-group-title-btn" id="btnEditGroupTitle">Edit</button>
-      </div>
+      </header>
 
-      <div class="group-share-bar card" id="groupShareBar">
+      <div class="group-share-bar card" id="groupShareBar" style="margin-bottom: 12px;">
         <span>Invite Code: <b id="groupInviteCode">—</b></span>
         <button type="button" class="text-link" id="btnCopyInviteCode">Copy Code</button>
       </div>
 
-      <div class="seg" id="splitDetailTabs">
+      <div class="seg" id="splitDetailTabs" style="margin-bottom: 12px;">
         <button type="button" data-v="expenses" class="on">Expenses</button>
         <button type="button" data-v="balances">Balances</button>
+        <button type="button" data-v="history">History</button>
       </div>
 
+      <!-- EXPENSES TAB -->
       <div id="splitTabExpenses">
-        <div class="split-stats-bar">
-          <div><small>My expenses</small><b id="splitMyExpensesVal">₱0.00</b></div>
-          <div><small>Total expenses</small><b id="splitTotalExpensesVal">₱0.00</b></div>
+        <div class="split-stats-bar" style="margin-bottom: 12px;">
+          <div><small>My net share</small><b id="splitMyExpensesVal">₱0.00</b></div>
+          <div><small>Total bill spending</small><b id="splitTotalExpensesVal">₱0.00</b></div>
         </div>
+
+        <!-- TOP ADD EXPENSE BUTTON -->
+        <button type="button" class="secondary" id="btnOpenAddSplitExpense" style="width: 100%; margin-bottom: 14px; font-weight: 700; border: 1.5px solid var(--accent);">+ Add Expense to Bill</button>
 
         <div id="splitExpensesGroupedList"></div>
 
-        <div class="import-splitwise-bar">
-          <button type="button" class="secondary-btn-link" id="btnOpenImportUrl">🔗 Import via Tricount Link</button>
-          <button type="button" class="secondary-btn-link" id="btnImportSplitwise">📥 Import Splitwise / Tricount (CSV)</button>
+        <!-- BOTTOM RELOCATED IMPORT CSV LINK -->
+        <div class="import-splitwise-bar" style="margin-top: 24px; text-align: center;">
+          <button type="button" class="secondary-btn-link" id="btnImportSplitwise">📥 Import Splitwise (CSV)</button>
           <input id="splitwiseCsvInput" type="file" accept=".csv,text/csv" hidden>
-        </div>
-
-        <div class="sticky-action-wrap">
-          <button type="button" class="primary-pill-btn" id="btnOpenAddSplitExpense">+ Add expense</button>
         </div>
       </div>
 
+      <!-- BALANCES TAB -->
       <div id="splitTabBalances" hidden>
-        <div class="split-balance-banner card" id="splitBalanceBanner">
+        <div class="split-balance-banner card" id="splitBalanceBanner" style="margin-bottom: 12px;">
           <div class="banner-content">
             <span class="banner-icon">💸</span>
             <div>
@@ -228,11 +249,22 @@
           </div>
         </div>
 
-        <button type="button" class="secondary-btn-link" id="btnSettleUp">Record Reimbursement / Settle Up</button>
-        <button type="button" class="primary" id="btnLogShareToMainExpenses">Log My Net Share to Main Expenses</button>
+        <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+          <button type="button" class="secondary-btn-link" id="btnSettleUp" style="flex: 1; text-align: center;">Record Reimbursement / Payment</button>
+        </div>
 
-        <h2 class="section-title">Individual Breakdown</h2>
+        <button type="button" class="primary" id="btnLogShareToMainExpenses" style="width: 100%; margin-bottom: 16px;">Log My Net Share to Main Expenses</button>
+
+        <h2 class="section-title">Suggested Settlements</h2>
         <div id="splitBalancesList" class="card group"></div>
+      </div>
+
+      <!-- PAYMENT HISTORY TAB -->
+      <div id="splitTabHistory" hidden>
+        <h2 class="section-title" style="margin-top: 0;">Settlement & Payment Audit Log</h2>
+        <div class="card group" style="padding: 12px 16px;">
+          <div id="splitHistoryList"></div>
+        </div>
       </div>
     </div>
   </section>
@@ -313,7 +345,7 @@
       <div>
         <div class="who">Made by Eric S.</div>
         <p>Hi, I'm Eric, the maker of Ledger. I built it as a calm, clutter-free way to keep track of everyday spending.</p>
-        <p class="fine">Ledger · Made on October 31, 2026 · Version 1.6</p>
+        <p class="fine">Ledger · Made on October 31, 2026 · Version 1.7</p>
       </div>
     </div>
   </section>
@@ -331,14 +363,13 @@
   </div>
 </div>
 
-<!-- ADD / EDIT BILL MODAL WITH EMOJI POPOVER SELECTOR -->
+<!-- ADD / EDIT BILL MODAL -->
 <div class="modal-backdrop" id="addPersonModal" hidden>
   <div class="modal-card">
     <h3 id="groupModalTitle">Add a Bill</h3>
     <form id="addPersonForm">
       <input type="hidden" id="editGroupId">
       
-      <!-- Inline Emoji Avatar Box with Popover Tray -->
       <div class="bill-name-section">
         <label class="lbl" for="personNameInput">Bill Name</label>
         <div class="bill-header-row">
@@ -346,7 +377,6 @@
             <button type="button" id="emojiAvatarBtn" class="emoji-avatar-btn" title="Choose animal emoji avatar">🐶</button>
             <input type="hidden" id="customEmojiInput" value="🐶">
             
-            <!-- Popover Animal Emoji Selector Tray -->
             <div id="emojiPickerPopover" class="emoji-popover" hidden>
               <div class="emoji-popover-header">
                 <span>Choose Animal Avatar</span>
@@ -362,16 +392,13 @@
         </div>
       </div>
 
-      <!-- Participant Management with Inline Chips -->
       <div class="participants-section">
         <label class="lbl">Participants</label>
         <div class="add-participant-row">
           <input type="text" id="newParticipantName" placeholder="Enter name">
           <button type="button" id="btnAddParticipantBtn" class="secondary add-part-btn">Add</button>
         </div>
-        <ul id="billParticipantsList" class="participants-list">
-          <!-- Dynamically populated wrapping inline chips -->
-        </ul>
+        <ul id="billParticipantsList" class="participants-list"></ul>
       </div>
 
       <div class="btnrow modal-actions">
@@ -383,7 +410,117 @@
   </div>
 </div>
 
-<!-- EDIT EXPENSE MODAL -->
+<!-- RECORD REIMBURSEMENT / SETTLE UP MODAL -->
+<div class="modal-backdrop" id="settleModal" hidden>
+  <div class="modal-card">
+    <h3>Record Payment / Reimbursement</h3>
+    <form id="settleForm">
+      <div class="row2">
+        <div>
+          <label class="lbl" for="settlePayer">Paid By (Payer)</label>
+          <select id="settlePayer" required></select>
+        </div>
+        <div>
+          <label class="lbl" for="settleReceiver">Paid To (Receiver)</label>
+          <select id="settleReceiver" required></select>
+        </div>
+      </div>
+      <div class="row2">
+        <div>
+          <label class="lbl" for="settleAmount">Amount Paid</label>
+          <input id="settleAmount" type="number" inputmode="decimal" step="0.01" min="0.01" placeholder="0.00" required>
+        </div>
+        <div>
+          <label class="lbl" for="settleMethod">Payment Method</label>
+          <select id="settleMethod">
+            <option value="GCash">GCash</option>
+            <option value="Maya">Maya</option>
+            <option value="Cash">Cash</option>
+            <option value="Bank Transfer">Bank Transfer</option>
+            <option value="Venmo">Venmo / PayPal</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="lbl" for="settleNote">Notes (Optional)</label>
+        <input id="settleNote" type="text" placeholder="e.g. Sent via GCash ref #1234" maxlength="50">
+      </div>
+      <div class="btnrow modal-actions" style="margin-top: 14px;">
+        <button type="submit" class="primary">Record Payment</button>
+        <button type="button" class="secondary" id="settleCancel">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ADD / EDIT SPLIT EXPENSE MODAL WITH ADVANCED SPLITS & CATEGORIES -->
+<div class="modal-backdrop" id="addSplitExpenseModal" hidden>
+  <div class="modal-card" style="max-width: 440px; width: 100%;">
+    <h3 id="splitExpenseModalTitle">Add Shared Expense</h3>
+    <form id="addSplitExpenseForm">
+      <input type="hidden" id="splitExpId">
+      <div>
+        <label class="lbl" for="splitExpTitle">Title / Description</label>
+        <input id="splitExpTitle" type="text" placeholder="e.g. Dinner, Coffee, Taxi" required maxlength="60">
+      </div>
+      <div class="row2">
+        <div>
+          <label class="lbl" for="splitExpAmount">Total Amount</label>
+          <input id="splitExpAmount" type="number" inputmode="decimal" step="0.01" min="0.01" placeholder="0.00" required>
+        </div>
+        <div>
+          <label class="lbl" for="splitExpCategory">Category</label>
+          <select id="splitExpCategory">
+            <option value="Food">Food 🍲</option>
+            <option value="Transport">Transport 🚗</option>
+            <option value="Lodging">Lodging 🏨</option>
+            <option value="Bills">Bills 💡</option>
+            <option value="Fun">Fun 🎉</option>
+            <option value="Shopping">Shopping 🛍️</option>
+            <option value="Other">Other 📦</option>
+          </select>
+        </div>
+      </div>
+      <div class="row2">
+        <div>
+          <label class="lbl" for="splitExpPaidBy">Paid By</label>
+          <select id="splitExpPaidBy" required></select>
+        </div>
+        <div>
+          <label class="lbl" for="splitExpDate">Date</label>
+          <input id="splitExpDate" type="date" required>
+        </div>
+      </div>
+
+      <!-- Split Participants Checkbox Selector -->
+      <div>
+        <label class="lbl">Shared By (Participants)</label>
+        <div id="splitParticipantsToggleGrid" class="participant-select-grid"></div>
+      </div>
+
+      <!-- Split Mode Selector -->
+      <div>
+        <label class="lbl">Split Method</label>
+        <div class="split-mode-options" id="splitModeSeg" style="display: flex; gap: 4px; overflow-x: auto; padding-bottom: 4px;">
+          <button type="button" data-v="equal" class="on">Equally</button>
+          <button type="button" data-v="parts">By Shares</button>
+          <button type="button" data-v="amounts">By Amount</button>
+          <button type="button" data-v="percent">By %</button>
+          <button type="button" data-v="itemized">Itemized</button>
+        </div>
+        <div id="splitModeDynamicInputs" class="split-dynamic-inputs" style="margin-top: 10px;"></div>
+      </div>
+
+      <div class="btnrow modal-actions" style="margin-top: 16px;">
+        <button type="submit" class="primary">Save Expense</button>
+        <button type="button" class="secondary danger" id="btnDeleteSplitExpense" hidden>Delete Expense</button>
+        <button type="button" class="secondary" id="addSplitExpenseCancel">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- EDIT TRANSACTION MODAL -->
 <div class="modal-backdrop" id="editExpenseModal" hidden>
   <div class="modal-card" style="max-width: 420px; width: 100%;">
     <h3 id="editModalTitle" style="margin-bottom: 14px;">Edit Transaction</h3>
@@ -453,69 +590,6 @@
       <div class="btnrow modal-actions">
         <button type="submit" class="primary">Join Group</button>
         <button type="button" class="secondary" id="joinGroupCancel">Cancel</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- IMPORT VIA URL MODAL -->
-<div class="modal-backdrop" id="importUrlModal" hidden>
-  <div class="modal-card">
-    <h3>Import via Tricount Link</h3>
-    <form id="importUrlForm">
-      <div>
-        <label class="lbl" for="tricountUrlInput">Paste Tricount Web Link</label>
-        <input id="tricountUrlInput" type="url" placeholder="https://tricount.com/..." required>
-      </div>
-      <div class="btnrow modal-actions">
-        <button type="submit" class="primary" id="btnParseUrl">Fetch & Import Expenses</button>
-        <button type="button" class="secondary" id="importUrlCancel">Cancel</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- ADD / EDIT SPLIT EXPENSE MODAL -->
-<div class="modal-backdrop" id="addSplitExpenseModal" hidden>
-  <div class="modal-card">
-    <h3 id="splitExpenseModalTitle">Add Shared Expense</h3>
-    <form id="addSplitExpenseForm">
-      <input type="hidden" id="splitExpId">
-      <div>
-        <label class="lbl" for="splitExpTitle">Title / Description</label>
-        <input id="splitExpTitle" type="text" placeholder="e.g. Dinner, Coffee, Taxi" required maxlength="60">
-      </div>
-      <div class="row2">
-        <div>
-          <label class="lbl" for="splitExpAmount">Total Amount</label>
-          <input id="splitExpAmount" type="number" inputmode="decimal" step="0.01" min="0.01" placeholder="0.00" required>
-        </div>
-        <div>
-          <label class="lbl" for="splitExpDate">Date</label>
-          <input id="splitExpDate" type="date" required>
-        </div>
-      </div>
-      <div>
-        <label class="lbl" for="splitExpPaidBy">Paid By</label>
-        <input id="splitExpPaidBy" type="text" placeholder="e.g. Me, Alex" required>
-      </div>
-
-      <div>
-        <label class="lbl">Split Method</label>
-        <div class="split-mode-options" id="splitModeSeg">
-          <button type="button" data-v="equal" class="on">Equally</button>
-          <button type="button" data-v="parts">By Parts</button>
-          <button type="button" data-v="amounts">By Amounts</button>
-        </div>
-        <div id="splitModeDynamicInputs" class="split-dynamic-inputs" style="margin-top: 8px;">
-          <span class="fine muted">Split equally (50 / 50 default).</span>
-        </div>
-      </div>
-
-      <div class="btnrow modal-actions" style="margin-top: 14px;">
-        <button type="submit" class="primary">Save Expense</button>
-        <button type="button" class="secondary danger" id="btnDeleteSplitExpense" hidden>Delete Expense</button>
-        <button type="button" class="secondary" id="addSplitExpenseCancel">Cancel</button>
       </div>
     </form>
   </div>
