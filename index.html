@@ -27,11 +27,8 @@
   .split-header-left { display: flex; align-items: center; gap: 10px; }
   .split-header-left h1 { margin: 0; font-size: var(--fs-xl); text-transform: none; line-height: 1.2; }
   
-  .group-share-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; padding: 10px 14px; }
-  .group-share-left { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm); }
-  
   .participant-select-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-  .part-chip-toggle { padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 500; border: 1px solid var(--border); background: var(--bar); color: var(--text); cursor: pointer; user-select: none; transition: all 0.15s ease; display: inline-flex; align-items: center; gap: 4px; }
+  .part-chip-toggle { padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 500; border: 1px solid var(--border); background: var(--card); color: var(--text); cursor: pointer; user-select: none; transition: all 0.15s ease; display: inline-flex; align-items: center; gap: 4px; }
   .part-chip-toggle.on { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
 
   .shares-chips-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
@@ -205,32 +202,42 @@
         <button type="button" class="icon-btn edit-group-title-btn" id="btnEditGroupTitle">Edit</button>
       </header>
 
-      <!-- INVITE BAR WITH IMPORT SPLITWISE BUTTON BESIDE IT -->
-      <div class="group-share-bar card" id="groupShareBar">
-        <div class="group-share-left">
-          <span>Invite Code: <b id="groupInviteCode">—</b></span>
-          <button type="button" class="text-link" id="btnCopyInviteCode" style="font-size: 12px;">Copy</button>
+      <!-- CONSOLIDATED BILL HERO CARD (Invite Code, CSV Import & Stats in 1 Card) -->
+      <div class="card bill-hero-card" style="padding: 12px 14px; margin-bottom: 12px; border-radius: 14px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 10px; font-size: 13px;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="opacity: 0.7;">Invite Code:</span>
+            <b id="groupInviteCode" style="letter-spacing: 0.5px;">—</b>
+            <button type="button" class="text-link" id="btnCopyInviteCode" style="font-size: 11px; margin-left: 2px;">Copy</button>
+          </div>
+          <div>
+            <button type="button" id="btnImportSplitwise" style="font-size: 11px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bar); cursor: pointer; color: var(--text);">📥 Import CSV</button>
+            <input id="splitwiseCsvInput" type="file" accept=".csv,text/csv" hidden>
+          </div>
         </div>
-        <div>
-          <button type="button" class="secondary-btn-link" id="btnImportSplitwise" style="font-size: 12px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bar);">📥 Import Splitwise (CSV)</button>
-          <input id="splitwiseCsvInput" type="file" accept=".csv,text/csv" hidden>
+
+        <div style="display: flex; justify-content: space-around; text-align: center;">
+          <div>
+            <small style="display: block; font-size: 11px; opacity: 0.7; margin-bottom: 2px;">My Net Share</small>
+            <b id="splitMyExpensesVal" style="font-size: 18px; font-weight: 700;">₱0.00</b>
+          </div>
+          <div style="width: 1px; background: var(--border); margin: 0 8px;"></div>
+          <div>
+            <small style="display: block; font-size: 11px; opacity: 0.7; margin-bottom: 2px;">Total Bill Spending</small>
+            <b id="splitTotalExpensesVal" style="font-size: 18px; font-weight: 700;">₱0.00</b>
+          </div>
         </div>
       </div>
 
+      <!-- TABS CONTROL -->
       <div class="seg" id="splitDetailTabs" style="margin-bottom: 12px;">
         <button type="button" data-v="expenses" class="on">Expenses</button>
         <button type="button" data-v="balances">Balances</button>
-        <button type="button" data-v="history">History</button>
+        <button type="button" data-v="history">Audit Log</button>
       </div>
 
       <!-- EXPENSES TAB -->
       <div id="splitTabExpenses">
-        <div class="split-stats-bar" style="margin-bottom: 12px;">
-          <div><small>My net share</small><b id="splitMyExpensesVal">₱0.00</b></div>
-          <div><small>Total bill spending</small><b id="splitTotalExpensesVal">₱0.00</b></div>
-        </div>
-
-        <!-- TOP ADD EXPENSE BUTTON -->
         <button type="button" class="secondary" id="btnOpenAddSplitExpense" style="width: 100%; margin-bottom: 14px; font-weight: 700; border: 1.5px solid var(--accent);">+ Add Expense to Bill</button>
 
         <div id="splitExpensesGroupedList"></div>
@@ -455,23 +462,26 @@
   </div>
 </div>
 
-<!-- SIMPLIFIED ADD / EDIT SHARED EXPENSE MODAL -->
+<!-- SIMPLIFIED ADD / EDIT SHARED EXPENSE MODAL (Combined Title + Amount side-by-side) -->
 <div class="modal-backdrop" id="addSplitExpenseModal" hidden>
   <div class="modal-card" style="max-width: 440px; width: 100%;">
     <h3 id="splitExpenseModalTitle" style="margin-bottom: 16px;">Add Shared Expense</h3>
     <form id="addSplitExpenseForm">
       <input type="hidden" id="splitExpId">
       
-      <div style="margin-bottom: 12px;">
-        <label class="lbl" for="splitExpTitle">Title / Description</label>
-        <input id="splitExpTitle" type="text" placeholder="e.g. Dinner, Taxi, Groceries" required maxlength="60">
+      <!-- COMBINED ROW 1: Title & Amount -->
+      <div class="row2" style="margin-bottom: 12px;">
+        <div style="flex: 2;">
+          <label class="lbl" for="splitExpTitle">Title / Description</label>
+          <input id="splitExpTitle" type="text" placeholder="Dinner, Taxi, Groceries" required maxlength="60">
+        </div>
+        <div style="flex: 1;">
+          <label class="lbl" for="splitExpAmount">Amount</label>
+          <input id="splitExpAmount" type="number" inputmode="decimal" step="0.01" min="0.01" placeholder="0.00" required>
+        </div>
       </div>
 
-      <div style="margin-bottom: 12px;">
-        <label class="lbl" for="splitExpAmount">Total Amount</label>
-        <input id="splitExpAmount" type="number" inputmode="decimal" step="0.01" min="0.01" placeholder="0.00" required>
-      </div>
-
+      <!-- COMBINED ROW 2: Paid By & Date -->
       <div class="row2" style="margin-bottom: 12px;">
         <div>
           <label class="lbl" for="splitExpPaidBy">Paid By</label>

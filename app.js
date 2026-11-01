@@ -936,6 +936,7 @@ function calculateGroupBalance(group) {
     beneficiaries.forEach(p => { balances[p] = (balances[p] || 0) - share; });
   });
 
+  // Dynamically deduct payments & reimbursements from participant balances
   (group.settlements || []).forEach(s => {
     const amt = Number(s.amount) || 0;
     balances[s.from] = (balances[s.from] || 0) + amt;
@@ -1587,6 +1588,16 @@ function bind() {
     if (selectedGroupId) renderTricountDetail(); else renderTricountsList();
     toast(editId ? 'Saved bill updates!' : 'Bill created!');
   });
+
+  if ($('btnCopyInviteCode')) {
+    $('btnCopyInviteCode').onclick = () => {
+      const group = state.tricounts.find(g => g.id === selectedGroupId);
+      if (group && group.inviteCode) {
+        navigator.clipboard.writeText(group.inviteCode);
+        toast(`Copied invite code: ${group.inviteCode}`);
+      }
+    };
+  }
 
   if ($('btnImportSplitwise')) $('btnImportSplitwise').onclick = () => $('splitwiseCsvInput').click();
   on('splitwiseCsvInput', 'change', e => {
