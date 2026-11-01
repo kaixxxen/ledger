@@ -518,7 +518,7 @@ function renderHome() {
     $('barsBody').innerHTML = `<div class="bars" style="overflow: visible;"><svg viewBox="0 0 300 126" role="img" aria-label="Spending over six months" style="width:100%; height:auto;">${bars}</svg></div>`;
   }
 
-  // PAYMENT METHOD BREAKDOWN BAR
+  // PAYMENT METHOD BREAKDOWN BAR (Restored Compact Font Sizes)
   const cash  = txs.filter(t => t.type === 'expense' && t.method === 'cash').reduce((s, t) => s + t.amount, 0);
   const debit = txs.filter(t => t.type === 'expense' && t.method === 'debit').reduce((s, t) => s + t.amount, 0);
   const card  = txs.filter(t => t.type === 'expense' && t.method === 'card').reduce((s, t) => s + t.amount, 0);
@@ -526,15 +526,15 @@ function renderHome() {
   if ($('splitBody')) {
     if (exp > 0) {
       $('splitBody').innerHTML = `
-        <div class="split" role="img" aria-label="Cash ${Math.round(cash / exp * 100)}%, Debit ${Math.round(debit / exp * 100)}%, Credit ${Math.round(card / exp * 100)}%" style="display:flex; height:12px; border-radius:6px; overflow:hidden; margin-bottom:12px; background:var(--bar);">
+        <div class="split" role="img" aria-label="Cash ${Math.round(cash / exp * 100)}%, Debit ${Math.round(debit / exp * 100)}%, Credit ${Math.round(card / exp * 100)}%" style="display:flex; height:8px; border-radius:4px; overflow:hidden; margin-bottom:10px; background:var(--bar);">
           <i style="width:${cash / exp * 100}%; background:var(--c-cash, #10b981); transition: width 0.5s ease;"></i>
           <i style="width:${debit / exp * 100}%; background:var(--c-debit, #3b82f6); transition: width 0.5s ease;"></i>
           <i style="width:${card / exp * 100}%; background:var(--c-card, #f59e0b); transition: width 0.5s ease;"></i>
         </div>
         <div class="split-legend" style="display:flex; justify-content:space-between; gap:8px;">
-          <div><small style="display:flex; align-items:center; gap:4px; font-size:12px; opacity:0.8;"><i style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--c-cash, #10b981)"></i>Cash · ${Math.round(cash / exp * 100)}%</small><b style="display:block; font-size:14px; margin-top:2px;">${money(cash)}</b></div>
-          <div><small style="display:flex; align-items:center; gap:4px; font-size:12px; opacity:0.8;"><i style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--c-debit, #3b82f6)"></i>Debit · ${Math.round(debit / exp * 100)}%</small><b style="display:block; font-size:14px; margin-top:2px;">${money(debit)}</b></div>
-          <div><small style="display:flex; align-items:center; gap:4px; font-size:12px; opacity:0.8;"><i style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--c-card, #f59e0b)"></i>Credit · ${Math.round(card / exp * 100)}%</small><b style="display:block; font-size:14px; margin-top:2px;">${money(card)}</b></div>
+          <div><small style="display:flex; align-items:center; gap:4px; font-size:11px; opacity:0.75;"><i style="display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--c-cash, #10b981)"></i>Cash · ${Math.round(cash / exp * 100)}%</small><b style="display:block; font-size:12px; font-weight:600; margin-top:2px;">${money(cash)}</b></div>
+          <div><small style="display:flex; align-items:center; gap:4px; font-size:11px; opacity:0.75;"><i style="display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--c-debit, #3b82f6)"></i>Debit · ${Math.round(debit / exp * 100)}%</small><b style="display:block; font-size:12px; font-weight:600; margin-top:2px;">${money(debit)}</b></div>
+          <div><small style="display:flex; align-items:center; gap:4px; font-size:11px; opacity:0.75;"><i style="display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--c-card, #f59e0b)"></i>Credit · ${Math.round(card / exp * 100)}%</small><b style="display:block; font-size:12px; font-weight:600; margin-top:2px;">${money(card)}</b></div>
         </div>`;
     } else {
       $('splitBody').innerHTML = '<p class="muted center-text" style="padding:16px 0;">No spending logged this month.</p>';
@@ -889,15 +889,15 @@ function renderArchivedTricountsList() {
   }
 
   el.innerHTML = archivedGroups.map(g => `
-    <div class="tricount-card" data-id="${esc(g.id)}" style="display: flex; justify-content: space-between; align-items: center;">
-      <div class="tricount-card-left">
+    <div class="tricount-card" data-id="${esc(g.id)}" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+      <div class="tricount-card-left" style="display: flex; align-items: center; gap: 10px;">
         <span class="tricount-emoji">${esc(g.emoji)}</span>
         <div>
           <div class="tricount-name">${esc(g.name)}</div>
           <small class="muted fine">Archived · ${g.participants ? g.participants.length : 1} members</small>
         </div>
       </div>
-      <button type="button" class="secondary-btn-link unarchive-btn" data-id="${esc(g.id)}" style="font-size: 12px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); cursor: pointer;">Restore</button>
+      <button type="button" class="secondary-btn-link unarchive-btn" data-id="${esc(g.id)}" style="font-size: 12px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); cursor: pointer; margin-left: auto; flex-shrink: 0;">Restore</button>
     </div>`).join('');
 
   $$('#archivedTricountsList .tricount-card').forEach(card => {
