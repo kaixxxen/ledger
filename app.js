@@ -960,11 +960,10 @@ function calculateGroupBalance(group) {
     }
   });
 
-  // Factor in recorded reimbursements/settlements
   (group.settlements || []).forEach(s => {
     const amt = Number(s.amount) || 0;
-    balances[s.from] = (balances[s.from] || 0) + amt; // Payer balance increases (paid off debt)
-    balances[s.to] = (balances[s.to] || 0) - amt;     // Receiver balance decreases (received debt)
+    balances[s.from] = (balances[s.from] || 0) + amt;
+    balances[s.to] = (balances[s.to] || 0) - amt;
   });
 
   const debtors = [];
@@ -1379,15 +1378,30 @@ async function signOut() {
 
 function authMsg(text, ok) { const m = $('authMsg'); if (m) { m.textContent = text || ''; m.classList.toggle('ok', !!ok); } }
 
+function friendlyAuthError(err) {
+  const m = (err && err.message) || 'Something went wrong. Please try again.';
+  if (/rate limit|too many/i.test(m)) return 'Too many attempts. Please wait a bit and try again.';
+  if (/fetch|network/i.test(m)) return "Can't reach the server. Check your connection.";
+  return m;
+}
+
 async function signInWithGoogle() {
-  if (!sb) { authMsg("Can't reach the sign-in service."); return; }
+  if (!CLOUD || !sb) {
+    authMsg("Supabase credentials missing in config.js. Add valid SUPABASE_URL & SUPABASE_ANON_KEY to enable Google Sign-In.");
+    return;
+  }
+  authMsg("Redirecting to Google...", true);
   try {
     const { error } = await sb.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin + window.location.pathname }
+      options: {
+        redirectTo: window.location.origin + window.location.pathname
+      }
     });
     if (error) throw error;
-  } catch (err) { authMsg(err.message || 'Authentication failed'); }
+  } catch (err) {
+    authMsg(friendlyAuthError(err));
+  }
 }
 
 function updateSplitInputsUI(group) {
@@ -1713,13 +1727,11 @@ function bind() {
       $('splitExpCategory').value = 'Food';
       $('splitExpDate').value = today();
 
-      // Populate Paid By Select
       $('splitExpPaidBy').innerHTML = group.participants.map(p => `
         <option value="${esc(p)}">${esc(p)}</option>
       `).join('');
       $('splitExpPaidBy').value = state.nickname || group.participants[0] || 'Me';
 
-      // Setup Participants Checkbox Chips
       selectedSplitParticipants = [...group.participants];
       renderParticipantToggleGrid(group);
 
@@ -1860,7 +1872,6 @@ function bind() {
     };
   }
 
-  // REIMBURSEMENT / SETTLE UP FLOW
   if ($('btnSettleUp')) {
     $('btnSettleUp').onclick = () => {
       const group = state.tricounts.find(g => g.id === selectedGroupId);
@@ -2003,15 +2014,47 @@ async function boot() {
   try {
     applyTheme(getTheme());
     bind();
+
     if (CLOUD) {
       try {
         await loadSupabase();
         sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
-      } catch { sb = null; }
+
+        // Listen for OAuth sign-in callbacks & session events
+        sb.auth.onAuthStateChange(async (event, session) => {
+          if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
+            await enterCloud(session.user);
+          } else if (event === 'SIGNED_OUT' && mode === 'cloud') {
+            mode = 'none'; user = null; showAuth();
+          }
+        });
+      } catch (e) {
+        console.error('Supabase load error:', e);
+        sb = null;
+      }
     }
+
+    if (sb) {
+      const { data } = await sb.auth.getSession();
+      if (data && data.session) {
+        await enterCloud(data.session.user);
+        return;
+      }
+    } else if (CLOUD) {
+      let last = null;
+      try { last = JSON.parse(lsGet('ledger.lastUser') || 'null'); } catch {}
+      if (last && last.id && readStore('ledger.cloud.' + last.id)) {
+        mode = 'cloud'; user = { id: last.id, email: last.email };
+        state = readStore(storeKey());
+        showApp(); setSync('Offline. Will sync when back online.');
+        return;
+      }
+    }
+
     if (lsGet('ledger.mode') === 'local') { enterLocal(); return; }
     showAuth();
   } catch (err) {
+    console.error('Boot error:', err);
     enterLocal();
   }
 }
