@@ -1570,6 +1570,7 @@ function bind() {
   if ($('btnArchiveBack')) {
     $('btnArchiveBack').onclick = () => {
       $('splitArchiveView').hidden = true;
+      $('splitMainView').false;
       $('splitMainView').hidden = false;
       renderTricountsList();
     };
@@ -1648,12 +1649,12 @@ function bind() {
     toast(editId ? 'Saved bill updates!' : 'Bill created!');
   });
 
-  if ($('btnCopyInviteCode')) {
-    $('btnCopyInviteCode').onclick = () => {
-      const group = state.tricounts.find(g => g.id === selectedGroupId);
-      if (group && group.inviteCode) {
-        navigator.clipboard.writeText(group.inviteCode);
-        toast(`Copied invite code: ${group.inviteCode}`);
+  if ($('groupInviteCode')) {
+    $('groupInviteCode').onclick = () => {
+      const code = $('groupInviteCode').textContent.trim();
+      if (code && code !== '—') {
+        navigator.clipboard.writeText(code);
+        toast(`Copied invite code: ${code}`);
       }
     };
   }

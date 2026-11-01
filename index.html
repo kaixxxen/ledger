@@ -36,8 +36,8 @@
 
   .history-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: var(--fs-sm); }
 
-  /* Group Cards Spacing Fix */
-  .tricounts-list { display: flex; flex-direction: column; gap: 8px; }
+  /* Group Cards Spacing Fix (Halved space) */
+  .tricounts-list { display: flex; flex-direction: column; gap: 4px; }
 
   /* Archived Groups Layout & Card Cleanup */
   #archivedTricountsList .tricount-card {
@@ -109,18 +109,30 @@
     transform: scale(0.96);
   }
 
-  /* Logged Expenses Divider Style (No background cards, divided by border line) */
+  /* Logged Expenses Visible Divider Style */
   #list { list-style: none; padding: 0; margin: 0; }
   #list li.tx {
     background: transparent !important;
     border-radius: 0 !important;
     box-shadow: none !important;
-    padding: 10px 0 !important;
+    padding: 12px 0 !important;
     margin: 0 !important;
     border-bottom: 1px solid var(--border) !important;
   }
   #list li.tx:last-child {
     border-bottom: none !important;
+  }
+
+  /* Clickable Invite Code Badge */
+  .clickable-code {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    transition: opacity 0.15s ease;
+  }
+  .clickable-code:hover {
+    opacity: 0.8;
   }
 
   /* Chart Animations & Visual Styling */
@@ -324,10 +336,9 @@
       <!-- CONSOLIDATED BILL HERO CARD -->
       <div class="card bill-hero-card" style="padding: 12px 14px; margin-bottom: 12px; border-radius: 14px;">
         <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 10px; font-size: 13px;">
-          <div style="display: flex; align-items: center; gap: 6px; font-size: 13px;">
+          <div style="display: flex; align-items: center; gap: 4px; font-size: 13px;">
             <span style="opacity: 0.7;">Invite Code:</span>
-            <span id="groupInviteCode" style="font-size: 13px; font-weight: 600; letter-spacing: 0.5px;">—</span>
-            <button type="button" class="text-link" id="btnCopyInviteCode" style="font-size: 11px; margin-left: 2px;">Copy</button>
+            <span id="groupInviteCode" class="clickable-code" title="Click to copy invite code">—</span>
           </div>
           <div>
             <button type="button" id="btnImportSplitwise" style="font-size: 11px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bar); cursor: pointer; color: var(--text);">📥 Import CSV</button>
@@ -335,13 +346,13 @@
           </div>
         </div>
 
-        <div style="display: flex; justify-around; text-align: center;">
-          <div>
+        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+          <div style="flex: 1; text-align: center;">
             <small style="display: block; font-size: 11px; opacity: 0.7; margin-bottom: 2px;">My Net Share</small>
             <b id="splitMyExpensesVal" style="font-size: 18px; font-weight: 700;">₱0.00</b>
           </div>
-          <div style="width: 1px; background: var(--border); margin: 0 8px;"></div>
-          <div>
+          <div style="width: 1px; height: 32px; background: var(--border); opacity: 0.8; margin: 0 4px;"></div>
+          <div style="flex: 1; text-align: center;">
             <small style="display: block; font-size: 11px; opacity: 0.7; margin-bottom: 2px;">Total Bill Spending</small>
             <b id="splitTotalExpensesVal" style="font-size: 18px; font-weight: 700;">₱0.00</b>
           </div>
