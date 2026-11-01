@@ -1698,6 +1698,7 @@ function bind() {
     importSplitwiseCsv(e.target.files[0]); e.target.value = '';
   });
 
+  /* JOIN GROUP FEATURE FIX */
   if ($('btnOpenJoinModal')) {
     $('btnOpenJoinModal').onclick = () => {
       $('joinCodeInput').value = ''; $('joinGroupModal').hidden = false; $('joinCodeInput').focus();
@@ -1705,6 +1706,59 @@ function bind() {
   }
 
   if ($('joinGroupCancel')) $('joinGroupCancel').onclick = () => { $('joinGroupModal').hidden = true; };
+
+  on('joinGroupForm', 'submit', async e => {
+    e.preventDefault();
+    const code = $('joinCodeInput').value.trim().toUpperCase();
+    if (!code) return;
+
+    const myName = state.nickname || (user && user.email ? user.email.split('@')[0] : 'Me');
+
+    // 1. Search local state for matching invite code
+    let group = (state.tricounts || []).find(g => (g.inviteCode || '').toUpperCase() === code);
+
+    // 2. In Cloud mode, search Supabase if not found locally
+    if (!group && sb && mode === 'cloud') {
+      try {
+        const { data, error } = await sb.from('split_groups').select('*').or(`invite_code.eq.${code},invite_code.ilike.${code}`).maybeSingle();
+        if (data && !error) {
+          group = {
+            id: data.id || ('g_' + Date.now()),
+            name: data.name || 'Shared Group',
+            emoji: data.emoji || '🐶',
+            archived: false,
+            inviteCode: data.invite_code || code,
+            participants: Array.isArray(data.participants) ? data.participants : [myName],
+            settlements: Array.isArray(data.settlements) ? data.settlements : [],
+            expenses: []
+          };
+          state.tricounts.push(group);
+        }
+      } catch (err) {
+        console.error('Error fetching group by invite code:', err);
+      }
+    }
+
+    if (!group) {
+      toast('Invalid invite code. No matching group found.');
+      return;
+    }
+
+    // Add current user to participants list if not already present
+    if (!group.participants) group.participants = [];
+    if (!group.participants.includes(myName)) {
+      group.participants.push(myName);
+    }
+
+    group.archived = false;
+    save();
+
+    $('joinGroupModal').hidden = true;
+    $('joinCodeInput').value = '';
+
+    openTricountDetail(group.id);
+    toast(`Joined group "${group.name}"!`);
+  });
 
   on('splitDetailTabs', 'click', e => {
     const b = e.target.closest('button'); if (!b) return;
