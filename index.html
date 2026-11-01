@@ -182,7 +182,7 @@
       <div class="split-detail-header">
         <button type="button" class="icon back-btn" id="btnSplitBack" aria-label="Back">‹</button>
         <div class="person-avatar-wrap">
-          <span class="person-avatar" id="splitPersonAvatar">👥</span>
+          <span class="person-avatar" id="splitPersonAvatar">💩</span>
           <h2 class="person-name" id="splitPersonName" style="text-transform: none;">Group / Person</h2>
         </div>
         <button type="button" class="icon-btn edit-group-title-btn" id="btnEditGroupTitle">Edit</button>
@@ -339,9 +339,12 @@
       <input type="hidden" id="editGroupId">
       
       <!-- Inline Emoji Avatar and Bill Name -->
-      <div class="bill-header-row">
-        <input id="customEmojiInput" type="text" class="emoji-box" value="💸" maxlength="2" title="Select an emoji from keyboard" required>
-        <input id="personNameInput" type="text" class="bill-name-input" placeholder="Bill Name" required maxlength="30">
+      <div class="bill-name-section">
+        <label class="lbl" for="personNameInput">Bill Name</label>
+        <div class="bill-header-row">
+          <input id="customEmojiInput" type="text" class="emoji-box" value="💩" maxlength="2" title="Select an emoji from keyboard" required onclick="this.select()" onfocus="this.select()">
+          <input id="personNameInput" type="text" class="bill-name-input" placeholder="e.g. Eric, Dinner, Baguio Trip" required maxlength="30">
+        </div>
       </div>
 
       <!-- Participant Management -->
@@ -603,7 +606,7 @@
     <span>Expenses</span>
   </button>
   <button type="button" data-go="split">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 1 0 7.75"/></svg>
     <span>Split</span>
   </button>
   <button type="button" data-go="settings">

@@ -348,30 +348,30 @@ li.tx .del:hover{ background:var(--line); color:var(--text); }
 }
 
 /* Modal Bill Inline Header & Participants Styling */
+.bill-name-section {
+  margin-bottom: 16px;
+}
 .bill-header-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 8px;
 }
 .emoji-box {
-  width: 54px;
-  height: 54px;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
   border-radius: var(--radius-md);
   border: 1px solid var(--line);
-  font-size: 26px;
+  font-size: 20px;
   text-align: center;
   background-color: var(--bg);
   padding: 0;
-  flex-shrink: 0;
+  cursor: pointer;
+  box-sizing: border-box;
 }
 .bill-name-input {
-  flex-grow: 1;
-  height: 54px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--line);
-  padding: 0 12px;
-  font-size: var(--fs-md);
+  flex: 1;
+  min-width: 0;
 }
 .participants-section {
   margin-bottom: 16px;
@@ -398,6 +398,44 @@ li.tx .del:hover{ background:var(--line); color:var(--text); }
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+.participant-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-size: var(--fs-base);
+  font-weight: 500;
+  color: var(--text);
+  box-sizing: border-box;
+}
+.participant-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.del-participant-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.del-participant-btn:hover {
+  color: var(--bad);
+  background: var(--bar);
 }
 
 /* Split Mode Options Styling */

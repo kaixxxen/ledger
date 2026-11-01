@@ -123,7 +123,7 @@ function normalize(raw) {
   s.tricounts = (Array.isArray(s.tricounts) ? s.tricounts : []).map(p => ({
     id: String(p.id || 'g_' + Date.now() + Math.random()),
     name: String(p.name || 'Shared Group / Person').trim(),
-    emoji: String(p.emoji || '💸'),
+    emoji: String(p.emoji || '💩'),
     archived: !!p.archived,
     inviteCode: String(p.inviteCode || generateInviteCode()),
     participants: Array.isArray(p.participants) ? p.participants : [s.nickname || 'Me'],
@@ -842,7 +842,7 @@ function renderPendingParticipants() {
   if (!list) return;
   list.innerHTML = pendingParticipants.map((p, idx) => `
     <li class="participant-item">
-      <span style="font-weight: 500;">${esc(p)}</span>
+      <span class="participant-name">${esc(p)}</span>
       <button type="button" class="del-participant-btn" data-idx="${idx}" aria-label="Remove participant">&times;</button>
     </li>
   `).join('');
@@ -905,7 +905,7 @@ function renderTricountsList() {
             $('groupModalTitle').textContent = 'Edit Bill';
             $('editGroupId').value = group.id;
             $('personNameInput').value = group.name;
-            if ($('customEmojiInput')) $('customEmojiInput').value = group.emoji || '💸';
+            if ($('customEmojiInput')) $('customEmojiInput').value = group.emoji || '💩';
             if ($('btnDeleteGroup')) $('btnDeleteGroup').hidden = false;
             
             pendingParticipants = group.participants ? [...group.participants] : [state.nickname || 'Me'];
@@ -1105,7 +1105,7 @@ function renderTricountDetail() {
   const group = (state.tricounts || []).find(g => g.id === selectedGroupId);
   if (!group) { closeTricountDetail(); return; }
 
-  if ($('splitPersonAvatar')) $('splitPersonAvatar').textContent = group.emoji || '💸';
+  if ($('splitPersonAvatar')) $('splitPersonAvatar').textContent = group.emoji || '💩';
   if ($('splitPersonName')) $('splitPersonName').textContent = group.name;
   if ($('groupInviteCode')) $('groupInviteCode').textContent = group.inviteCode || '—';
 
@@ -1845,7 +1845,7 @@ function bind() {
       $('groupModalTitle').textContent = 'Add a Bill';
       $('editGroupId').value = '';
       $('personNameInput').value = '';
-      if ($('customEmojiInput')) $('customEmojiInput').value = '💸';
+      if ($('customEmojiInput')) $('customEmojiInput').value = '💩';
       if ($('btnDeleteGroup')) $('btnDeleteGroup').hidden = true;
       
       pendingParticipants = [state.nickname || 'Me'];
@@ -1861,7 +1861,7 @@ function bind() {
       $('groupModalTitle').textContent = 'Add a Bill';
       $('editGroupId').value = '';
       $('personNameInput').value = '';
-      if ($('customEmojiInput')) $('customEmojiInput').value = '💸';
+      if ($('customEmojiInput')) $('customEmojiInput').value = '💩';
       if ($('btnDeleteGroup')) $('btnDeleteGroup').hidden = true;
       
       pendingParticipants = [state.nickname || 'Me'];
@@ -1879,7 +1879,7 @@ function bind() {
       $('groupModalTitle').textContent = 'Edit Bill';
       $('editGroupId').value = group.id;
       $('personNameInput').value = group.name;
-      if ($('customEmojiInput')) $('customEmojiInput').value = group.emoji || '💸';
+      if ($('customEmojiInput')) $('customEmojiInput').value = group.emoji || '💩';
       if ($('btnDeleteGroup')) $('btnDeleteGroup').hidden = false;
       
       pendingParticipants = group.participants ? [...group.participants] : [state.nickname || 'Me'];
@@ -1933,7 +1933,7 @@ function bind() {
     const name = $('personNameInput').value.trim();
     const editId = $('editGroupId').value;
     const customEmoji = $('customEmojiInput') ? $('customEmojiInput').value.trim() : '';
-    const finalEmoji = customEmoji || '💸';
+    const finalEmoji = customEmoji || '💩';
 
     if (!name) return;
     
