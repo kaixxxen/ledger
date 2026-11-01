@@ -39,6 +39,76 @@
   /* Group Cards Spacing Fix */
   .tricounts-list { display: flex; flex-direction: column; gap: 8px; }
 
+  /* Archived Groups Layout & Card Cleanup */
+  #archivedTricountsList .tricount-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  #archivedTricountsList .tricount-card::after,
+  #archivedTricountsList .tricount-card::before {
+    display: none !important;
+    content: none !important;
+  }
+  #archivedTricountsList .tricount-card-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+    margin-right: 12px;
+  }
+  #archivedTricountsList .tricount-emoji {
+    font-size: 24px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  #archivedTricountsList .tricount-card-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+  }
+  #archivedTricountsList .tricount-name {
+    font-weight: 600;
+    font-size: 15px;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #archivedTricountsList small.muted.fine {
+    font-size: 12px;
+    opacity: 0.7;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+  }
+  #archivedTricountsList .unarchive-btn {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bar);
+    color: var(--text);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+  #archivedTricountsList .unarchive-btn:active {
+    transform: scale(0.96);
+  }
+
   /* Logged Expenses Divider Style (No background cards, divided by border line) */
   #list { list-style: none; padding: 0; margin: 0; }
   #list li.tx {

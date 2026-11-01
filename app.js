@@ -889,15 +889,15 @@ function renderArchivedTricountsList() {
   }
 
   el.innerHTML = archivedGroups.map(g => `
-    <div class="tricount-card" data-id="${esc(g.id)}" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-      <div class="tricount-card-left" style="display: flex; align-items: center; gap: 10px;">
+    <div class="tricount-card" data-id="${esc(g.id)}">
+      <div class="tricount-card-left">
         <span class="tricount-emoji">${esc(g.emoji)}</span>
-        <div>
+        <div class="tricount-card-info">
           <div class="tricount-name">${esc(g.name)}</div>
           <small class="muted fine">Archived · ${g.participants ? g.participants.length : 1} members</small>
         </div>
       </div>
-      <button type="button" class="secondary-btn-link unarchive-btn" data-id="${esc(g.id)}" style="font-size: 12px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); cursor: pointer; margin-left: auto; flex-shrink: 0;">Restore</button>
+      <button type="button" class="unarchive-btn" data-id="${esc(g.id)}">Restore</button>
     </div>`).join('');
 
   $$('#archivedTricountsList .tricount-card').forEach(card => {
