@@ -24,8 +24,15 @@
 <style>
   /* Header & Split Modal UI Enhancements */
   .top-split-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-  .split-header-left { display: flex; align-items: center; gap: 10px; }
-  .split-header-left h1 { margin: 0; font-size: var(--fs-xl); text-transform: none; line-height: 1.2; }
+  .split-header-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+  .split-header-left h1 { margin: 0; font-size: var(--fs-xl); text-transform: none; line-height: 1.2; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .split-header-actions { display: flex; align-items: center; gap: 6px; flex: none; margin-left: 8px; }
+  .split-header-actions .icon-btn { white-space: nowrap; }
+
+  /* Bill name + Shared tag on one line */
+  .tricount-name-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .tricount-name-row .tricount-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tricount-name-row .shared-tag { flex: none; line-height: 1.4; white-space: nowrap; }
   
   .participant-select-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
   .part-chip-toggle { padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 500; border: 1px solid var(--border); background: var(--card); color: var(--text); cursor: pointer; user-select: none; transition: all 0.15s ease; display: inline-flex; align-items: center; gap: 4px; }
@@ -334,16 +341,15 @@
           <span id="splitPersonAvatar" style="font-size: 22px; line-height: 1;">🐶</span>
           <h1 id="splitPersonName">Group Name</h1>
         </div>
-        <button type="button" class="icon-btn edit-group-title-btn" id="btnEditGroupTitle">Edit</button>
+        <div class="split-header-actions">
+          <button type="button" class="icon-btn edit-group-title-btn" id="btnImportSplitwise">📥 Import CSV</button>
+          <input id="splitwiseCsvInput" type="file" accept=".csv,text/csv" hidden>
+          <button type="button" class="icon-btn edit-group-title-btn" id="btnEditGroupTitle">Edit</button>
+        </div>
       </header>
 
       <!-- CONSOLIDATED BILL HERO CARD -->
       <div class="card bill-hero-card" style="padding: 12px 14px; margin-bottom: 12px; border-radius: 14px;">
-        <div style="display: flex; align-items: center; justify-content: flex-end; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 10px; font-size: 13px;">
-          <button type="button" id="btnImportSplitwise" style="font-size: 11px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bar); cursor: pointer; color: var(--text);">📥 Import CSV</button>
-          <input id="splitwiseCsvInput" type="file" accept=".csv,text/csv" hidden>
-        </div>
-
         <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
           <div style="flex: 1; text-align: center;">
             <small style="display: block; font-size: 11px; opacity: 0.7; margin-bottom: 2px;">My Net Share</small>

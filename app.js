@@ -920,7 +920,7 @@ function renderTricountsList() {
       <div class="tricount-card-left">
         <span class="tricount-emoji">${esc(g.emoji)}</span>
         <div>
-          <div class="tricount-name">${esc(g.name)}${g.shared ? ' <span class="tag">Shared</span>' : ''}</div>
+          <div class="tricount-name-row"><span class="tricount-name">${esc(g.name)}</span>${g.shared ? '<span class="tag shared-tag">Shared</span>' : ''}</div>
           <small class="muted fine">${g.participants.length} members (${esc(g.participants.map(p => p.name).join(', '))})</small>
         </div>
       </div>
