@@ -719,3 +719,14 @@ li.tx .amt{ font-weight:600; font-size:var(--fs-base); }
 .audit-empty-icon{ font-size:25px; line-height:1.3; }
 .audit-empty strong{ font-size:var(--fs-base); font-weight:600; }
 .audit-empty span:last-child{ font-size:var(--fs-sm); color:var(--muted); }
+
+/* Receipt scanning stays inside existing modal cards and uses Ledger tokens. */
+.bill-card .bill-name{font-size:var(--fs-base);font-weight:600;line-height:1.35}
+.receipt-scan{padding:12px;border:1px solid var(--line);border-radius:var(--radius-md);background:var(--card-2);display:grid;gap:9px;min-width:0}
+.receipt-scan-head{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:var(--fs-base)}
+.receipt-scan-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.receipt-picker{font-size:var(--fs-sm);padding:11px 6px;cursor:pointer}
+.receipt-scan-result{font-size:var(--fs-sm);padding:10px 12px;border-radius:var(--radius-md);background:var(--card);border:1px solid var(--line);white-space:pre-wrap;overflow-wrap:anywhere}
+.receipt-scan-result.warn{border-color:var(--warn)}
+.receipt-scan .fine{margin:0;line-height:1.5}
+@media(max-width:360px){.receipt-scan-actions{grid-template-columns:1fr}}

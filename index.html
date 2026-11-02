@@ -572,6 +572,15 @@
         <div class="row2"><div><label class="lbl" for="tripCategory">Expense type</label><select id="tripCategory"><option value="general">General travel expense</option><option value="food">Individual food orders</option></select></div><div id="tripAllocationWrap"><label class="lbl" for="tripAllocation">Split method</label><select id="tripAllocation"><option value="equal">Equal split</option><option value="custom">Custom amounts</option></select></div><div id="tripServiceWrap" hidden><label class="lbl" for="tripServiceCharge">Service charge</label><input id="tripServiceCharge" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></div></div>
         <label class="lbl">Members & amounts</label><div id="tripMembersGrid" class="trip-members-grid"></div><p class="fine" id="tripModeHelp"></p>
       </div>
+      <section class="receipt-scan" data-receipt-target="split">
+        <div class="receipt-scan-head"><strong>Scan / upload receipt</strong><span class="fine muted">Optional</span></div>
+        <div class="receipt-scan-actions">
+          <label class="secondary receipt-picker">📷 Take photo<input type="file" accept="image/*" capture="environment" data-receipt-input="camera" hidden></label>
+          <label class="secondary receipt-picker">📎 Upload receipt<input type="file" accept="image/*" data-receipt-input="upload" hidden></label>
+        </div>
+        <div class="receipt-scan-result" role="status" aria-live="polite" hidden></div>
+        <p class="fine muted">Receipt text is read on this device. Verify the merchant, date and total before saving. Images are not attached to saved expenses.</p>
+      </section>
       <div class="btnrow modal-actions">
         <button type="submit" class="primary">Save Expense</button>
         <button type="button" class="secondary danger" id="btnDeleteSplitExpense" hidden>Delete Expense</button>
@@ -631,6 +640,15 @@
         </div>
       </div>
 
+      <section class="receipt-scan" data-receipt-target="edit">
+        <div class="receipt-scan-head"><strong>Scan / upload receipt</strong><span class="fine muted">Optional</span></div>
+        <div class="receipt-scan-actions">
+          <label class="secondary receipt-picker">📷 Take photo<input type="file" accept="image/*" capture="environment" data-receipt-input="camera" hidden></label>
+          <label class="secondary receipt-picker">📎 Upload receipt<input type="file" accept="image/*" data-receipt-input="upload" hidden></label>
+        </div>
+        <div class="receipt-scan-result" role="status" aria-live="polite" hidden></div>
+        <p class="fine muted">Receipt text is read on this device. Verify the merchant, date and total before saving. Images are not attached to saved expenses.</p>
+      </section>
       <div class="btnrow modal-actions">
         <button type="submit" class="primary">Save Changes</button>
         <button type="button" class="secondary danger" id="btnDeleteExpenseFromModal">Delete</button>
@@ -726,6 +744,15 @@
           </div>
         </div>
       </div>
+      <section class="receipt-scan" data-receipt-target="add">
+        <div class="receipt-scan-head"><strong>Scan / upload receipt</strong><span class="fine muted">Optional</span></div>
+        <div class="receipt-scan-actions">
+          <label class="secondary receipt-picker">📷 Take photo<input type="file" accept="image/*" capture="environment" data-receipt-input="camera" hidden></label>
+          <label class="secondary receipt-picker">📎 Upload receipt<input type="file" accept="image/*" data-receipt-input="upload" hidden></label>
+        </div>
+        <div class="receipt-scan-result" role="status" aria-live="polite" hidden></div>
+        <p class="fine muted">Receipt text is read on this device. Verify the merchant, date and total before saving. Images are not attached to saved expenses.</p>
+      </section>
       <div class="btnrow modal-actions">
         <button class="primary" type="submit">Log Expense</button>
         <button type="button" class="secondary" id="addExpenseCancel">Cancel</button>

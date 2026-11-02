@@ -2985,5 +2985,95 @@ async function boot() {
   }
 }
 
+
+/* Receipt scanner: client-side optical character recognition (OCR), suggestions only.
+   This intentionally does NOT upload receipt images or silently save recognized fields. */
+let receiptOcrLibraryPromise = null;
+function loadReceiptOcr() {
+  if (window.Tesseract && window.Tesseract.recognize) return Promise.resolve(window.Tesseract);
+  if (receiptOcrLibraryPromise) return receiptOcrLibraryPromise;
+  receiptOcrLibraryPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+    script.crossOrigin = 'anonymous';
+    script.onload = () => window.Tesseract ? resolve(window.Tesseract) : reject(new Error('OCR unavailable'));
+    script.onerror = () => reject(new Error('Could not load the receipt scanner. Check internet connection.'));
+    document.head.appendChild(script);
+  }).catch(err => { receiptOcrLibraryPromise = null; throw err; });
+  return receiptOcrLibraryPromise;
+}
+function receiptCandidates(text) {
+  const lines = text.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+  const matches = [];
+  const priceRx = /(?:₱|PHP\s*|P\s*)?([0-9]{1,3}(?:[, ][0-9]{3})*(?:\.[0-9]{2})|[0-9]+\.[0-9]{2})\b/ig;
+  lines.forEach((line, i) => {
+    const words = line.toLowerCase();
+    if (/change|cash given|tendered|cash received|card no|reference|balance due after/i.test(words)) return;
+    const totals = [...line.matchAll(priceRx)].map(m=>Number(m[1].replace(/[, ]/g,''))).filter(n=>Number.isFinite(n)&&n>0&&n<10000000);
+    if (!totals.length) return;
+    let rank = 0;
+    if (/grand\s*total|amount\s*due|total\s*amount|total\s*due|net\s*total/i.test(line)) rank += 9;
+    else if (/\btotal\b/i.test(line)) rank += 7;
+    if (/subtotal|sub total/i.test(line)) rank -= 7;
+    if (/tax|vat|discount|service charge|svc|tip/i.test(line)) rank -= 5;
+    totals.forEach(n => matches.push({amount:n,rank,index:i}));
+  });
+  matches.sort((a,b)=>b.rank-a.rank||b.index-a.index);
+  const chosen = matches[0] || null;
+  const dateMatch = text.match(/\b(20\d{2})[-/.](0?[1-9]|1[0-2])[-/.]([0-2]?\d|3[01])\b/) || text.match(/\b(0?[1-9]|[12]\d|3[01])[-/.](0?[1-9]|1[0-2])[-/.](20\d{2})\b/);
+  let date = '';
+  if (dateMatch) {
+    const y=dateMatch[1].length===4?dateMatch[1]:dateMatch[3];
+    const m=dateMatch[2].padStart(2,'0');
+    const d=(dateMatch[1].length===4?dateMatch[3]:dateMatch[1]).padStart(2,'0');
+    const candidate=`${y}-${m}-${d}`;
+    if (!Number.isNaN(new Date(candidate+'T12:00:00').getTime())) date=candidate;
+  }
+  const merchant=lines.find(line => /[a-zA-Z]{3}/.test(line) && !/receipt|invoice|official|sales|date|time|terminal|cashier|order no|transaction|tin:|vat|welcome/i.test(line)) || '';
+  return {amount:chosen?chosen.amount:null,confidentTotal:!!chosen&&chosen.rank>=7,date,merchant:merchant.slice(0,60),lineCount:lines.length};
+}
+function initReceiptScanner() {
+  document.querySelectorAll('[data-receipt-target]').forEach(section => {
+    const target=section.dataset.receiptTarget;
+    const result=section.querySelector('.receipt-scan-result');
+    section.querySelectorAll('input[type="file"]').forEach(input => input.addEventListener('change', async () => {
+      const file=input.files && input.files[0];
+      if (!file) return;
+      result.hidden=false;result.classList.remove('warn');result.textContent='Reading receipt on your device…';
+      // Check type and size before decoding to protect low-memory phones.
+      if (!file.type.startsWith('image/') || file.size > 12*1024*1024) {
+        result.classList.add('warn');result.textContent='Choose a JPG, PNG or other image under 12 MB.';input.value='';return;
+      }
+      section.querySelectorAll('input[type="file"]').forEach(el=>{el.disabled=true;});
+      try {
+        const api=await loadReceiptOcr();
+        const output=await api.recognize(file,'eng');
+        const text=output?.data?.text || '';
+        const confidence=Number(output?.data?.confidence)||0;
+        const info=receiptCandidates(text);
+        // Fill only blanks. For prefilled fields, let the user compare against the receipt.
+        const fields=target==='split' ? {amount:'splitExpAmount',name:'splitExpTitle',date:'splitExpDate'} : target==='edit' ? {amount:'editAmount',name:'editNote',date:'editDate'} : {amount:'amount',name:'note',date:'date'};
+        const applied=[];
+        const totalField=$(fields.amount);
+        if (info.amount != null && totalField && !totalField.readOnly && (!totalField.value || Number(totalField.value)===0)) {
+          totalField.value=info.amount.toFixed(2);totalField.dispatchEvent(new Event('input',{bubbles:true}));applied.push('total');
+        }
+        if (info.merchant && $(fields.name) && !$(fields.name).value.trim()) {$(fields.name).value=info.merchant;applied.push('merchant');}
+        // Default dates usually prefilled with today; suggest receipt date without overwriting.
+        result.classList.add('warn');
+        result.textContent=`Receipt read (${Math.round(confidence)}% OCR text confidence). ${applied.length?'Suggested '+applied.join(' and ')+'. ':'No fields were overwritten.'}`+
+          (info.date?`\nDetected date: ${info.date} — check the Date field.`:'\nDate not reliably detected.')+
+          (info.amount!=null?`\nPossible total: ${info.amount.toFixed(2)}${info.confidentTotal?'':' (uncertain)'}.`:'\nTotal could not be identified.')+
+          '\n⚠ Review every field against your receipt before saving. OCR can misread faded, blurry, or complex receipts.';
+      } catch(err) {
+        result.classList.add('warn');result.textContent='Could not read this receipt. Enter the details manually and verify them. '+(err.message||'');
+      } finally {
+        section.querySelectorAll('input[type="file"]').forEach(el=>{el.disabled=false;el.value='';});
+      }
+    }));
+  });
+}
+initReceiptScanner();
+
 boot();
 })();
