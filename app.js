@@ -415,10 +415,19 @@ function slideIn(el, dir) {
   const dx = calm ? 0 : dir * 34;
   const dy = calm || dir !== 0 ? 0 : 10;
   try {
-    el.animate(
-      [{ opacity: 0, transform: `translate3d(${dx}px, ${dy}px, 0)` }, { opacity: 1, transform: 'translate3d(0, 0, 0)' }],
+    const a = el.animate(
+      [{ opacity: 0, transform: `translate(${dx}px, ${dy}px)` }, { opacity: 1, transform: 'translate(0, 0)' }],
       { duration: calm ? 180 : 340, easing: 'cubic-bezier(.22,.8,.3,1)', fill: 'backwards' }
     );
+    // iOS can leave the animated layer rasterized at low resolution (blurry text) once it ends,
+    // so drop the animation and force a fresh repaint when it finishes.
+    const settle = () => {
+      try { a.cancel(); } catch (e) {}
+      el.style.willChange = 'auto';
+      void el.offsetHeight;
+    };
+    a.onfinish = settle;
+    a.oncancel = () => { el.style.willChange = 'auto'; };
   } catch (e) {}
 }
 

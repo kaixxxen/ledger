@@ -59,7 +59,7 @@ body, button, input, select, textarea {
 body{
   margin:0; background:var(--bg); color:var(--text);
   font-size:var(--fs-base); line-height:1.5;
-  font-feature-settings:"cv11","ss01"; -webkit-font-smoothing:antialiased;
+  font-feature-settings:"cv11","ss01"; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
   min-height:100vh; min-height:-webkit-fill-available; min-height:100dvh;
 }
 button{ font:inherit; color:inherit; background:none; border:0; padding:0; cursor:pointer; }
