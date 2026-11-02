@@ -1430,66 +1430,89 @@ async function removeBill(group) {
   toast(creator ? 'Bill deleted' : 'You left the bill');
 }
 
+// All money calculations use integer cents. The paid amount includes the
+// payer's own portion; their share is then deducted like everybody else's.
 function calculateGroupBalance(group) {
   const me = myKeyFor(group);
   const keys = new Set((group.participants || []).map(p => p.key));
-  if (!group.shared && me) keys.add(me);
-  (group.expenses || []).forEach(e => {
-    keys.add(e.paidBy || me);
-    if (Array.isArray(e.participants)) e.participants.forEach(k => keys.add(k));
-  });
-  (group.settlements || []).forEach(s => { keys.add(s.from); keys.add(s.to); });
+  if (me) keys.add(me);
+  const cents = value => Math.round((Number(value) || 0) * 100);
+  const balancesCents = {};
+  const ensure = key => { if (key && !Object.hasOwn(balancesCents, key)) balancesCents[key] = 0; };
+  keys.forEach(ensure);
+  let totalCents = 0;
+  const issues = [];
 
-  const balances = {};
-  keys.forEach(k => balances[k] = 0);
-
-  let totalExpenses = 0;
-  (group.expenses || []).forEach(e => {
-    const amt = Number(e.amount) || 0;
-    const paidBy = e.paidBy || me;
-    balances[paidBy] = (balances[paidBy] || 0) + amt;
-    totalExpenses += amt;
-
-    const beneficiaries = (Array.isArray(e.participants) && e.participants.length > 0)
-      ? e.participants
-      : (group.participants || []).map(p => p.key);
-
-    if (group.trip && e.tripData && e.tripData.shares) {
-      const shares = e.tripData.shares;
-      Object.keys(shares).forEach(k => { balances[k] = (balances[k] || 0) - (Number(shares[k]) || 0); });
-    } else {
-      const share = amt / (beneficiaries.length || 1);
-      beneficiaries.forEach(k => { balances[k] = (balances[k] || 0) - share; });
+  (group.expenses || []).forEach(exp => {
+    const amount = cents(exp.amount);
+    if (!Number.isSafeInteger(amount) || amount < 0) {
+      issues.push(`Invalid amount for ${exp.title || 'expense'}`);
+      return;
     }
+    const payer = exp.paidBy || me;
+    ensure(payer);
+    if (!payer) { issues.push(`Missing payer for ${exp.title || 'expense'}`); return; }
+    let shares;
+    if (group.trip && exp.tripData && exp.tripData.shares &&
+        Object.keys(exp.tripData.shares).length) {
+      // These shares already include the allocated service charge.
+      shares = Object.entries(exp.tripData.shares).map(([key, value]) => [key, cents(value)]);
+    } else {
+      const participants = [...new Set((exp.participants || []).length
+        ? exp.participants : (group.participants || []).map(p => p.key))].filter(Boolean);
+      if (!participants.length) {
+        issues.push(`Missing participants for ${exp.title || 'expense'}`);
+        return;
+      }
+      const each = Math.floor(amount / participants.length);
+      let remainder = amount - each * participants.length;
+      shares = participants.map(key => [key, each + (remainder-- > 0 ? 1 : 0)]);
+    }
+    const assigned = shares.reduce((sum, [key, amountCents]) => {
+      ensure(key);
+      return sum + amountCents;
+    }, 0);
+    if (shares.some(([, v]) => !Number.isSafeInteger(v) || v < 0) || assigned !== amount) {
+      issues.push(`Shares for ${exp.title || 'expense'} total ${((assigned || 0) / 100).toFixed(2)} instead of ${(amount / 100).toFixed(2)}`);
+      return; // Don't generate incorrect settlements from inconsistent records.
+    }
+    totalCents += amount;
+    balancesCents[payer] += amount;
+    shares.forEach(([key, amountCents]) => { balancesCents[key] -= amountCents; });
   });
 
-  (group.settlements || []).forEach(s => {
-    const amt = Number(s.amount) || 0;
-    balances[s.from] = (balances[s.from] || 0) + amt;
-    balances[s.to] = (balances[s.to] || 0) - amt;
+  (group.settlements || []).forEach(payment => {
+    const amount = cents(payment.amount);
+    if (!Number.isSafeInteger(amount) || amount <= 0 || !payment.from || !payment.to) return;
+    ensure(payment.from); ensure(payment.to);
+    balancesCents[payment.from] += amount;
+    balancesCents[payment.to] -= amount;
   });
 
-  const debtors = [];
-  const creditors = [];
-  for (const [person, balance] of Object.entries(balances)) {
-    if (balance < -0.01) debtors.push({ person, amount: -balance });
-    else if (balance > 0.01) creditors.push({ person, amount: balance });
-  }
+  // A balanced ledger must sum to precisely zero cents.
+  const check = Object.values(balancesCents).reduce((sum, value) => sum + value, 0);
+  if (check !== 0) issues.push(`Ledger is out of balance by ${(check / 100).toFixed(2)}`);
 
+  const debtors = Object.entries(balancesCents).filter(([, v]) => v < 0)
+    .map(([person, v]) => ({person, remaining: -v})).sort((a,b) => b.remaining-a.remaining || a.person.localeCompare(b.person));
+  const creditors = Object.entries(balancesCents).filter(([, v]) => v > 0)
+    .map(([person, v]) => ({person, remaining: v})).sort((a,b) => b.remaining-a.remaining || a.person.localeCompare(b.person));
   const settlements = [];
-  let i = 0, j = 0;
-  while (i < debtors.length && j < creditors.length) {
-    const debtor = debtors[i];
-    const creditor = creditors[j];
-    const amount = Math.min(debtor.amount, creditor.amount);
-    settlements.push({ from: debtor.person, to: creditor.person, amount });
-    debtor.amount -= amount; creditor.amount -= amount;
-    if (debtor.amount < 0.01) i++;
-    if (creditor.amount < 0.01) j++;
+  if (!issues.length) {
+    let i = 0, j = 0;
+    while (i < debtors.length && j < creditors.length) {
+      const value = Math.min(debtors[i].remaining, creditors[j].remaining);
+      if (value > 0) settlements.push({from: debtors[i].person, to: creditors[j].person, amount: value / 100});
+      debtors[i].remaining -= value;
+      creditors[j].remaining -= value;
+      if (debtors[i].remaining === 0) i++;
+      if (creditors[j].remaining === 0) j++;
+    }
+    if (i < debtors.length || j < creditors.length) issues.push('Unable to reconcile all settlements');
   }
-
-  const myNet = balances[me] || 0;
-  return { balances, settlements, totalExpenses, myNet };
+  const balances = Object.fromEntries(Object.entries(balancesCents).map(([key, value]) => [key, value / 100]));
+  return { balances, settlements: issues.length ? [] : settlements,
+    totalExpenses: totalCents / 100, myNet: (balancesCents[me] || 0) / 100, issues };
 }
 
 function renderBillDetail() {
@@ -1589,12 +1612,16 @@ function renderBillExpensesList(group) {
 }
 
 function renderBillBalancesTab(group) {
-  const { settlements, myNet } = calculateGroupBalance(group);
+  const { settlements, myNet, issues } = calculateGroupBalance(group);
   const status = $('splitBannerStatus');
   const sub = $('splitBannerSub');
 
   if (status && sub) {
-    if (myNet < -0.01) {
+    if (issues && issues.length) {
+      status.textContent = 'Balances need review';
+      status.className = 'neg-text';
+      sub.textContent = 'Some expense shares do not match their totals';
+    } else if (myNet < -0.01) {
       status.textContent = `You owe ${money(Math.abs(myNet))}`;
       status.className = 'neg-text'; sub.textContent = 'Your overall net balance in this group';
     } else if (myNet > 0.01) {
@@ -1609,6 +1636,10 @@ function renderBillBalancesTab(group) {
   const list = $('splitBalancesList');
   if (!list) return;
 
+  if (issues && issues.length) {
+    list.innerHTML = `<div class="card" role="alert"><strong>Check expense shares</strong><p class="fine">Some saved expenses do not add up to their total. Edit these expenses to correct their shares before settlements can be suggested.</p>${issues.map(issue => `<p class="fine">${esc(issue)}</p>`).join('')}</div>`;
+    return;
+  }
   if (settlements.length === 0) {
     list.innerHTML = `<div class="empty" style="padding: 16px;">All group balances are settled!</div>`;
     return;
