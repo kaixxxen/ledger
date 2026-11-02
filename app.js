@@ -1645,7 +1645,7 @@ function renderBillExpensesList(group) {
                 <b>${esc(exp.title)}</b>
               </div>
               <div class="exp-sub">Paid by <b>${esc(labelFor(group, exp.paidBy))}</b></div>
-              ${group.trip && exp.tripData ? `<div class="fine trip-expense-type">${exp.tripData.category === 'food' ? '🍽 Individual food orders' : '🧳 General travel expense'}${exp.tripData.mode === 'custom' ? ' · Custom amounts' : ''}${exp.tripData.serviceCharge ? ' · Fee ' + money(exp.tripData.serviceCharge) : ''}</div><div class="trip-share-breakdown">${Object.entries(exp.tripData.shares || {}).map(([k,v]) => `<span>${esc(shortFor(group,k))}: <b>${money(v)}</b></span>`).join('')}</div>` : `<div class="shares-chips-row">${chipsHtml}</div>`}
+              ${group.trip && exp.tripData ? `<div class="fine trip-expense-type">${exp.tripData.category === 'food' ? '🍽 Individual' : '🧳 Group'}${exp.tripData.mode === 'custom' ? ' · Custom amounts' : ''}${exp.tripData.serviceCharge ? ' · Fee ' + money(exp.tripData.serviceCharge) : ''}</div><div class="trip-share-breakdown">${Object.entries(exp.tripData.shares || {}).map(([k,v]) => `<span>${esc(shortFor(group,k))}: <b>${money(v)}</b></span>`).join('')}</div>` : `<div class="shares-chips-row">${chipsHtml}</div>`}
             </div>
           </div>
           <div class="exp-amount-wrap">
@@ -2156,10 +2156,10 @@ function updateTripFormMode() {
   $('splitExpAmount').classList.toggle('trip-amount-auto', custom);
   $('splitExpAmount').title = custom ? 'Automatically calculated from selected members and service charge' : '';
   $('tripModeHelp').textContent = food
-    ? 'Enter each selected person’s food subtotal. The Amount updates automatically, including service charge distributed proportionally.'
+    ? 'Enter each person’s amount. Service charge is shared proportionally.'
     : custom
-      ? 'Enter each selected member’s share. Amount automatically includes their shares and any service charge (distributed proportionally).'
-      : 'Enter the bill Amount above. It will be split equally between checked members.';
+      ? 'Enter each share. Total includes service charge.'
+      : 'Total is split equally among checked members.';
   if (custom) updateTripAmount();
 }
 function collectTripExpense(group,amount) {

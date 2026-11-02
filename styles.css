@@ -730,3 +730,53 @@ li.tx .amt{ font-weight:600; font-size:var(--fs-base); }
 .receipt-scan-result.warn{border-color:var(--warn)}
 .receipt-scan .fine{margin:0;line-height:1.5}
 @media(max-width:360px){.receipt-scan-actions{grid-template-columns:1fr}}
+
+/* Compact mobile expense dialogs: keep their content readable and scrollable. */
+#addSplitExpenseModal .modal-card,
+#addExpenseModal .modal-card,
+#editExpenseModal .modal-card {
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-gutter:stable;
+}
+#addSplitExpenseModal .calc-note,
+#addSplitExpenseModal #tripModeHelp,
+#addSplitExpenseModal .receipt-scan .fine,
+#addExpenseModal .receipt-scan .fine,
+#editExpenseModal .receipt-scan .fine {
+  font-size:var(--fs-xs);
+  color:var(--muted);
+  line-height:1.4;
+}
+.receipt-scan{display:block;padding:0;overflow:hidden}
+.receipt-scan-head{cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;list-style:none}
+.receipt-scan-head::-webkit-details-marker{display:none}
+.receipt-scan-head::after{content:'⌄';font-size:var(--fs-md);color:var(--muted);margin-left:2px}
+.receipt-scan[open] .receipt-scan-head::after{content:'⌃'}
+.receipt-scan-head strong{font-size:var(--fs-sm)}
+.receipt-scan-head .fine{margin-left:auto}
+.receipt-scan-content{display:grid;gap:8px;padding:0 12px 12px}
+.receipt-scan .receipt-picker{padding:9px 6px}
+@media(max-width:600px){
+  .modal-backdrop{padding:calc(env(safe-area-inset-top) + 8px) 10px calc(env(safe-area-inset-bottom) + 8px);align-items:center}
+  #addSplitExpenseModal .modal-card,#addExpenseModal .modal-card,#editExpenseModal .modal-card{
+    max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px);
+    padding:15px;
+    border-radius:14px;
+  }
+  #addSplitExpenseModal .modal-card h3,#addExpenseModal .modal-card h3,#editExpenseModal .modal-card h3{
+    margin-bottom:10px;font-size:var(--fs-md);
+  }
+  #addSplitExpenseModal .modal-card form,#addExpenseModal .modal-card form,#editExpenseModal .modal-card form{gap:9px}
+  #addSplitExpenseModal .modal-card input,#addSplitExpenseModal .modal-card select,
+  #addExpenseModal .modal-card input,#addExpenseModal .modal-card select,
+  #editExpenseModal .modal-card input,#editExpenseModal .modal-card select{padding:9px 10px;min-height:39px}
+  #addSplitExpenseModal .trip-expense-fields{gap:8px;padding-top:8px}
+  #addSplitExpenseModal .trip-members-grid{gap:5px}
+  #addSplitExpenseModal .trip-member-row{padding:6px 9px;min-height:42px}
+  #addSplitExpenseModal .trip-member-row input[type=checkbox]{min-height:unset;width:16px;height:16px;flex:none}
+  #addSplitExpenseModal .trip-member-row input[type=number]{min-height:36px;padding:6px 7px}
+  #addSplitExpenseModal .modal-actions,#addExpenseModal .modal-actions,#editExpenseModal .modal-actions{gap:7px;margin-top:2px}
+  #addSplitExpenseModal .modal-actions button,#addExpenseModal .modal-actions button,#editExpenseModal .modal-actions button{padding:10px 12px}
+  #addSplitExpenseModal .calc-note,#addSplitExpenseModal #tripModeHelp{margin:2px 0 0}
+}

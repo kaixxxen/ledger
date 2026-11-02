@@ -1,4 +1,4 @@
-const CACHE = 'ledger-v31-receipt-ocr';
+const CACHE = 'ledger-v32-compact-modal';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'
