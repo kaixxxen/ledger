@@ -1644,8 +1644,8 @@ function renderBillExpensesList(group) {
               <div class="exp-title">
                 <b>${esc(exp.title)}</b>
               </div>
-              <div class="exp-sub">Paid by <b>${esc(labelFor(group, exp.paidBy))}</b></div>
-              ${group.trip && exp.tripData ? `<div class="fine trip-expense-type">${exp.tripData.category === 'food' ? '🍽 Individual' : '🧳 Group'}${exp.tripData.mode === 'custom' ? ' · Custom amounts' : ''}${exp.tripData.serviceCharge ? ' · Fee ' + money(exp.tripData.serviceCharge) : ''}</div><div class="trip-share-breakdown">${Object.entries(exp.tripData.shares || {}).map(([k,v]) => `<span>${esc(shortFor(group,k))}: <b>${money(v)}</b></span>`).join('')}</div>` : `<div class="shares-chips-row">${chipsHtml}</div>`}
+              <div class="exp-sub">Paid by <b>${esc(shortFor(group, exp.paidBy))}</b></div>
+              ${group.trip && exp.tripData ? `<div class="fine trip-expense-type">${exp.tripData.category === 'food' ? '👤 Individual' : '👥 Group'}${exp.tripData.mode === 'custom' ? ' · Custom amounts' : ''}${exp.tripData.serviceCharge ? ' · Fee ' + money(exp.tripData.serviceCharge) : ''}</div><div class="trip-share-breakdown">${Object.entries(exp.tripData.shares || {}).map(([k,v]) => `<span>${esc(shortFor(group,k))}: <b>${money(v)}</b></span>`).join('')}</div>` : `<div class="shares-chips-row">${chipsHtml}</div>`}
             </div>
           </div>
           <div class="exp-amount-wrap">
@@ -1702,7 +1702,7 @@ function renderBillBalancesTab(group) {
     <div class="srow settle-row" data-from="${esc(s.from)}" data-to="${esc(s.to)}" data-amount="${s.amount}" title="Tap to record this payment">
       <div class="user-item">
         <div class="user-avatar-circle" style="background: var(--bar); color: var(--text);">💸</div>
-        <div><strong>${esc(labelFor(group, s.from))}</strong> owes <strong>${esc(labelFor(group, s.to))}</strong></div>
+        <div><strong>${esc(shortFor(group, s.from))}</strong> owes <strong>${esc(shortFor(group, s.to))}</strong></div>
       </div>
       <span class="bold">${money(s.amount)}</span>
     </div>`).join('') + moreBtn('balances', settlements.length);
@@ -1721,7 +1721,7 @@ function renderBillHistoryTab(group) {
   el.innerHTML = limited('history', history.slice().reverse()).map(s => `
     <div class="history-item">
       <div>
-        <strong>${esc(labelFor(group, s.from))}</strong> paid <strong>${esc(labelFor(group, s.to))}</strong>
+        <strong>${esc(shortFor(group, s.from))}</strong> paid <strong>${esc(shortFor(group, s.to))}</strong>
         <small class="muted" style="display: block;">${esc(s.method || 'GCash')} · ${s.date || today()} ${s.note ? '· ' + esc(s.note) : ''}</small>
       </div>
       <div style="display:flex;align-items:center;gap:10px;"><b class="pos-text">+${money(s.amount)}</b><button type="button" class="del-settle-btn" data-id="${esc(s.id)}" aria-label="Delete payment">✕</button></div>
@@ -2087,9 +2087,9 @@ function updateSplitCalculationExplanation() {
   if (count === 0) {
     textEl.textContent = 'Please select at least 1 participant.';
   } else if (count === 1) {
-    textEl.textContent = `The selected participant (${selectedSplitParticipants[0]}) will owe 100% of the bill.`;
+    textEl.textContent = 'Selected member pays 100% of this bill.';
   } else {
-    textEl.textContent = `The bill total will be split equally among the ${count} selected participants.`;
+    textEl.textContent = `Split equally among ${count} selected members.`;
   }
 }
 
@@ -2879,6 +2879,20 @@ function bind() {
   on('themeSeg', 'click', e => {
     const b = e.target.closest('button'); if (!b) return;
     lsSet('ledger.theme', b.dataset.v); applyTheme(b.dataset.v);
+  });
+
+  on('btnShareLedger', 'click', async () => {
+    const url = new URL('./', window.location.href).href;
+    const payload = { title: 'Ledger', text: 'Track expenses and split bills with Ledger.', url };
+    try {
+      if (navigator.share) { await navigator.share(payload); return; }
+      await copyToClipboard(url);
+      toast('Ledger link copied. Send it to a friend!');
+    } catch (err) {
+      if (err && err.name === 'AbortError') return;
+      try { await copyToClipboard(url); toast('Ledger link copied'); }
+      catch { toast('Could not share link. Copy it from your browser address bar.'); }
+    }
   });
 
   on('setNickname', 'input', () => { state.nickname = $('setNickname').value.trim(); save(); renderAll(); if (mode === 'cloud') scheduleNicknameSync(); });

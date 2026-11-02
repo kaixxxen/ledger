@@ -780,3 +780,40 @@ li.tx .amt{ font-weight:600; font-size:var(--fs-base); }
   #addSplitExpenseModal .modal-actions button,#addExpenseModal .modal-actions button,#editExpenseModal .modal-actions button{padding:10px 12px}
   #addSplitExpenseModal .calc-note,#addSplitExpenseModal #tripModeHelp{margin:2px 0 0}
 }
+
+/* Ledger v33: compact premium selections and more balanced helper spacing. */
+#normalSplitParticipants #splitCalcExplanation { margin-top:14px!important; line-height:1.5; font-size:var(--fs-xs); }
+#normalSplitParticipants .participant-select-grid{ margin-bottom:3px; }
+/* Low-profile, accessible checkmarks consistent with Ledger theme */
+#addSplitExpenseModal .trip-member-row input[type="checkbox"] {
+  appearance:none; -webkit-appearance:none;
+  width:17px; height:17px; min-width:17px; min-height:17px;
+  margin:0; padding:0; flex:none;
+  border:1.5px solid var(--muted); border-radius:5px;
+  background:var(--card); box-shadow:inset 0 1px 1px rgba(0,0,0,.03);
+  display:grid; place-content:center; cursor:pointer;
+}
+#addSplitExpenseModal .trip-member-row input[type="checkbox"]:checked{
+  background:var(--accent);border-color:var(--accent);
+}
+#addSplitExpenseModal .trip-member-row input[type="checkbox"]:checked::after{
+  content:''; width:8px; height:5px;
+  border-left:1.7px solid var(--on-accent);border-bottom:1.7px solid var(--on-accent);
+  transform:translateY(-1px) rotate(-45deg);
+}
+#addSplitExpenseModal .trip-member-row input[type="checkbox"]:focus-visible{
+  outline:2px solid var(--gold);outline-offset:3px;
+}
+#addSplitExpenseModal .trip-member-row{gap:8px;padding:7px 10px;}
+#addSplitExpenseModal .trip-member-row label{gap:9px;font-size:var(--fs-sm);}
+/* Receipt disclosure chevron is vertically centered and never crowds text. */
+.receipt-scan-head{min-height:43px;align-items:center!important;}
+.receipt-scan-head::after{
+  content:''!important; flex:none;display:block; width:8px;height:8px;
+  border-right:1.5px solid var(--muted);border-bottom:1.5px solid var(--muted);
+  transform:rotate(45deg) translateY(-2px);margin:0 5px 4px 6px;
+}
+.receipt-scan[open] .receipt-scan-head::after{transform:rotate(225deg) translateY(-2px);margin-bottom:-3px;}
+.share-ledger-copy{display:flex;flex-direction:column;gap:3px;min-width:0;font-size:var(--fs-base)}
+.share-ledger-copy .fine{margin:0!important}
+.share-ledger-btn{white-space:nowrap;padding:10px 13px;font-size:var(--fs-sm);border-radius:var(--radius-md);}
