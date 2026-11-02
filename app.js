@@ -55,6 +55,7 @@ const pad = n => String(n).padStart(2, '0');
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
 const ym = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}`;
 const sum = (arr, type) => (arr || []).filter(t => t && t.type === type).reduce((s, t) => s + (Number(t.amount) || 0), 0);
+const isIsoDate = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
 
 let state = blank();
 let mode = 'none';
@@ -79,6 +80,7 @@ let activeSplitTab = 'expenses';
 let activeRealtimeChannel = null;
 let selectedSplitParticipants = [];
 let pendingParticipants = [];
+let paidModalCardId = null;
 
 // ---- shared bills / permanent Ledger ID ----
 let profile = null;            // { code, nick } - permanent Ledger ID issued by the server
@@ -194,6 +196,7 @@ function normalize(raw) {
     name: String((c && c.name) || 'Card').trim(),
     type: c && c.type === 'debit' ? 'debit' : 'credit',
     lastPaid: String((c && c.lastPaid) || ''),
+    paidOn: String((c && c.paidOn) || ''),
     statementDay: Math.max(1, Math.min(31, parseInt(c && c.statementDay) || 1)),
     dueDaysAfter: Math.max(1, Math.min(90, parseInt(c && (c.dueDaysAfter || c.dueDays || c.dueDay)) || 21))
   }));
@@ -336,10 +339,13 @@ function attachLongPress(element, callback) {
   let startX = 0, startY = 0;
 
   const start = e => {
+    element._lpFired = false;
     element.classList.add('long-pressing');
     const touch = e.touches ? e.touches[0] : e;
     startX = touch.clientX; startY = touch.clientY;
+    clearTimeout(timer);
     timer = setTimeout(() => {
+      element._lpFired = true;   // lets the card's click handler ignore the release that follows
       element.classList.remove('long-pressing');
       if (navigator.vibrate) navigator.vibrate(40);
       callback(e);
@@ -365,6 +371,7 @@ function attachLongPress(element, callback) {
   element.addEventListener('mousemove', cancel);
   element.addEventListener('mouseup', cancel);
   element.addEventListener('mouseleave', cancel);
+  element.addEventListener('contextmenu', e => { if (element._lpFired) e.preventDefault(); });
 }
 
 const cardModalType = () => (($$('#cardTypeSeg button.on')[0] || {}).dataset || {}).v || 'credit';
@@ -474,6 +481,8 @@ function showAuth() {
   if ($('dock')) $('dock').hidden = true;
   if ($('auth')) $('auth').hidden = false;
   authMsg('');
+  // Without a cloud config there is nothing to sign in to, so hide the provider options.
+  ['googleAuthWrap', 'authDivider', 'emailLinkForm'].forEach(id => { if ($(id)) $(id).hidden = !CLOUD; });
   if ($('authLocal')) {
     $('authLocal').className = CLOUD ? 'ghost' : 'primary';
     $('authLocal').textContent = mode === 'local' ? 'Back to the app' : (CLOUD ? 'Continue without an account' : 'Continue');
@@ -761,6 +770,47 @@ function renderHome() {
   }
 }
 
+/* ---------- credit card statement status (shared by the home list and the paid modal) ---------- */
+const fmtShort = d => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+const fmtLong  = d => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+
+function computeCardStatus(c) {
+  const now = new Date();
+  const todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const clampDay = (y, m, d) => new Date(y, m, Math.min(d, new Date(y, m + 1, 0).getDate()));
+
+  const stmtDay = parseInt(c.statementDay) || 1;
+  const dueDaysAfter = parseInt(c.dueDaysAfter || c.dueDays || c.dueDay) || 21;
+
+  // latest statement date that has already happened
+  let cutoffDate = clampDay(now.getFullYear(), now.getMonth(), stmtDay);
+  if (todayZero < cutoffDate) cutoffDate = clampDay(now.getFullYear(), now.getMonth() - 1, stmtDay);
+  const prevCutoff = clampDay(cutoffDate.getFullYear(), cutoffDate.getMonth() - 1, stmtDay);
+
+  const dueDate = new Date(cutoffDate.getTime());
+  dueDate.setDate(dueDate.getDate() + dueDaysAfter);
+  const daysLeft = Math.round((dueDate - todayZero) / 86400000);
+
+  const cardExpenses = state.tx.filter(t => t.type === 'expense' && t.method === 'card' && t.cardId === c.id);
+  const at = t => new Date(t.date + 'T00:00');
+  // only purchases on THIS statement (after the previous cutoff, up to this cutoff)
+  const currentDueSpent = cardExpenses.filter(t => at(t) > prevCutoff && at(t) <= cutoffDate).reduce((s, t) => s + t.amount, 0);
+  const nextCycleSpent = cardExpenses.filter(t => at(t) > cutoffDate).reduce((s, t) => s + t.amount, 0);
+  const cutoffStr = ymd(cutoffDate);
+  const paid = !!c.lastPaid && c.lastPaid >= cutoffStr;
+
+  return { ...c, statementDay: stmtDay, dueDaysAfter, dueDate, cutoffDate, cutoffStr, paid, daysLeft, currentDueSpent, nextCycleSpent };
+}
+
+function dueBadge(s) {
+  if (s.paid) return { cls: 'good', text: 'Paid ✓' };
+  if (s.daysLeft === 0) return { cls: 'bad', text: 'Due Today' };
+  if (s.daysLeft < 0) return { cls: 'bad', text: `${Math.abs(s.daysLeft)}d Overdue` };
+  if (s.daysLeft <= 3) return { cls: 'bad', text: `Due in ${s.daysLeft}d` };
+  if (s.daysLeft <= 7) return { cls: 'warn', text: `Due in ${s.daysLeft}d` };
+  return { cls: 'good', text: `${s.daysLeft} days left` };
+}
+
 function renderCardReminders() {
   const el = $('cardReminders');
   if (!el) return;
@@ -770,58 +820,55 @@ function renderCardReminders() {
     return;
   }
 
-  const now = new Date();
-  const todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const clampDay = (y, m, d) => new Date(y, m, Math.min(d, new Date(y, m + 1, 0).getDate()));
-
-  const cardStatusList = creditCards.map(c => {
-    const stmtDay = parseInt(c.statementDay) || 1;
-    const dueDaysAfter = parseInt(c.dueDaysAfter || c.dueDays || c.dueDay) || 21;
-
-    // latest statement date that has already happened
-    let cutoffDate = clampDay(now.getFullYear(), now.getMonth(), stmtDay);
-    if (todayZero < cutoffDate) cutoffDate = clampDay(now.getFullYear(), now.getMonth() - 1, stmtDay);
-    const prevCutoff = clampDay(cutoffDate.getFullYear(), cutoffDate.getMonth() - 1, stmtDay);
-
-    const dueDate = new Date(cutoffDate.getTime());
-    dueDate.setDate(dueDate.getDate() + dueDaysAfter);
-    const daysLeft = Math.round((dueDate - todayZero) / 86400000);
-
-    const cardExpenses = state.tx.filter(t => t.type === 'expense' && t.method === 'card' && t.cardId === c.id);
-    const at = t => new Date(t.date + 'T00:00');
-    // only purchases on THIS statement (after the previous cutoff, up to this cutoff)
-    const currentDueSpent = cardExpenses.filter(t => at(t) > prevCutoff && at(t) <= cutoffDate).reduce((s, t) => s + t.amount, 0);
-    const nextCycleSpent = cardExpenses.filter(t => at(t) > cutoffDate).reduce((s, t) => s + t.amount, 0);
-    const cutoffStr = ymd(cutoffDate);
-    const paid = !!c.lastPaid && c.lastPaid >= cutoffStr;
-
-    return { ...c, statementDay: stmtDay, dueDaysAfter, dueDate, cutoffDate, cutoffStr, paid, daysLeft, currentDueSpent, nextCycleSpent };
-  }).sort((a, b) => (a.paid - b.paid) || (a.daysLeft - b.daysLeft));
+  const cardStatusList = creditCards.map(computeCardStatus)
+    .sort((a, b) => (a.paid - b.paid) || (a.daysLeft - b.daysLeft));
 
   el.innerHTML = limited('reminders', cardStatusList).map(c => {
-    let badgeClass = 'good';
-    let badgeText = `${c.daysLeft} days left`;
-    if (c.paid) { badgeClass = 'good'; badgeText = 'Paid ✓'; }
-    else if (c.daysLeft === 0) { badgeClass = 'bad'; badgeText = 'Due Today'; }
-    else if (c.daysLeft < 0) { badgeClass = 'bad'; badgeText = `${Math.abs(c.daysLeft)}d Overdue`; }
-    else if (c.daysLeft <= 3) { badgeClass = 'bad'; badgeText = `Due in ${c.daysLeft}d`; }
-    else if (c.daysLeft <= 7) { badgeClass = 'warn'; badgeText = `Due in ${c.daysLeft}d`; }
-
-    const fmt = d => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const badge = dueBadge(c);
+    const paidOnTxt = c.paid && isIsoDate(c.paidOn) ? ` · Paid ${fmtShort(new Date(c.paidOn + 'T00:00'))}` : '';
     return `
       <div class="card-reminder-item">
         <div class="card-info">
           <div class="card-title"><span class="bank-tag">${esc(c.bank)}</span><span>${esc(c.name)}</span></div>
-          <small class="card-dates">Due: <b>${fmt(c.dueDate)}</b> (Cutoff: ${fmt(c.cutoffDate)})</small>
+          <small class="card-dates">Due: <b>${fmtShort(c.dueDate)}</b> (Cutoff: ${fmtShort(c.cutoffDate)})${paidOnTxt}</small>
         </div>
         <div class="card-status">
-          <span class="due-badge ${badgeClass}">${badgeText}</span>
+          <span class="due-badge ${badge.cls}">${badge.text}</span>
           <div class="card-spent-current">Due: ${money(c.currentDueSpent)}</div>
           ${c.nextCycleSpent > 0 ? `<div class="card-spent-next">Next Cycle: ${money(c.nextCycleSpent)}</div>` : ''}
-          <button type="button" class="mark-paid-btn" data-id="${esc(c.id)}" data-cutoff="${c.cutoffStr}" data-paid="${c.paid ? 1 : 0}">${c.paid ? 'Undo paid' : 'Mark as paid'}</button>
+          <button type="button" class="mark-paid-btn ${c.paid ? 'is-paid' : ''}" data-id="${esc(c.id)}">${c.paid ? 'Paid · Details' : 'Mark as paid'}</button>
         </div>
       </div>`;
   }).join('') + moreBtn('reminders', cardStatusList.length);
+}
+
+/* ---------- Mark as paid modal ---------- */
+function openPaidModal(cardId) {
+  const card = (state.cards || []).find(c => c.id === cardId);
+  if (!card || !$('markPaidModal')) return;
+  const s = computeCardStatus(card);
+  const badge = dueBadge(s);
+  paidModalCardId = cardId;
+
+  $('paidModalTitle').textContent = s.paid ? 'Payment details' : 'Mark as paid';
+  $('paidBank').textContent = card.bank;
+  $('paidCardName').textContent = card.name;
+  $('paidAmount').textContent = money(s.currentDueSpent);
+  $('paidStatusBadge').className = 'due-badge ' + badge.cls;
+  $('paidStatusBadge').textContent = badge.text;
+  $('paidCutoff').textContent = fmtLong(s.cutoffDate);
+  $('paidDueDate').textContent = fmtLong(s.dueDate);
+  $('paidNextRow').hidden = !(s.nextCycleSpent > 0);
+  $('paidNext').textContent = money(s.nextCycleSpent);
+  $('paidDate').value = s.paid && isIsoDate(card.paidOn) ? card.paidOn : today();
+  $('paidConfirm').textContent = s.paid ? 'Update paid date' : 'Mark as paid';
+  $('paidUndo').hidden = !s.paid;
+  $('markPaidModal').hidden = false;
+}
+
+function closePaidModal() {
+  if ($('markPaidModal')) $('markPaidModal').hidden = true;
+  paidModalCardId = null;
 }
 
 function ensureOption(sel, val) {
@@ -1062,7 +1109,11 @@ function renderBillList() {
   $$('#billsList .bill-card').forEach(card => {
     const group = state.billGroups.find(g => g.id === card.dataset.id);
     if (!group) return;
-    card.onclick = () => openBillDetail(group.id);
+    card.onclick = () => {
+      // a long-press already opened the action sheet; don't also open the bill on release
+      if (card._lpFired) { card._lpFired = false; return; }
+      openBillDetail(group.id);
+    };
 
     attachLongPress(card, () => {
       const leaving = group.shared && user && group.createdBy !== user.id;
@@ -1576,7 +1627,7 @@ function importSplitwiseCsv(file) {
       const amount = Math.round((parseFloat((cols[costIdx >= 0 ? costIdx : 2] || '0').replace(/[^0-9.]/g, '')) || 0) * 100) / 100;
       const paidBy = keyForName(cols[payerIdx >= 0 ? payerIdx : 3]);
       const rawDate = cols[dateIdx >= 0 ? dateIdx : 0] || '';
-      const date = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : today();
+      const date = isIsoDate(rawDate) ? rawDate : today();
       if (amount > 0) imported.push({ id: uid(), title, amount, paidBy, participants: [...allKeys], date });
     }
     if (!imported.length) { toast('No valid expenses found in that file.'); return; }
@@ -1627,8 +1678,10 @@ function importCsv(file) {
       if (rawPaid.includes('debit')) method = 'debit';
       else if (rawPaid.includes('card') || rawPaid.includes('credit')) method = 'card';
 
+      const rawDate = cols[dateIdx >= 0 ? dateIdx : 0] || '';
       newTxList.push({
-        id: Date.now() + Math.random(), type, amount: amtVal, category: cat, method, cardId: '', note: cols[noteIdx >= 0 ? noteIdx : 5] || '', date: cols[dateIdx >= 0 ? dateIdx : 0] || today()
+        id: Date.now() + Math.random(), type, amount: amtVal, category: cat, method, cardId: '',
+        note: cols[noteIdx >= 0 ? noteIdx : 5] || '', date: isIsoDate(rawDate) ? rawDate : today()
       });
       importedCount++;
     }
@@ -1637,6 +1690,8 @@ function importCsv(file) {
       if (confirm(`Replace current ledger with ${importedCount} imported transactions?`)) state.tx = newTxList;
       else state.tx = state.tx.concat(newTxList);
       save(); renderAll(); toast(`Successfully imported ${importedCount} transactions!`);
+    } else {
+      toast('No valid transactions found in that file.');
     }
   };
   reader.readAsText(file);
@@ -1818,29 +1873,54 @@ async function signOut() {
 function authMsg(text, ok) { const m = $('authMsg'); if (m) { m.textContent = text || ''; m.classList.toggle('ok', !!ok); } }
 
 function friendlyAuthError(err) {
-  const m = (err && err.message) || 'Something went wrong. Please try again.';
+  const m = (err && (err.message || err.msg || err.error_description)) || 'Something went wrong. Please try again.';
   if (/rate limit|too many/i.test(m)) return 'Too many attempts. Please wait a bit and try again.';
   if (/fetch|network/i.test(m)) return "Can't reach the server. Check your connection.";
+  if (/provider is not enabled|unsupported provider/i.test(m)) return 'That sign-in method is not turned on yet. Enable it in your Supabase dashboard (Authentication → Providers).';
+  if (/invalid.*email|email.*invalid/i.test(m)) return 'That email address does not look right.';
   return m;
 }
 
-async function signInWithGoogle() {
+const authRedirect = () => window.location.origin + window.location.pathname;
+
+async function signInWithProvider(provider, label) {
   if (!CLOUD || !sb) {
-    authMsg("Supabase credentials missing in config.js. Add valid SUPABASE_URL & SUPABASE_ANON_KEY to enable Google Sign-In.");
+    authMsg('Supabase credentials missing in config.js. Add valid SUPABASE_URL & SUPABASE_ANON_KEY to enable sign-in.');
     return;
   }
-  authMsg("Redirecting to Google...", true);
+  authMsg(`Redirecting to ${label}...`, true);
   try {
     const { error } = await sb.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin + window.location.pathname
-      }
+      provider,
+      options: { redirectTo: authRedirect() }
     });
     if (error) throw error;
   } catch (err) {
     authMsg(friendlyAuthError(err));
   }
+}
+const signInWithGoogle = () => signInWithProvider('google', 'Google');
+const signInWithApple  = () => signInWithProvider('apple', 'Apple');
+
+async function signInWithEmailLink(e) {
+  if (e) e.preventDefault();
+  if (!CLOUD || !sb) {
+    authMsg('Supabase credentials missing in config.js. Add valid SUPABASE_URL & SUPABASE_ANON_KEY to enable sign-in.');
+    return;
+  }
+  const email = ($('authEmail') ? $('authEmail').value : '').trim();
+  if (!/^\S+@\S+\.\S+$/.test(email)) { authMsg('Enter a valid email address.'); return; }
+  const btn = $('authEmailBtn');
+  if (btn) btn.disabled = true;
+  authMsg('Sending your sign-in link...', true);
+  try {
+    const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: authRedirect() } });
+    if (error) throw error;
+    authMsg('Check your inbox and tap the link to finish signing in.', true);
+  } catch (err) {
+    authMsg(friendlyAuthError(err));
+  }
+  if (btn) btn.disabled = false;
 }
 
 function updateSplitCalculationExplanation() {
@@ -1880,14 +1960,29 @@ function bind() {
     fn();
   });
 
-  // credit card: mark current statement paid / undo
+  // credit card: open the "Mark as paid" sheet
   on('cardReminders', 'click', e => {
     const b = e.target.closest('.mark-paid-btn'); if (!b) return;
-    const card = state.cards.find(c => c.id === b.dataset.id); if (!card) return;
-    card.lastPaid = b.dataset.paid === '1' ? '' : b.dataset.cutoff;
-    save(); renderCardReminders();
-    toast(card.lastPaid ? `${card.bank} marked as paid` : 'Paid mark removed');
+    openPaidModal(b.dataset.id);
   });
+
+  on('paidForm', 'submit', e => {
+    e.preventDefault();
+    const card = state.cards.find(c => c.id === paidModalCardId); if (!card) { closePaidModal(); return; }
+    const s = computeCardStatus(card);
+    const when = isIsoDate($('paidDate').value) ? $('paidDate').value : today();
+    card.lastPaid = s.cutoffStr;
+    card.paidOn = when;
+    save(); closePaidModal(); renderCardReminders();
+    toast(`${card.bank} marked as paid`);
+  });
+  on('paidUndo', 'click', () => {
+    const card = state.cards.find(c => c.id === paidModalCardId); if (!card) { closePaidModal(); return; }
+    card.lastPaid = ''; card.paidOn = '';
+    save(); closePaidModal(); renderCardReminders();
+    toast('Paid mark removed');
+  });
+  on('paidCancel', 'click', closePaidModal);
 
   on('txSearch', 'input', () => { txSearch = $('txSearch').value.trim().toLowerCase(); expanded.tx = false; renderExpenses(); });
 
@@ -2482,6 +2577,8 @@ function bind() {
   if ($('signOut')) $('signOut').onclick = signOut;
   if ($('signInBtn')) $('signInBtn').onclick = () => showAuth();
   if ($('authGoogle')) $('authGoogle').onclick = signInWithGoogle;
+  if ($('authApple')) $('authApple').onclick = signInWithApple;
+  on('emailLinkForm', 'submit', signInWithEmailLink);
   if ($('authLocal')) $('authLocal').onclick = () => { if (mode === 'cloud') showApp(); else enterLocal(); };
 
   fillCats($('category'), 'expense');
@@ -2501,8 +2598,17 @@ function exportCsv() {
   document.body.appendChild(a); a.click(); a.remove();
 }
 
+// The service worker (sw.js) was never registered before, so offline mode and installability never kicked in.
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator) || !/^https?:$/.test(location.protocol)) return;
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(err => console.warn('Service worker not registered:', err));
+  });
+}
+
 async function boot() {
   try {
+    registerServiceWorker();
     applyTheme(getTheme());
     bind();
 
