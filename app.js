@@ -785,16 +785,16 @@ function renderHome() {
 
   if ($('splitBody')) {
     if (exp > 0) {
+      const pct = v => Math.round(v / exp * 100);
+      const seg = (label, v, color) => `<div><small><i style="background:${color}"></i>${label} · ${pct(v)}%</small><b>${money(v)}</b></div>`;
       $('splitBody').innerHTML = `
-        <div class="split" role="img" aria-label="Cash ${Math.round(cash / exp * 100)}%, Debit ${Math.round(debit / exp * 100)}%, Credit ${Math.round(card / exp * 100)}%" style="display:flex; height:8px; border-radius:4px; overflow:hidden; margin-bottom:10px; background:var(--bar);">
-          <i style="width:${cash / exp * 100}%; background:var(--c-cash, #10b981); transition: width 0.5s ease;"></i>
-          <i style="width:${debit / exp * 100}%; background:var(--c-debit, #3b82f6); transition: width 0.5s ease;"></i>
-          <i style="width:${card / exp * 100}%; background:var(--c-card, #f59e0b); transition: width 0.5s ease;"></i>
+        <div class="split" role="img" aria-label="Cash ${pct(cash)}%, Debit ${pct(debit)}%, Credit ${pct(card)}%">
+          <i style="width:${cash / exp * 100}%; background:var(--c-cash)"></i>
+          <i style="width:${debit / exp * 100}%; background:var(--c-debit)"></i>
+          <i style="width:${card / exp * 100}%; background:var(--c-card)"></i>
         </div>
-        <div class="split-legend" style="display:flex; justify-content:space-between; gap:8px;">
-          <div><small style="display:flex; align-items:center; gap:4px; font-size:10px; opacity:0.75;"><i style="display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--c-cash, #10b981)"></i>Cash · ${Math.round(cash / exp * 100)}%</small><b style="display:block; font-size:12px; font-weight:600; margin-top:2px;">${money(cash)}</b></div>
-          <div><small style="display:flex; align-items:center; gap:4px; font-size:10px; opacity:0.75;"><i style="display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--c-debit, #3b82f6)"></i>Debit · ${Math.round(debit / exp * 100)}%</small><b style="display:block; font-size:12px; font-weight:600; margin-top:2px;">${money(debit)}</b></div>
-          <div><small style="display:flex; align-items:center; gap:4px; font-size:10px; opacity:0.75;"><i style="display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--c-card, #f59e0b)"></i>Credit · ${Math.round(card / exp * 100)}%</small><b style="display:block; font-size:12px; font-weight:600; margin-top:2px;">${money(card)}</b></div>
+        <div class="split-legend">
+          ${seg('Cash', cash, 'var(--c-cash)')}${seg('Debit', debit, 'var(--c-debit)')}${seg('Credit', card, 'var(--c-card)')}
         </div>`;
     } else {
       $('splitBody').innerHTML = '<p class="muted center-text" style="padding:16px 0;">No spending logged this month.</p>';
@@ -926,14 +926,14 @@ function renderFixedExpenses() {
     return;
   }
   el.innerHTML = limited('fixed', state.fixedTx).map(f => `
-    <div class="fixed-item" data-id="${esc(f.id)}" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+    <div class="fixed-item" data-id="${esc(f.id)}">
       <div>
         <strong>${esc(f.title)}</strong>
-        <small class="muted" style="display: block;">${esc(f.category)} (${f.type === 'income' ? 'Income' : 'Expense'}) · ${f.indefinite ? 'Ongoing monthly' : `Month ${f.monthsElapsed || 0} of ${f.totalMonths}`}</small>
+        <small class="muted" style="display:block;">${esc(f.category)} (${f.type === 'income' ? 'Income' : 'Expense'}) · ${f.indefinite ? 'Ongoing monthly' : `Month ${f.monthsElapsed || 0} of ${f.totalMonths}`}</small>
       </div>
-      <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="display:flex; align-items:center; gap:10px;">
         <b class="${f.type === 'income' ? 'in' : ''}">${f.type === 'income' ? '+' : ''}${money(f.amount)}/mo</b>
-        <button type="button" class="del-fixed-btn" data-id="${esc(f.id)}" style="color: var(--bad); background: none; border: none; cursor: pointer; font-size: 16px;">✕</button>
+        <button type="button" class="del-fixed-btn" data-id="${esc(f.id)}" aria-label="Delete recurring item">✕</button>
       </div>
     </div>`).join('') + moreBtn('fixed', state.fixedTx.length);
 
@@ -1011,7 +1011,7 @@ function renderExpenses() {
         if (found) methodDetail = `${found.bank} (${found.name})`;
       }
       return `
-      <li class="tx" data-id="${esc(t.id)}" style="cursor: pointer;">
+      <li class="tx" data-id="${esc(t.id)}">
         <span class="cat-dot" style="background:${getCategoryColor(t.category)}"></span>
         <div class="meta"><div>${esc(t.note || t.category)}</div>
           <small>${esc(t.category)} · ${new Date(t.date + 'T00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
@@ -1046,7 +1046,7 @@ function renderPendingParticipants() {
   if (!list) return;
   list.innerHTML = pendingParticipants.map((p, idx) => `
     <li class="participant-item">
-      <span class="participant-name" style="max-width:220px;">${esc(partLabel(p))}</span>
+      <span class="participant-name">${esc(partLabel(p))}</span>
       ${isMeParticipant(p) ? '' : `<button type="button" class="del-participant-btn" data-idx="${idx}" aria-label="Remove participant">&times;</button>`}
     </li>`).join('');
 
@@ -1528,26 +1528,26 @@ function renderBillExpensesList(group) {
       `).join('');
 
       return `
-        <div class="bill-expense-card edit-split-exp-btn" data-id="${esc(exp.id)}" style="cursor: pointer;">
+        <div class="bill-expense-card edit-split-exp-btn" data-id="${esc(exp.id)}">
           <div class="exp-left">
             <div>
               <div class="exp-title">
                 <b>${esc(exp.title)}</b>
               </div>
-              <div class="exp-sub" style="margin-top: 2px;">Paid by <b>${esc(labelFor(group, exp.paidBy))}</b></div>
+              <div class="exp-sub">Paid by <b>${esc(labelFor(group, exp.paidBy))}</b></div>
               <div class="shares-chips-row">${chipsHtml}</div>
             </div>
           </div>
-          <div class="exp-amount-wrap" style="text-align: right;">
+          <div class="exp-amount-wrap">
             <span class="exp-amount">${money(exp.amount)}</span>
-            <small class="muted text-link" style="display: block; margin-top: 2px;">Edit</small>
+            <small class="muted text-link exp-edit">Edit</small>
           </div>
         </div>
       `;
     }).join('');
 
     return `
-      <div class="date-group" style="margin-bottom: 14px;">
+      <div class="date-group">
         <div class="date-header">${esc(dateLabel)}</div>
         ${items}
       </div>`;
@@ -1765,6 +1765,8 @@ function renderSettings() {
   if ($('noCloudRow')) $('noCloudRow').hidden = CLOUD;
   const th = getTheme();
   $$('#themeSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === th));
+  const fs = getFontScale();
+  $$('#fontSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === fs));
   if ($('setNickname') && document.activeElement !== $('setNickname')) $('setNickname').value = state.nickname || '';
   if ($('setCur') && document.activeElement !== $('setCur')) $('setCur').value = state.cur;
   if ($('setBudget') && document.activeElement !== $('setBudget')) $('setBudget').value = state.budget || '';
@@ -1772,6 +1774,13 @@ function renderSettings() {
 
 const THEMES = ['system', 'light', 'dark'];
 function getTheme() { const t = lsGet('ledger.theme'); return THEMES.includes(t) ? t : 'system'; }
+const FONT_SCALES = ['1', '1.1', '1.2', '1.35'];   // 1 = the original (smallest) sizes
+function getFontScale() { const v = lsGet('ledger.fontScale'); return FONT_SCALES.includes(v) ? v : '1'; }
+function applyFontScale(v) {
+  if (!FONT_SCALES.includes(v)) v = '1';
+  document.documentElement.style.setProperty('--fs-scale', v);
+  $$('#fontSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+}
 function applyTheme(t) {
   if (t === 'system') document.documentElement.removeAttribute('data-theme');
   else document.documentElement.setAttribute('data-theme', t);
@@ -2596,6 +2605,11 @@ function bind() {
     if (delBtn) deleteCard(delBtn.dataset.id);
   });
 
+  on('fontSeg', 'click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    lsSet('ledger.fontScale', b.dataset.v); applyFontScale(b.dataset.v);
+  });
+
   on('themeSeg', 'click', e => {
     const b = e.target.closest('button'); if (!b) return;
     lsSet('ledger.theme', b.dataset.v); applyTheme(b.dataset.v);
@@ -2659,6 +2673,7 @@ async function boot() {
   try {
     registerServiceWorker();
     applyTheme(getTheme());
+    applyFontScale(getFontScale());
     bind();
 
     if (CLOUD) {
