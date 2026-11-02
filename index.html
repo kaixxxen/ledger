@@ -236,7 +236,7 @@
     <!-- Credit Card Due Date Reminders -->
     <section class="card" id="cardRemindersSection">
       <div class="card-head">
-        <h2>Card Due Date Reminders</h2>
+        <h2>Credit Card Due Dates</h2>
         <button type="button" class="text-link" id="btnManageCardsHome">+ Manage Cards</button>
       </div>
       <div id="cardReminders"></div>
@@ -444,11 +444,19 @@
       </div>
     </div>
 
-    <h2>Credit Cards & Reminders</h2>
+    <h2>Cards & Reminders</h2>
     <div class="card group">
+      <div class="srow stack" style="gap:8px;">
+        <div class="seg" id="cardsFilterSeg">
+          <button type="button" data-v="all" class="on">All</button>
+          <button type="button" data-v="credit">Credit</button>
+          <button type="button" data-v="debit">Debit</button>
+        </div>
+        <span class="fine" id="cardsSummary" style="margin:0;"></span>
+      </div>
       <div id="cardsList"></div>
       <div class="srow">
-        <button type="button" class="rowbtn text-accent" id="btnAddCardModal">+ Add New Credit Card</button>
+        <button type="button" class="rowbtn text-accent" id="btnAddCardModal">+ Add New Card</button>
       </div>
     </div>
 
@@ -492,7 +500,7 @@
       <div>
         <div class="who">Made by Eric S.</div>
         <p>Hi, I'm Eric, the maker of Ledger. I built it as a calm, clutter-free way to keep track of everyday spending.</p>
-        <p class="fine">Ledger · Made on October 31, 2026 · Version 1.8</p>
+        <p class="fine">Ledger · Made on October 31, 2026 · Version 1.9</p>
       </div>
     </div>
   </section>
@@ -674,13 +682,13 @@
         <label class="lbl">Paid with</label>
         <div class="seg" id="editMethodSeg">
           <button type="button" data-v="cash" class="on">Cash</button>
-          <button type="button" data-v="debit">Debit</button>
+          <button type="button" data-v="debit">Debit Card</button>
           <button type="button" data-v="card">Credit Card</button>
         </div>
       </div>
 
       <div id="editCardSelectWrap" hidden style="margin-top: 10px;">
-        <label class="lbl" for="editCardSelect">Select Card</label>
+        <label class="lbl" for="editCardSelect" id="editCardSelectLabel">Select Card</label>
         <select id="editCardSelect"></select>
       </div>
 
@@ -711,6 +719,10 @@
     <h3 id="cardModalTitle">Add Credit Card</h3>
     <form id="cardForm">
       <input type="hidden" id="cardId">
+      <div class="seg" id="cardTypeSeg">
+        <button type="button" data-v="credit" class="on">Credit Card</button>
+        <button type="button" data-v="debit">Debit Card</button>
+      </div>
       <div>
         <label class="lbl" for="cardBank">Bank Name</label>
         <input id="cardBank" type="text" placeholder="e.g. BDO, BPI, Maya" required maxlength="40">
@@ -719,7 +731,7 @@
         <label class="lbl" for="cardName">Card Name / Last 4 Digits</label>
         <input id="cardName" type="text" placeholder="e.g. World Elite™ Mastercard® (1234)" required maxlength="40">
       </div>
-      <div class="row2">
+      <div class="row2" id="cardCycleWrap">
         <div>
           <label class="lbl" for="cardStmtDay">Statement Day (1-31)</label>
           <input id="cardStmtDay" type="number" min="1" max="31" placeholder="15" required>
@@ -740,7 +752,7 @@
 <!-- ADD TRANSACTION MODAL -->
 <div class="modal-backdrop" id="addExpenseModal" hidden>
   <div class="modal-card">
-    <h3>Add Transaction</h3>
+    <h3>Log Expense</h3>
     <form id="form" class="form" style="box-shadow: none; border: none; padding: 0; margin: 0;">
       <div class="seg" id="typeSeg">
         <button type="button" data-v="expense" class="on">Expense</button>
@@ -755,18 +767,18 @@
         <input id="date" type="date" required>
       </div>
       <div id="customCatWrap" hidden>
-        <input id="customCategoryInput" type="text" placeholder="Enter custom category name" maxlength="30">
+        <input id="customCategoryInput" type="text" placeholder="Name your category (saved to the list)" maxlength="30" autocomplete="off">
       </div>
       <div id="methodWrap">
         <label class="lbl">Paid with</label>
         <div class="seg" id="methodSeg">
           <button type="button" data-v="cash" class="on">Cash</button>
-          <button type="button" data-v="debit">Debit</button>
+          <button type="button" data-v="debit">Debit Card</button>
           <button type="button" data-v="card">Credit Card</button>
         </div>
       </div>
       <div id="cardSelectWrap" hidden>
-        <label class="lbl" for="cardSelect">Select Card</label>
+        <label class="lbl" for="cardSelect" id="cardSelectLabel">Select Card</label>
         <select id="cardSelect"></select>
       </div>
       <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
@@ -787,7 +799,7 @@
         </div>
       </div>
       <div class="btnrow modal-actions" style="margin-top: 14px;">
-        <button class="primary" type="submit">Add Transaction</button>
+        <button class="primary" type="submit">Log Expense</button>
         <button type="button" class="secondary" id="addExpenseCancel">Cancel</button>
       </div>
     </form>

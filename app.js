@@ -65,6 +65,8 @@ let formType = 'expense', formMethod = 'cash';
 let fMethod = 'all';
 let txViewTab = 'expenses';
 let expensesLimit = 10;
+let cardsFilter = 'all';
+let currentPage = null;
 
 let selectedGroupId = null;
 let activeSplitTab = 'expenses';
@@ -163,6 +165,7 @@ function blank() {
     nickname: '',
     tx: [],
     customCats: [],
+    customIncomeCats: [],
     cards: [],
     tricounts: [],
     fixedTx: [],
@@ -181,11 +184,13 @@ function normalize(raw) {
     id: String((c && c.id) || Date.now() + Math.random()),
     bank: String((c && c.bank) || 'Bank').trim(),
     name: String((c && c.name) || 'Card').trim(),
+    type: c && c.type === 'debit' ? 'debit' : 'credit',
     statementDay: Math.max(1, Math.min(31, parseInt(c && c.statementDay) || 1)),
     dueDaysAfter: Math.max(1, Math.min(90, parseInt(c && (c.dueDaysAfter || c.dueDays || c.dueDay)) || 21))
   }));
 
   s.customCats = Array.isArray(s.customCats) ? s.customCats.map(c => String(c).trim()).filter(Boolean) : [];
+  s.customIncomeCats = Array.isArray(s.customIncomeCats) ? s.customIncomeCats.map(c => String(c).trim()).filter(Boolean) : [];
 
   s.tx = (Array.isArray(s.tx) ? s.tx : []).map(t => ({
     id: t && t.id != null ? t.id : Date.now() + Math.random(),
@@ -352,14 +357,28 @@ function attachLongPress(element, callback) {
   element.addEventListener('mouseleave', cancel);
 }
 
-function openCardModal(cardToEdit) {
+const cardModalType = () => (($$('#cardTypeSeg button.on')[0] || {}).dataset || {}).v || 'credit';
+function syncCardModalType() {
+  const t = cardModalType(), credit = t === 'credit';
+  if ($('cardCycleWrap')) $('cardCycleWrap').hidden = !credit;
+  if ($('cardStmtDay')) $('cardStmtDay').required = credit;
+  if ($('cardDueDays')) $('cardDueDays').required = credit;
+  if ($('cardModalTitle')) {
+    const editing = $('cardId') && $('cardId').value;
+    $('cardModalTitle').textContent = (editing ? 'Edit ' : 'Add ') + (credit ? 'Credit Card' : 'Debit Card');
+  }
+  if ($('cardName')) $('cardName').placeholder = credit ? 'e.g. World Elite Mastercard (1234)' : 'e.g. Savings Debit (5678)';
+}
+
+function openCardModal(cardToEdit, defaultType) {
   if (!$('cardModal')) return;
-  if ($('cardModalTitle')) $('cardModalTitle').textContent = cardToEdit ? 'Edit Credit Card' : 'Add Credit Card';
   if ($('cardId')) $('cardId').value = cardToEdit ? cardToEdit.id : '';
+  setSeg('cardTypeSeg', cardToEdit ? (cardToEdit.type || 'credit') : (defaultType || 'credit'));
   if ($('cardBank')) $('cardBank').value = cardToEdit ? cardToEdit.bank : '';
   if ($('cardName')) $('cardName').value = cardToEdit ? cardToEdit.name : '';
   if ($('cardStmtDay')) $('cardStmtDay').value = cardToEdit ? cardToEdit.statementDay : 15;
   if ($('cardDueDays')) $('cardDueDays').value = cardToEdit ? (cardToEdit.dueDaysAfter || 21) : 21;
+  syncCardModalType();
   $('cardModal').hidden = false;
   if ($('cardBank')) $('cardBank').focus();
 }
@@ -369,15 +388,26 @@ function closeCardModal() {
   if ($('cardForm')) $('cardForm').reset();
 }
 
+// Plays a short slide/fade on an element. dir: 1 = from the right, -1 = from the left, 0 = fade up.
+function slideIn(el, dir) {
+  if (!el) return;
+  el.classList.remove('slide-in-right', 'slide-in-left', 'fade-up');
+  void el.offsetWidth;
+  el.classList.add(dir > 0 ? 'slide-in-right' : dir < 0 ? 'slide-in-left' : 'fade-up');
+}
+
 function route() {
   let name = (location.hash || '').replace('#', '');
   if (!PAGES.includes(name)) name = 'home';
-  PAGES.forEach(p => { 
+  const prev = currentPage;
+  PAGES.forEach(p => {
     const el = $('page-' + p);
-    if (el) el.hidden = p !== name; 
+    if (el) el.hidden = p !== name;
   });
   $$('#dock button').forEach(b => b.classList.toggle('on', b.dataset.go === name));
   try { window.scrollTo(0, 0); } catch {}
+  if (prev && prev !== name) slideIn($('page-' + name), PAGES.indexOf(name) > PAGES.indexOf(prev) ? 1 : -1);
+  currentPage = name;
   renderAll();
 }
 
@@ -408,9 +438,29 @@ function showAuth() {
   }
 }
 
-function getAllExpenseCats() {
-  const merged = BASE_EXPENSE_CATS.concat(state.customCats || []);
-  return Array.from(new Set(merged));
+function mergeCats(base, custom) {
+  const seen = new Set();
+  const out = [];
+  base.filter(c => c !== 'Other').concat(custom || []).concat(['Other']).forEach(c => {
+    const k = String(c).trim().toLowerCase();
+    if (k && !seen.has(k)) { seen.add(k); out.push(String(c).trim()); }
+  });
+  return out;
+}
+function getAllExpenseCats() { return mergeCats(BASE_EXPENSE_CATS, state.customCats); }
+function getAllIncomeCats()  { return mergeCats(INCOME_CATS, state.customIncomeCats); }
+
+// Turns a typed custom category into a stored one (reusing an existing name if it matches).
+function registerCustomCategory(name, type) {
+  const clean = String(name || '').trim().replace(/\s+/g, ' ');
+  if (!clean) return null;
+  const all = type === 'income' ? getAllIncomeCats() : getAllExpenseCats();
+  const hit = all.find(c => c.toLowerCase() === clean.toLowerCase());
+  if (hit) return hit;
+  const key = type === 'income' ? 'customIncomeCats' : 'customCats';
+  if (!Array.isArray(state[key])) state[key] = [];
+  state[key].push(clean);
+  return clean;
 }
 
 function renderAll() {
@@ -431,7 +481,7 @@ function renderAll() {
   }
 
   populateCardDropdowns();
-  fillCats($('category'), 'expense');
+  fillCats($('category'), addFormType(), true);
   
   renderHome();
   renderFixedExpenses();
@@ -468,12 +518,46 @@ function monthTx() {
   return (state.tx || []).filter(t => t && t.date && getEffectiveExpenseYm(t) === key); 
 }
 
+const cardsOfMethod = method => (state.cards || []).filter(c => c.type === (method === 'debit' ? 'debit' : 'credit'));
+function fillCardSelect(sel, method, selected) {
+  if (!sel) return;
+  const list = cardsOfMethod(method);
+  const prev = selected != null ? selected : sel.value;
+  const opts = list.map(c => `<option value="${esc(c.id)}">${esc(c.bank)} - ${esc(c.name)}</option>`);
+  if (method === 'debit') opts.unshift('<option value="">Not specified</option>');
+  else if (!opts.length) opts.push('<option value="">No credit cards added</option>');
+  sel.innerHTML = opts.join('');
+  if (prev && Array.from(sel.options).some(o => o.value === prev)) sel.value = prev;
+}
+const addFormType   = () => ($$('#typeSeg button.on')[0] || {}).dataset?.v || 'expense';
+const addFormMethod = () => ($$('#methodSeg button.on')[0] || {}).dataset?.v || 'cash';
+const editFormType   = () => ($$('#editTypeSeg button.on')[0] || {}).dataset?.v || 'expense';
+const editFormMethod = () => ($$('#editMethodSeg button.on')[0] || {}).dataset?.v || 'cash';
+
+function syncAddCardSelect() {
+  const m = addFormMethod(), isExp = addFormType() === 'expense';
+  const show = isExp && (m === 'card' || m === 'debit');
+  if ($('cardSelectWrap')) $('cardSelectWrap').hidden = !show;
+  if ($('cardSelectLabel')) $('cardSelectLabel').textContent = m === 'debit' ? 'Select Debit Card' : 'Select Credit Card';
+  if (show) fillCardSelect($('cardSelect'), m);
+}
+function syncEditCardSelect(selected) {
+  const m = editFormMethod(), isExp = editFormType() === 'expense';
+  const show = isExp && (m === 'card' || m === 'debit');
+  if ($('editMethodWrap')) $('editMethodWrap').hidden = !isExp;
+  if ($('editCardSelectWrap')) $('editCardSelectWrap').hidden = !show;
+  if ($('editCardSelectLabel')) $('editCardSelectLabel').textContent = m === 'debit' ? 'Select Debit Card' : 'Select Credit Card';
+  if (show) fillCardSelect($('editCardSelect'), m, selected);
+}
+function syncCustomCatField() {
+  const show = $('category') && $('category').value === 'Other';
+  if ($('customCatWrap')) $('customCatWrap').hidden = !show;
+  if (show && $('customCategoryInput')) $('customCategoryInput').focus();
+}
+
 function populateCardDropdowns() {
-  const options = (state.cards || []).map(c => `<option value="${esc(c.id)}">${esc(c.bank)} - ${esc(c.name)}</option>`).join('');
-  const fallback = '<option value="">No Cards Added</option>';
-  const finalOptions = options || fallback;
-  if ($('cardSelect')) $('cardSelect').innerHTML = finalOptions;
-  if ($('editCardSelect')) $('editCardSelect').innerHTML = finalOptions;
+  syncAddCardSelect();
+  if ($('editExpenseModal') && !$('editExpenseModal').hidden) syncEditCardSelect();
 }
 
 function processRecurringExpensesForCurrentMonth() {
@@ -636,7 +720,8 @@ function renderHome() {
 function renderCardReminders() {
   const el = $('cardReminders');
   if (!el) return;
-  if (!state.cards || state.cards.length === 0) {
+  const creditCards = (state.cards || []).filter(c => c && c.type !== 'debit');
+  if (creditCards.length === 0) {
     el.innerHTML = '<p class="muted">No credit cards added. Click <b>+ Manage Cards</b> to add bank cards with due date reminders.</p>';
     return;
   }
@@ -644,7 +729,7 @@ function renderCardReminders() {
   const now = new Date();
   const todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  const cardStatusList = (state.cards || []).map(c => {
+  const cardStatusList = creditCards.map(c => {
     if (!c) return null;
     const stmtDay = parseInt(c.statementDay) || 1;
     const dueDaysAfter = parseInt(c.dueDaysAfter || c.dueDays || c.dueDay) || 21;
@@ -699,10 +784,18 @@ function renderCardReminders() {
   }).join('');
 }
 
+function ensureOption(sel, val) {
+  if (!sel || !val) return;
+  if (!Array.from(sel.options).some(o => o.value === val)) {
+    const o = document.createElement('option'); o.value = val; o.textContent = val;
+    sel.insertBefore(o, sel.lastElementChild);
+  }
+}
+
 function fillCats(sel, type, keep) {
   if (!sel) return;
   const prev = keep ? sel.value : '';
-  const catsList = type === 'expense' ? getAllExpenseCats() : INCOME_CATS;
+  const catsList = type === 'expense' ? getAllExpenseCats() : getAllIncomeCats();
   sel.innerHTML = catsList.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
   if (prev && Array.from(sel.options).some(o => o.value === prev)) sel.value = prev;
 }
@@ -737,11 +830,9 @@ function renderFixedExpenses() {
       $('editCategory').value = f.category;
       $('editNote').value = f.title;
       $('editDate').value = f.startDate || today();
-      formType = f.type || 'expense'; setSeg('editTypeSeg', formType); fillCats($('editCategory'), formType);
-      $('editCategory').value = f.category;
-      formMethod = f.method || 'cash'; setSeg('editMethodSeg', formMethod);
-      if ($('editCardSelectWrap')) $('editCardSelectWrap').hidden = formMethod !== 'card';
-      if ($('editCardSelect')) $('editCardSelect').value = f.cardId || '';
+      setSeg('editTypeSeg', f.type || 'expense'); fillCats($('editCategory'), f.type || 'expense');
+      ensureOption($('editCategory'), f.category); $('editCategory').value = f.category;
+      setSeg('editMethodSeg', f.method || 'cash'); syncEditCardSelect(f.cardId || '');
       if ($('editRecurringSection')) $('editRecurringSection').hidden = false;
       if ($('editIsIndefinite')) $('editIsIndefinite').checked = f.indefinite;
       if ($('editRecurMonthsWrap')) $('editRecurMonthsWrap').hidden = f.indefinite;
@@ -794,7 +885,7 @@ function renderExpenses() {
   if ($('list')) {
     $('list').innerHTML = visibleTxs.map(t => {
       let methodDetail = METHOD_LABEL[t.method];
-      if (t.method === 'card' && t.cardId) {
+      if ((t.method === 'card' || t.method === 'debit') && t.cardId) {
         const found = state.cards.find(c => c.id === t.cardId);
         if (found) methodDetail = `${found.bank} (${found.name})`;
       }
@@ -818,11 +909,9 @@ function renderExpenses() {
         $('editCategory').value = tx.category;
         $('editNote').value = tx.note || '';
         $('editDate').value = tx.date;
-        formType = tx.type || 'expense'; setSeg('editTypeSeg', formType); fillCats($('editCategory'), formType);
-        $('editCategory').value = tx.category;
-        formMethod = tx.method || 'cash'; setSeg('editMethodSeg', formMethod);
-        if ($('editCardSelectWrap')) $('editCardSelectWrap').hidden = formMethod !== 'card';
-        if ($('editCardSelect')) $('editCardSelect').value = tx.cardId || '';
+        setSeg('editTypeSeg', tx.type || 'expense'); fillCats($('editCategory'), tx.type || 'expense');
+        ensureOption($('editCategory'), tx.category); $('editCategory').value = tx.category;
+        setSeg('editMethodSeg', tx.method || 'cash'); syncEditCardSelect(tx.cardId || '');
         if ($('editRecurringSection')) $('editRecurringSection').hidden = true;
         $('editModalTitle').textContent = 'Edit / Delete Expense';
         $('editExpenseModal').hidden = false;
@@ -998,6 +1087,7 @@ function openTricountDetail(id) {
   $('splitMainView').hidden = true;
   if ($('splitArchiveView')) $('splitArchiveView').hidden = true;
   $('splitDetailView').hidden = false;
+  slideIn($('splitDetailView'), 1);
   renderTricountDetail();
   if (mode === 'cloud') scheduleSharedReload(0);
 }
@@ -1008,6 +1098,7 @@ function closeTricountDetail() {
   $('splitDetailView').hidden = true;
   if ($('splitArchiveView')) $('splitArchiveView').hidden = true;
   $('splitMainView').hidden = false;
+  slideIn($('splitMainView'), -1);
   renderTricountsList();
 }
 
@@ -1513,14 +1604,19 @@ function importCsv(file) {
 function renderSettings() {
   const cl = $('cardsList');
   if (cl) {
-    if (!state.cards.length) {
-      cl.innerHTML = '<div class="srow"><span class="fine">No credit cards added yet.</span></div>';
+    const all = (state.cards || []).slice().sort((a, b) => (a.type === b.type ? 0 : a.type === 'credit' ? -1 : 1));
+    const nCredit = all.filter(c => c.type === 'credit').length, nDebit = all.length - nCredit;
+    if ($('cardsSummary')) $('cardsSummary').textContent = all.length ? `${nCredit} credit · ${nDebit} debit` : '';
+    setSeg('cardsFilterSeg', cardsFilter);
+    const shown = all.filter(c => cardsFilter === 'all' || c.type === cardsFilter);
+    if (!shown.length) {
+      cl.innerHTML = `<div class="srow"><span class="fine">${all.length ? 'No ' + cardsFilter + ' cards yet.' : 'No cards added yet.'}</span></div>`;
     } else {
-      cl.innerHTML = state.cards.map(c => `
+      cl.innerHTML = shown.map(c => `
         <div class="card-item">
           <div class="card-item-details">
-            <strong>${esc(c.bank)} - ${esc(c.name)}</strong>
-            <small>Statement: Day ${c.statementDay} · Due: ${c.dueDaysAfter || 21} days after statement</small>
+            <strong><span class="type-pill ${c.type}">${c.type === 'debit' ? 'Debit' : 'Credit'}</span>${esc(c.bank)} - ${esc(c.name)}</strong>
+            <small>${c.type === 'debit' ? 'Used for debit card payments' : `Statement: Day ${c.statementDay} · Due: ${c.dueDaysAfter || 21} days after statement`}</small>
           </div>
           <div class="card-item-actions">
             <button type="button" class="icon-btn edit-card-btn" data-id="${esc(c.id)}">Edit</button>
@@ -1574,7 +1670,7 @@ function saveCard(cardData) {
 }
 
 function deleteCard(id) {
-  if (!confirm('Delete this credit card reminder? Existing transactions will stay intact.')) return;
+  if (!confirm('Delete this card? Existing transactions will stay intact.')) return;
   state.cards = state.cards.filter(c => c.id !== id);
   save(); renderAll();
 }
@@ -1747,9 +1843,11 @@ function bind() {
 
   on('txViewSeg', 'click', e => {
     const b = e.target.closest('button'); if (!b) return;
+    const was = txViewTab;
     txViewTab = b.dataset.v; setSeg('txViewSeg', txViewTab);
     if ($('tabExpensesView')) $('tabExpensesView').hidden = txViewTab !== 'expenses';
     if ($('tabRecurringView')) $('tabRecurringView').hidden = txViewTab !== 'recurring';
+    if (was !== txViewTab) slideIn($(txViewTab === 'expenses' ? 'tabExpensesView' : 'tabRecurringView'), txViewTab === 'recurring' ? 1 : -1);
   });
 
   if ($('btnAddExpenseBtn')) {
@@ -1772,32 +1870,95 @@ function bind() {
 
   on('typeSeg', 'click', e => {
     const b = e.target.closest('button'); if (!b) return;
-    formType = b.dataset.v; setSeg('typeSeg', formType);
-    if ($('methodWrap')) $('methodWrap').hidden = formType !== 'expense';
-    if ($('cardSelectWrap')) $('cardSelectWrap').hidden = formType !== 'expense' || formMethod !== 'card';
-    fillCats($('category'), formType);
+    setSeg('typeSeg', b.dataset.v);
+    const type = addFormType();
+    if ($('methodWrap')) $('methodWrap').hidden = type !== 'expense';
+    fillCats($('category'), type);
+    syncCustomCatField();
+    syncAddCardSelect();
   });
 
   on('methodSeg', 'click', e => {
     const b = e.target.closest('button'); if (!b) return;
-    formMethod = b.dataset.v; setSeg('methodSeg', formMethod);
-    if ($('cardSelectWrap')) $('cardSelectWrap').hidden = formMethod !== 'card';
+    setSeg('methodSeg', b.dataset.v);
+    syncAddCardSelect();
   });
+
+  on('category', 'change', syncCustomCatField);
+  on('isRecurring', 'change', () => { if ($('recurringOptionsWrap')) $('recurringOptionsWrap').hidden = !$('isRecurring').checked; });
+  on('isIndefinite', 'change', () => { if ($('recurMonthsWrap')) $('recurMonthsWrap').hidden = $('isIndefinite').checked; });
 
   on('form', 'submit', e => {
     e.preventDefault();
     const amount = parseFloat($('amount').value);
     if (!(amount > 0)) return;
 
+    const type = addFormType();
+    const method = type === 'expense' ? addFormMethod() : 'cash';
     let catVal = $('category') ? $('category').value : 'Other';
-    const cardId = (formType === 'expense' && formMethod === 'card' && $('cardSelect')) ? $('cardSelect').value : '';
-    const noteVal = $('note').value.trim();
+    if (catVal === 'Other') {
+      const typed = $('customCategoryInput') ? $('customCategoryInput').value.trim() : '';
+      if (typed) catVal = registerCustomCategory(typed, type) || 'Other';
+    }
+    const cardId = (type === 'expense' && (method === 'card' || method === 'debit') && $('cardSelect')) ? $('cardSelect').value : '';
+    let noteVal = $('note').value.trim();
     const dateVal = $('date').value || today();
 
-    addTx({ type: formType, amount, category: catVal, method: formType === 'expense' ? formMethod : 'cash', cardId, note: noteVal, date: dateVal });
+    const makeRecurring = $('isRecurring') && $('isRecurring').checked;
+    if (makeRecurring) {
+      noteVal = noteVal || catVal;
+      const indefinite = !$('isIndefinite') || $('isIndefinite').checked;
+      state.fixedTx.push({
+        id: 'f_' + Date.now(), title: noteVal, amount, category: catVal, type, method, cardId,
+        indefinite, totalMonths: Math.max(1, parseInt($('recurTotalMonths') && $('recurTotalMonths').value) || 12),
+        monthsElapsed: 1, startDate: dateVal
+      });
+    }
+
+    addTx({ type, amount, category: catVal, method, cardId, note: noteVal, date: dateVal });
+
+    // reset the modal for next time
     $('amount').value = ''; $('note').value = '';
+    if ($('customCategoryInput')) $('customCategoryInput').value = '';
+    if ($('category')) $('category').selectedIndex = 0;
+    syncCustomCatField();
+    if ($('isRecurring')) { $('isRecurring').checked = false; if ($('recurringOptionsWrap')) $('recurringOptionsWrap').hidden = true; }
+    if ($('date')) $('date').value = today();
     if ($('addExpenseModal')) $('addExpenseModal').hidden = true;
+    toast(makeRecurring ? 'Logged and set to recur monthly' : 'Logged!');
   });
+
+  // ----- edit modal wiring -----
+  on('editTypeSeg', 'click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    setSeg('editTypeSeg', b.dataset.v);
+    const keepCat = $('editCategory').value;
+    fillCats($('editCategory'), b.dataset.v);
+    ensureOption($('editCategory'), keepCat);
+    if (Array.from($('editCategory').options).some(o => o.value === keepCat)) $('editCategory').value = keepCat;
+    syncEditCardSelect();
+  });
+  on('editMethodSeg', 'click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    setSeg('editMethodSeg', b.dataset.v);
+    syncEditCardSelect();
+  });
+  on('editIsIndefinite', 'change', () => { if ($('editRecurMonthsWrap')) $('editRecurMonthsWrap').hidden = $('editIsIndefinite').checked; });
+
+  if ($('btnDeleteExpenseFromModal')) {
+    $('btnDeleteExpenseFromModal').onclick = () => {
+      const id = $('editTxId').value;
+      const isRecur = $('editIsRecurringItem').value === 'true';
+      if (!confirm(isRecur ? 'Delete this recurring schedule and all logged instances?' : 'Delete this entry?')) return;
+      if (isRecur) {
+        state.tx = state.tx.filter(t => !String(t.id).startsWith('auto_' + id));
+        state.fixedTx = state.fixedTx.filter(x => x.id !== id);
+      } else {
+        state.tx = state.tx.filter(t => String(t.id) !== id);
+      }
+      save(); $('editExpenseModal').hidden = true; renderAll(); toast('Deleted');
+    };
+  }
 
   on('editExpenseForm', 'submit', e => {
     e.preventDefault();
@@ -1807,14 +1968,16 @@ function bind() {
     const cat = $('editCategory').value;
     const note = $('editNote').value.trim();
     const date = $('editDate').value || today();
-    const activeType = $$('#editTypeSeg button.on')[0]?.dataset.v || 'expense';
-    const activeMethod = $$('#editMethodSeg button.on')[0]?.dataset.v || 'cash';
-    const cardId = activeMethod === 'card' && $('editCardSelect') ? $('editCardSelect').value : '';
+    const activeType = editFormType();
+    const activeMethod = activeType === 'expense' ? editFormMethod() : 'cash';
+    const cardId = activeType === 'expense' && (activeMethod === 'card' || activeMethod === 'debit') && $('editCardSelect') ? $('editCardSelect').value : '';
 
     if (isRecur) {
       const f = state.fixedTx.find(x => x.id === id);
       if (f) {
         f.amount = amt; f.category = cat; f.title = note || cat; f.type = activeType; f.method = activeMethod; f.cardId = cardId;
+        f.indefinite = !$('editIsIndefinite') || $('editIsIndefinite').checked;
+        f.totalMonths = Math.max(1, parseInt($('editRecurTotalMonths') && $('editRecurTotalMonths').value) || 12);
         save(); $('editExpenseModal').hidden = true; renderAll(); toast('Recurring expense updated!');
       }
     } else {
@@ -1944,7 +2107,10 @@ function bind() {
 
   on('splitDetailTabs', 'click', e => {
     const b = e.target.closest('button'); if (!b) return;
+    const order = ['expenses', 'balances', 'history'];
+    const was = activeSplitTab;
     activeSplitTab = b.dataset.v; renderTricountDetail();
+    if (was !== activeSplitTab) slideIn($({ expenses: 'splitTabExpenses', balances: 'splitTabBalances', history: 'splitTabHistory' }[activeSplitTab]), order.indexOf(activeSplitTab) > order.indexOf(was) ? 1 : -1);
   });
 
   if ($('btnSeeAllGroupExpenses')) {
@@ -2148,7 +2314,15 @@ function bind() {
     renderExpenses();
   });
 
-  if ($('btnAddCardModal')) $('btnAddCardModal').onclick = () => openCardModal();
+  if ($('btnAddCardModal')) $('btnAddCardModal').onclick = () => openCardModal(null, cardsFilter === 'debit' ? 'debit' : 'credit');
+  on('cardTypeSeg', 'click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    setSeg('cardTypeSeg', b.dataset.v); syncCardModalType();
+  });
+  on('cardsFilterSeg', 'click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    cardsFilter = b.dataset.v; renderSettings();
+  });
   if ($('cardModalCancel')) $('cardModalCancel').onclick = closeCardModal;
 
   on('cardForm', 'submit', e => {
@@ -2158,10 +2332,11 @@ function bind() {
     const statementDay = parseInt($('cardStmtDay') ? $('cardStmtDay').value : '') || 1;
     const dueDaysAfter = parseInt($('cardDueDays') ? $('cardDueDays').value : '') || 21;
     const id = $('cardId') ? $('cardId').value : '';
+    const type = cardModalType();
 
     if (!bank || !name) return;
-    saveCard({ id, bank, name, statementDay, dueDaysAfter });
-    closeCardModal(); toast('Credit card saved');
+    saveCard({ id, type, bank, name, statementDay, dueDaysAfter });
+    closeCardModal(); toast(type === 'debit' ? 'Debit card saved' : 'Credit card saved');
   });
 
   on('cardsList', 'click', e => {

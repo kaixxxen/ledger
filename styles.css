@@ -552,19 +552,57 @@ li.tx .del:hover{ background:var(--line); color:var(--text); }
 .card-item-actions{ display:flex; gap:8px; }
 .icon-btn{ padding:4px 8px; font-size:var(--fs-xs); border-radius:var(--radius-sm); background:var(--bar); color:var(--text); }
 
-/* ---------- modal ---------- */
+/* ---------- modal (animated open/close) ---------- */
 .modal-backdrop{
   position:fixed; top:0; left:0; right:0; bottom:0; z-index:1001;
   background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; padding:16px;
-  backdrop-filter:blur(4px);
+  backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
+  opacity:1; visibility:visible;
+  transition:opacity .22s ease, visibility 0s linear 0s;
+}
+.modal-backdrop[hidden]{
+  display:flex !important; opacity:0; visibility:hidden; pointer-events:none;
+  transition:opacity .2s ease, visibility 0s linear .2s;
 }
 .modal-card{
   background:var(--card); border:1px solid var(--line); border-radius:var(--radius-lg);
   padding:20px; width:100%; max-width:420px; box-shadow:0 12px 32px rgba(0,0,0,.25);
+  transform:translateY(0) scale(1);
+  transition:transform .3s cubic-bezier(.2,.9,.3,1.1);
 }
+.modal-backdrop[hidden] .modal-card{ transform:translateY(22px) scale(.95); transition:transform .2s ease; }
 .modal-card h3{ font-size:var(--fs-lg); font-weight:700; margin-bottom:16px; }
 .modal-card form{ display:grid; gap:12px; }
 .modal-actions{ margin-top:8px; }
+
+/* action sheet slides up from the bottom */
+.action-sheet-backdrop{ opacity:1; visibility:visible; transition:opacity .22s ease, visibility 0s linear 0s; }
+.action-sheet-backdrop[hidden]{ display:flex !important; opacity:0; visibility:hidden; pointer-events:none; transition:opacity .2s ease, visibility 0s linear .2s; }
+.action-sheet-card{ transform:translateY(0); transition:transform .32s cubic-bezier(.2,.9,.3,1); }
+.action-sheet-backdrop[hidden] .action-sheet-card{ transform:translateY(40px); transition:transform .2s ease; }
+
+/* ---------- page & tab transitions ---------- */
+@keyframes slideInRight{ from{ opacity:0; transform:translateX(34px); } to{ opacity:1; transform:translateX(0); } }
+@keyframes slideInLeft { from{ opacity:0; transform:translateX(-34px); } to{ opacity:1; transform:translateX(0); } }
+@keyframes fadeUp      { from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:translateY(0); } }
+.slide-in-right{ animation:slideInRight .34s cubic-bezier(.22,.8,.3,1) backwards; }
+.slide-in-left { animation:slideInLeft  .34s cubic-bezier(.22,.8,.3,1) backwards; }
+.fade-up       { animation:fadeUp       .28s ease backwards; }
+main{ overflow-x:clip; }
+
+/* smoother small interactions */
+.seg button, .chip, .dock button, .primary, .secondary{ transition:background-color .2s ease, color .2s ease, box-shadow .2s ease, border-color .2s ease; }
+#customCatWrap:not([hidden]), #cardSelectWrap:not([hidden]), #editCardSelectWrap:not([hidden]), #recurringOptionsWrap:not([hidden]), #cardCycleWrap:not([hidden]){ animation:fadeUp .22s ease backwards; }
+
+/* ---------- card type pills (settings) ---------- */
+.type-pill{ display:inline-block; font-size:var(--fs-xs); font-weight:700; text-transform:uppercase; letter-spacing:.03em; padding:1px 7px; border-radius:var(--radius-pill); margin-right:8px; vertical-align:1px; }
+.type-pill.credit{ background:rgba(217,140,63,.15); color:var(--c-card); }
+.type-pill.debit{ background:rgba(59,110,165,.15); color:var(--c-debit); }
+
+@media (prefers-reduced-motion: reduce){
+  .modal-backdrop, .modal-card, .action-sheet-backdrop, .action-sheet-card{ transition:none !important; }
+  .slide-in-right, .slide-in-left, .fade-up{ animation:none !important; }
+}
 
 /* ---------- floating dock ---------- */
 .dock{
