@@ -122,7 +122,7 @@ input[type="checkbox"]{ width:auto; padding:0; }
 .secondary.danger{ background:rgba(194,80,63,.15); color:var(--bad); }
 .ghost{ display:block; width:100%; padding:12px; color:var(--muted); font-size:var(--fs-base); text-align:center; }
 .btnrow{ display:grid; gap:8px; }
-.primary:disabled,.secondary:disabled,.google-btn:disabled,.apple-btn:disabled{ opacity:.5; cursor:default; }
+.primary:disabled,.secondary:disabled,.google-btn:disabled{ opacity:.5; cursor:default; }
 
 /* segmented control */
 .seg{ display:flex; background:var(--bar); border-radius:12px; padding:4px; gap:2px; }
@@ -611,17 +611,6 @@ main{ overflow-x:clip; }
 .bills-list .see-all-btn{ margin-top:6px; }
 .tx-search{ margin-bottom:12px; border-radius:var(--radius-pill); padding:9px 14px; -webkit-appearance:none; appearance:none; }
 
-/* "Mark as paid" is a soft pill instead of underlined text */
-.mark-paid-btn{
-  display:inline-block; margin:8px 0 0 auto; padding:5px 12px;
-  font-size:var(--fs-xs); font-weight:600; color:var(--text);
-  background:var(--bar); border:1px solid var(--line); border-radius:var(--radius-pill);
-  transition:background-color .2s ease, color .2s ease, border-color .2s ease;
-}
-.mark-paid-btn:hover{ background:var(--accent); color:var(--bg); border-color:var(--accent); }
-.mark-paid-btn.is-paid{ background:rgba(47,125,91,.12); color:var(--good); border-color:transparent; }
-.mark-paid-btn.is-paid:hover{ background:rgba(47,125,91,.2); color:var(--good); }
-.card-status .mark-paid-btn-wrap{ display:block; text-align:right; }
 
 .settle-row{ cursor:pointer; }
 .settle-row:active{ background:var(--bar); }
@@ -670,7 +659,7 @@ main{ overflow-x:clip; }
 .sub{ color:var(--muted); margin:6px 0 18px; font-size:var(--fs-base); }
 
 .auth-providers{ display:grid; gap:10px; }
-.google-btn, .apple-btn{
+.google-btn{
   display:flex; align-items:center; justify-content:center; gap:10px; width:100%;
   border-radius:var(--radius-md); padding:12px 16px;
   font-weight:600; font-size:var(--fs-sm);
@@ -680,9 +669,6 @@ main{ overflow-x:clip; }
   background:var(--card); border:1px solid var(--line); color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.05);
 }
 .google-btn:hover{ background:var(--bar); }
-.apple-btn{ background:var(--accent); border:1px solid var(--accent); color:var(--bg); }
-.apple-btn:hover{ opacity:.88; }
-.apple-btn svg{ fill:currentColor; }
 
 .auth-divider{
   display:flex; align-items:center; gap:10px; margin:16px 0 12px;
@@ -698,3 +684,10 @@ main{ overflow-x:clip; }
 #btnAddExpenseBtn, #btnAddPersonFabTop {
   border: 1.5px solid var(--accent);
 }
+
+/* credit card reminders are tappable (opens the Mark as paid sheet) */
+.card-reminder-item{ cursor:pointer; -webkit-user-select:none; user-select:none; transition:background-color .15s ease; }
+.card-reminder-item:active{ background:var(--bar); }
+
+/* charts wait (paused) until scrolled into view */
+.anim-wait, .anim-wait *{ animation-play-state:paused !important; }

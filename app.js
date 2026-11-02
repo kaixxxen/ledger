@@ -534,6 +534,7 @@ function renderAll() {
   fillCats($('category'), addFormType(), true);
   
   renderHome();
+  armCharts();
   renderFixedExpenses();
   renderExpenses();
   renderSettings();
@@ -648,6 +649,28 @@ function processRecurringExpensesForCurrentMonth() {
     return f.indefinite || generated < f.totalMonths;
   });
   if (changed) save();
+}
+
+// Charts play their animation only once they scroll into view
+let chartObserver = null;
+function armCharts() {
+  if (!('IntersectionObserver' in window)) return;
+  if (!chartObserver) {
+    chartObserver = new IntersectionObserver(entries => {
+      entries.forEach(en => {
+        if (!en.isIntersecting) return;
+        en.target.classList.remove('anim-wait');
+        chartObserver.unobserve(en.target);
+      });
+    }, { threshold: 0.3 });
+  }
+  ['donutBody', 'barsBody'].forEach(id => {
+    const el = $(id);
+    if (!el || !el.firstElementChild) return;
+    chartObserver.unobserve(el);
+    el.classList.add('anim-wait');
+    chartObserver.observe(el);
+  });
 }
 
 function renderHome() {
@@ -827,7 +850,7 @@ function renderCardReminders() {
     const badge = dueBadge(c);
     const paidOnTxt = c.paid && isIsoDate(c.paidOn) ? ` · Paid ${fmtShort(new Date(c.paidOn + 'T00:00'))}` : '';
     return `
-      <div class="card-reminder-item">
+      <div class="card-reminder-item" data-id="${esc(c.id)}" role="button" tabindex="0" aria-label="${esc(c.bank)} ${esc(c.name)} payment details">
         <div class="card-info">
           <div class="card-title"><span class="bank-tag">${esc(c.bank)}</span><span>${esc(c.name)}</span></div>
           <small class="card-dates">Due: <b>${fmtShort(c.dueDate)}</b> (Cutoff: ${fmtShort(c.cutoffDate)})${paidOnTxt}</small>
@@ -836,7 +859,6 @@ function renderCardReminders() {
           <span class="due-badge ${badge.cls}">${badge.text}</span>
           <div class="card-spent-current">Due: ${money(c.currentDueSpent)}</div>
           ${c.nextCycleSpent > 0 ? `<div class="card-spent-next">Next Cycle: ${money(c.nextCycleSpent)}</div>` : ''}
-          <button type="button" class="mark-paid-btn ${c.paid ? 'is-paid' : ''}" data-id="${esc(c.id)}">${c.paid ? 'Paid · Details' : 'Mark as paid'}</button>
         </div>
       </div>`;
   }).join('') + moreBtn('reminders', cardStatusList.length);
@@ -1900,7 +1922,6 @@ async function signInWithProvider(provider, label) {
   }
 }
 const signInWithGoogle = () => signInWithProvider('google', 'Google');
-const signInWithApple  = () => signInWithProvider('apple', 'Apple');
 
 async function signInWithEmailLink(e) {
   if (e) e.preventDefault();
@@ -1962,8 +1983,13 @@ function bind() {
 
   // credit card: open the "Mark as paid" sheet
   on('cardReminders', 'click', e => {
-    const b = e.target.closest('.mark-paid-btn'); if (!b) return;
-    openPaidModal(b.dataset.id);
+    const item = e.target.closest('.card-reminder-item'); if (!item) return;
+    openPaidModal(item.dataset.id);
+  });
+  on('cardReminders', 'keydown', e => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const item = e.target.closest('.card-reminder-item'); if (!item) return;
+    e.preventDefault(); openPaidModal(item.dataset.id);
   });
 
   on('paidForm', 'submit', e => {
@@ -2577,7 +2603,6 @@ function bind() {
   if ($('signOut')) $('signOut').onclick = signOut;
   if ($('signInBtn')) $('signInBtn').onclick = () => showAuth();
   if ($('authGoogle')) $('authGoogle').onclick = signInWithGoogle;
-  if ($('authApple')) $('authApple').onclick = signInWithApple;
   on('emailLinkForm', 'submit', signInWithEmailLink);
   if ($('authLocal')) $('authLocal').onclick = () => { if (mode === 'cloud') showApp(); else enterLocal(); };
 
