@@ -1442,6 +1442,15 @@ function calculateGroupBalance(group) {
   keys.forEach(ensure);
   let totalCents = 0;
   const issues = [];
+  // Trip Split follows the workbook: settle each pair separately, rather than
+  // using global debt simplification (which may redirect who pays whom).
+  const pairOwed = new Map();
+  function addPairDebt(from, to, amount) {
+    if (!from || !to || from === to || !amount) return;
+    const [first, second] = [from, to].sort();
+    const key = JSON.stringify([first, second]);
+    pairOwed.set(key, (pairOwed.get(key) || 0) + (from === first ? amount : -amount));
+  }
 
   (group.expenses || []).forEach(exp => {
     const amount = cents(exp.amount);
@@ -1478,7 +1487,10 @@ function calculateGroupBalance(group) {
     }
     totalCents += amount;
     balancesCents[payer] += amount;
-    shares.forEach(([key, amountCents]) => { balancesCents[key] -= amountCents; });
+    shares.forEach(([key, amountCents]) => {
+      balancesCents[key] -= amountCents;
+      if (group.trip) addPairDebt(key, payer, amountCents);
+    });
   });
 
   (group.settlements || []).forEach(payment => {
@@ -1487,6 +1499,7 @@ function calculateGroupBalance(group) {
     ensure(payment.from); ensure(payment.to);
     balancesCents[payment.from] += amount;
     balancesCents[payment.to] -= amount;
+    if (group.trip) addPairDebt(payment.from, payment.to, -amount);
   });
 
   // A balanced ledger must sum to precisely zero cents.
@@ -1509,6 +1522,28 @@ function calculateGroupBalance(group) {
       if (creditors[j].remaining === 0) j++;
     }
     if (i < debtors.length || j < creditors.length) issues.push('Unable to reconcile all settlements');
+  }
+  if (group.trip && !issues.length) {
+    // Cancel cross-expense obligations between the same two members. Eg Eric
+    // owes Rob 1375 but Rob owes Eric 716 => Eric pays Rob 659.
+    settlements.length = 0;
+    for (const [pairKey, net] of pairOwed) {
+      if (!net) continue;
+      const [first, second] = JSON.parse(pairKey);
+      settlements.push({from: net > 0 ? first : second,
+        to: net > 0 ? second : first, amount: Math.abs(net) / 100});
+    }
+    // The resulting obligations must reproduce each person's outstanding net.
+    const expected = Object.fromEntries(Object.keys(balancesCents).map(k => [k, 0]));
+    settlements.forEach(row => {
+      expected[row.from] = (expected[row.from] || 0) - cents(row.amount);
+      expected[row.to] = (expected[row.to] || 0) + cents(row.amount);
+    });
+    if (Object.keys(balancesCents).some(key => expected[key] !== balancesCents[key])) {
+      issues.push('Trip obligations do not reconcile with member balances');
+    }
+    // Retain the workbook-style payer ordering by expense rather than
+    // sorting by total debt size. No extra consolidation across different payees.
   }
   const balances = Object.fromEntries(Object.entries(balancesCents).map(([key, value]) => [key, value / 100]));
   return { balances, settlements: issues.length ? [] : settlements,
