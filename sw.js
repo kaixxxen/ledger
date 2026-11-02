@@ -1,4 +1,4 @@
-const CACHE = 'ledger-v29-trip-pairwise-settlements';
+const CACHE = 'ledger-v30-trip-pins-audit-layout';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'

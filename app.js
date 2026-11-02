@@ -1139,18 +1139,34 @@ function initEmojiPickerPopover() {
   });
 }
 
+// Pins are a per-account display preference: no shared-bill database migration needed.
+const pinnedBillKey = () => 'ledger.pinnedBills.' + (mode === 'cloud' && user ? user.id : 'local');
+function pinnedBillIds() {
+  try { const ids = JSON.parse(lsGet(pinnedBillKey()) || '[]'); return Array.isArray(ids) ? ids.map(String) : []; }
+  catch { return []; }
+}
+function toggleBillPin(id) {
+  const ids = new Set(pinnedBillIds());
+  const wasPinned = ids.has(String(id));
+  if (wasPinned) ids.delete(String(id)); else ids.add(String(id));
+  lsSet(pinnedBillKey(), JSON.stringify([...ids]));
+  renderBillList();
+  toast(wasPinned ? 'Bill unpinned' : 'Bill pinned to the top');
+}
 function renderBillList() {
   const el = $('billsList');
   if (!el) return;
   const activeGroups = (state.billGroups || []).filter(g => !g.archived);
-
   if (activeGroups.length === 0) {
-    el.innerHTML = '<div class="empty-card card">No active bill added. Tap <b>+ Add a Bill</b> to add one or check <b>Archives</b>!</div>';
+    el.innerHTML = '<div class="empty-card card">No active bill added. Tap <b>+ Add a Bill</b> or <b>Create Trip Split</b> to get started!</div>';
     return;
   }
-
-  el.innerHTML = limited('bills', activeGroups).map(g => `
-    <div class="bill-card" data-id="${esc(g.id)}">
+  const pins = new Set(pinnedBillIds());
+  const pinned = activeGroups.filter(g => pins.has(String(g.id)));
+  const others = activeGroups.filter(g => !pins.has(String(g.id)));
+  const visible = [...pinned, ...limited('bills', others)];
+  el.innerHTML = visible.map(g => `
+    <div class="bill-card ${pins.has(String(g.id)) ? 'is-pinned' : ''}" data-id="${esc(g.id)}">
       <div class="bill-card-left">
         <span class="bill-emoji">${esc(g.emoji)}</span>
         <div>
@@ -1158,27 +1174,29 @@ function renderBillList() {
           <small class="muted fine">${g.participants.length} members (${esc(g.participants.map(p => p.name).join(', '))})</small>
         </div>
       </div>
+      <button type="button" class="bill-pin-btn ${pins.has(String(g.id)) ? 'on' : ''}" aria-label="${pins.has(String(g.id)) ? 'Unpin' : 'Pin'} ${esc(g.name)}" title="${pins.has(String(g.id)) ? 'Unpin' : 'Pin to top'}" aria-pressed="${pins.has(String(g.id))}" data-pin-id="${esc(g.id)}">📌</button>
       <span class="bill-chevron">›</span>
-    </div>`).join('') + moreBtn('bills', activeGroups.length);
+    </div>`).join('') + moreBtn('bills', others.length);
 
   $$('#billsList .bill-card').forEach(card => {
-    const group = state.billGroups.find(g => g.id === card.dataset.id);
+    const group = state.billGroups.find(g => String(g.id) === card.dataset.id);
     if (!group) return;
-    card.onclick = () => {
-      // a long-press already opened the action sheet; don't also open the bill on release
+    card.querySelector('.bill-pin-btn').addEventListener('click', e => {
+      e.stopPropagation(); toggleBillPin(group.id);
+    });
+    card.onclick = e => {
+      if (e.target.closest('.bill-pin-btn')) return;
       if (card._lpFired) { card._lpFired = false; return; }
       openBillDetail(group.id);
     };
-
-    attachLongPress(card, () => {
+    attachLongPress(card, e => {
+      if (e.target && e.target.closest && e.target.closest('.bill-pin-btn')) return;
       const leaving = group.shared && user && group.createdBy !== user.id;
       showActionSheet(group.name, `Members: ${group.participants.map(p => p.name).join(', ')}`, [
-        {
-          text: '📁 Archive Bill',
-          action: async () => {
-            if (await setArchived(group, true)) { renderBillList(); toast(`Archived ${group.name}`); }
-          }
-        },
+        { text: pins.has(String(group.id)) ? '📌 Unpin Bill' : '📌 Pin to Top', action: () => toggleBillPin(group.id) },
+        { text: '📁 Archive Bill', action: async () => {
+          if (await setArchived(group, true)) { renderBillList(); toast(`Archived ${group.name}`); }
+        } },
         { text: '✏️ Edit Bill Details', action: () => openBillEditor(group) },
         { text: leaving ? '🚪 Leave Bill' : '🗑️ Delete Bill', danger: true, action: () => removeBill(group) }
       ]);
@@ -1696,7 +1714,7 @@ function renderBillHistoryTab(group) {
 
   const history = group.settlements || [];
   if (history.length === 0) {
-    el.innerHTML = '<p class="muted">No payments or reimbursements recorded yet.</p>';
+    el.innerHTML = '<div class="audit-empty"><span class="audit-empty-icon" aria-hidden="true">🧾</span><strong>No payments or reimbursements recorded yet.</strong><span>Recorded payments will appear here.</span></div>';
     return;
   }
 

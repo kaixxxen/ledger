@@ -699,3 +699,23 @@ li.tx .amt{ font-weight:600; font-size:var(--fs-base); }
 
 /* Trip Split: show that the computed total cannot be manually overridden. */
 #splitExpAmount.trip-amount-auto { background:var(--card-2); color:var(--text); border-style:dashed; cursor:default; font-weight:700; }
+
+/* Split-page quick pins: pinned bills always display above the unpinned list. */
+.bill-card.is-pinned{ border-color:color-mix(in srgb,var(--gold) 42%,var(--line)); }
+.bill-pin-btn{ flex:none; display:grid; place-items:center; width:36px; height:36px; border:1px solid var(--line); border-radius:var(--radius-md); background:var(--card-2); opacity:.48; font-size:var(--fs-md); transition:opacity .15s, background .15s; }
+.bill-pin-btn.on,.bill-pin-btn:hover,.bill-pin-btn:focus-visible{ opacity:1; background:color-mix(in srgb,var(--gold) 15%,var(--card)); }
+.bill-card .bill-chevron{ margin-left:0; }
+/* Inset active / hover highlight keeps background away from text and card edges. */
+#splitBalancesList .settle-row{ position:relative; isolation:isolate; background:transparent; padding-left:12px; padding-right:12px; margin-left:-8px; margin-right:-8px; border-radius:var(--radius-md); gap:14px; }
+#splitBalancesList .settle-row::before{ content:''; position:absolute; inset:4px 2px; background:transparent; border-radius:var(--radius-md); z-index:-1; pointer-events:none; transition:background .12s ease; }
+#splitBalancesList .settle-row:active{ background:transparent; }
+#splitBalancesList .settle-row:active::before{ background:var(--bar); }
+@media (hover:hover){ #splitBalancesList .settle-row:hover::before{ background:var(--card-2); } }
+#splitBalancesList .settle-row .user-item{ flex:1; min-width:0; }
+#splitBalancesList .settle-row .user-item > div:last-child{ min-width:0; overflow-wrap:anywhere; }
+#splitBalancesList .settle-row > .bold{ flex:none; white-space:nowrap; }
+/* Consistent-sized audit-log empty state inside the existing card. */
+.audit-empty{ min-height:142px; padding:24px 14px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px; text-align:center; }
+.audit-empty-icon{ font-size:25px; line-height:1.3; }
+.audit-empty strong{ font-size:var(--fs-base); font-weight:600; }
+.audit-empty span:last-child{ font-size:var(--fs-sm); color:var(--muted); }
