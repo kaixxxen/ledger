@@ -80,6 +80,7 @@ let activeSplitTab = 'expenses';
 let activeRealtimeChannel = null;
 let selectedSplitParticipants = [];
 let pendingParticipants = [];
+let creatingTrip = false;
 let paidModalCardId = null;
 
 // ---- shared bills / permanent Ledger ID ----
@@ -230,6 +231,7 @@ function normalize(raw) {
       name: String(p.name || 'Shared Group / Person').trim(),
       emoji: String(p.emoji || '🐶'),
       archived: !!p.archived,
+      trip: !!p.trip,
       shared: !!p.shared,
       createdBy: String(p.createdBy || ''),
       meKey: String(p.meKey || ''),
@@ -247,6 +249,7 @@ function normalize(raw) {
         amount: Number(e.amount) || 0,
         paidBy: String(e.paidBy || meIdentifier).trim(),
         participants: Array.isArray(e.participants) ? e.participants.map(String) : [],
+         tripData: e.tripData && typeof e.tripData === "object" ? e.tripData : null,
         date: String(e.date || today())
       }))
     };
@@ -1151,7 +1154,7 @@ function renderBillList() {
       <div class="bill-card-left">
         <span class="bill-emoji">${esc(g.emoji)}</span>
         <div>
-          <div class="bill-name-row"><span class="bill-name">${esc(g.name)}</span>${g.shared ? '<span class="tag shared-tag">Shared</span>' : ''}</div>
+          <div class="bill-name-row"><span class="bill-name">${esc(g.name)}</span>${g.trip ? '<span class="tag shared-tag">Trip Split</span>' : ''}${g.shared ? '<span class="tag shared-tag">Shared</span>' : ''}</div>
           <small class="muted fine">${g.participants.length} members (${esc(g.participants.map(p => p.name).join(', '))})</small>
         </div>
       </div>
@@ -1307,7 +1310,7 @@ async function loadSharedBills() {
     (m.data || []).forEach(x => { arch[x.bill_id] = !!x.archived; });
 
     const shared = (b.data || []).map(x => ({
-      id: x.id, name: x.name, emoji: x.emoji || '🐶', shared: true,
+      id: x.id, name: x.name, emoji: x.emoji || '🐶', shared: true, trip: !!x.is_trip,
       createdBy: x.created_by, archived: !!arch[x.id],
       participants: (x.participants || []).map(p => ({
         key: p.key || p.code || p.name, code: p.code || null,
@@ -1315,7 +1318,7 @@ async function loadSharedBills() {
       })),
       expenses: (e.data || []).filter(r => r.bill_id === x.id).map(r => ({
         id: r.id, title: r.title, amount: Number(r.amount), paidBy: r.paid_by,
-        participants: r.participants || [], date: r.date
+        participants: r.participants || [], date: r.date, tripData: r.trip_data || null
       })),
       settlements: (s.data || []).filter(r => r.bill_id === x.id).map(r => ({
         id: r.id, from: r.from_key, to: r.to_key, amount: Number(r.amount),
@@ -1375,12 +1378,15 @@ const saveBillRemote = (id, name, emoji, parts) =>
         "Couldn't save the bill. Check your connection and try again.");
 const expenseRow = (billId, e) => ({
   id: e.id, bill_id: billId, title: e.title, amount: e.amount, paid_by: e.paidBy,
-  participants: e.participants, date: e.date, updated_at: new Date().toISOString()
+  participants: e.participants, date: e.date, trip_data: e.tripData || null, updated_at: new Date().toISOString()
 });
 const persistGroup = g => { if (g.shared) cacheWrite(); else save(); };
 
 function openBillEditor(group) {
-  $('groupModalTitle').textContent = group ? 'Edit Bill' : 'Add a Bill';
+  if (!group) creatingTrip = !!creatingTrip;
+  else creatingTrip = !!group.trip;
+  $('groupModalTitle').textContent = group ? (group.trip ? 'Edit Trip Split' : 'Edit Bill') : (creatingTrip ? 'Create Trip Split' : 'Add a Bill');
+  if ($('groupTripHint')) $('groupTripHint').hidden = !creatingTrip;
   $('editGroupId').value = group ? group.id : '';
   $('personNameInput').value = group ? group.name : '';
   updateModalEmojiDisplay(group ? (group.emoji || '🐶') : '🐶');
@@ -1448,8 +1454,13 @@ function calculateGroupBalance(group) {
       ? e.participants
       : (group.participants || []).map(p => p.key);
 
-    const share = amt / (beneficiaries.length || 1);
-    beneficiaries.forEach(k => { balances[k] = (balances[k] || 0) - share; });
+    if (group.trip && e.tripData && e.tripData.shares) {
+      const shares = e.tripData.shares;
+      Object.keys(shares).forEach(k => { balances[k] = (balances[k] || 0) - (Number(shares[k]) || 0); });
+    } else {
+      const share = amt / (beneficiaries.length || 1);
+      beneficiaries.forEach(k => { balances[k] = (balances[k] || 0) - share; });
+    }
   });
 
   (group.settlements || []).forEach(s => {
@@ -1487,6 +1498,8 @@ function renderBillDetail() {
 
   if ($('splitPersonAvatar')) $('splitPersonAvatar').textContent = group.emoji || '🐶';
   if ($('splitPersonName')) $('splitPersonName').textContent = group.name;
+  if ($('btnOpenAddSplitExpense')) $('btnOpenAddSplitExpense').textContent = group.trip ? '+ Add Trip Expense' : '+ Add Expense to Bill';
+  if ($('tripSummary')) { $('tripSummary').hidden = !group.trip; if (group.trip) renderTripSummary(group); }
 
   const { totalExpenses, myNet } = calculateGroupBalance(group);
 
@@ -1556,7 +1569,7 @@ function renderBillExpensesList(group) {
                 <b>${esc(exp.title)}</b>
               </div>
               <div class="exp-sub">Paid by <b>${esc(labelFor(group, exp.paidBy))}</b></div>
-              <div class="shares-chips-row">${chipsHtml}</div>
+              ${group.trip && exp.tripData ? `<div class="fine trip-expense-type">${exp.tripData.category === 'food' ? '🍽 Individual food orders' : '🧳 General travel expense'}${exp.tripData.mode === 'custom' ? ' · Custom amounts' : ''}${exp.tripData.serviceCharge ? ' · Fee ' + money(exp.tripData.serviceCharge) : ''}</div><div class="trip-share-breakdown">${Object.entries(exp.tripData.shares || {}).map(([k,v]) => `<span>${esc(shortFor(group,k))}: <b>${money(v)}</b></span>`).join('')}</div>` : `<div class="shares-chips-row">${chipsHtml}</div>`}
             </div>
           </div>
           <div class="exp-amount-wrap">
@@ -1996,6 +2009,99 @@ function updateSplitCalculationExplanation() {
   }
 }
 
+
+// Trip Split: General sheet (equal/custom costs) + Individual sheet (orders and service charges).
+const tripRound = n => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+function allocateTripCents(amount, weights) {
+  const entries = Object.entries(weights).filter(([,w]) => Number(w) > 0);
+  const totalWeight = entries.reduce((s,[,w])=>s+Number(w),0);
+  if (!entries.length || totalWeight <= 0) return null;
+  const cents = Math.round(amount * 100);
+  const exact = entries.map(([k,w]) => ({ k, exact:cents*Number(w)/totalWeight }));
+  const base = exact.map(v=>({ ...v, cents:Math.floor(v.exact), remainder:v.exact-Math.floor(v.exact) }));
+  let rest = cents - base.reduce((s,v)=>s+v.cents,0);
+  base.sort((x,y)=>y.remainder-x.remainder || x.k.localeCompare(y.k));
+  for (let i=0;i<rest;i++) base[i%base.length].cents++;
+  return Object.fromEntries(base.map(v=>[v.k,tripRound(v.cents/100)]));
+}
+async function saveTripTypeRemote(id) {
+  return rpcOk(sb.rpc('set_bill_trip_type', { p_bill:id, p_is_trip:true }),
+    'Trip sharing requires the trip-split SQL migration in Supabase.');
+}
+function setupTripExpenseForm(group, exp) {
+  const wrap=$('tripExpenseFields'), normal=$('normalSplitParticipants');
+  if (wrap) wrap.hidden=!group.trip;
+  if (normal) normal.hidden=!!group.trip;
+  if (!group.trip) return;
+  const data=exp && exp.tripData || {};
+  $('tripCategory').value=data.category || 'general';
+  $('tripAllocation').value=data.mode || 'equal';
+  $('tripServiceCharge').value=data.serviceCharge || '';
+  $('tripMembersGrid').innerHTML=group.participants.map(p=>{
+    const chosen= !exp || (data.shares && Object.hasOwn(data.shares,p.key));
+    const value=data.orders && data.orders[p.key] != null ? data.orders[p.key] :
+      data.mode==='custom' && data.shares ? data.shares[p.key] : '';
+    return `<div class="trip-member-row"><label><input type="checkbox" data-trip-member="${esc(p.key)}" ${chosen?'checked':''}> ${esc(p.name)}</label><input type="number" inputmode="decimal" min="0" step="0.01" placeholder="Amount" data-trip-amount="${esc(p.key)}" value="${esc(value)}"></div>`;
+  }).join('');
+  updateTripFormMode();
+}
+function updateTripFormMode() {
+  const food=$('tripCategory').value==='food';
+  $('tripAllocationWrap').hidden=food;
+  $('tripServiceWrap').hidden=!food;
+  const custom=food || $('tripAllocation').value==='custom';
+  $$('#tripMembersGrid [data-trip-amount]').forEach(i=>i.hidden=!custom);
+  $('tripModeHelp').textContent=food?'Enter each person’s food subtotal. Service charge is distributed proportionally.':
+    custom?'Enter each person’s exact share. The shares must total the expense amount.':'The total will be split equally between checked members.';
+}
+function collectTripExpense(group,amount) {
+  const chosen=$$('#tripMembersGrid [data-trip-member]').filter(x=>x.checked);
+  if (!chosen.length) { toast('Choose at least one trip member.'); return null; }
+  const food=$('tripCategory').value==='food', mode=food?'food':$('tripAllocation').value;
+  const values={};
+  for(const node of chosen) {
+    const key=node.dataset.tripMember;
+    const v=Number($$('#tripMembersGrid [data-trip-amount]').find(x=>x.dataset.tripAmount===key).value);
+    if (!Number.isFinite(v) || v<0) { toast('Enter valid nonnegative amounts.'); return null; }
+    values[key]=v;
+  }
+  let shares, charge=0, orders=null;
+  if(mode==='equal') shares=allocateTripCents(amount,Object.fromEntries(chosen.map(x=>[x.dataset.tripMember,1])));
+  else if(mode==='custom') {
+    shares=Object.fromEntries(Object.entries(values).map(([k,v])=>[k,tripRound(v)]));
+    if(Math.abs(Object.values(shares).reduce((s,v)=>s+v,0)-amount)>0.009) {
+      toast('Custom shares must add up to the full expense amount.'); return null;
+    }
+  } else {
+    charge=tripRound(Number($('tripServiceCharge').value)||0);
+    if(charge<0 || charge>amount) { toast('Invalid service charge.'); return null; }
+    const subtotal=tripRound(Object.values(values).reduce((s,v)=>s+v,0));
+    if(Math.abs(subtotal+charge-amount)>0.009) {
+      toast('Food orders plus service charge must equal the expense amount.'); return null;
+    }
+    orders=values;
+    const feeShares=charge?allocateTripCents(charge,values):Object.fromEntries(Object.keys(values).map(k=>[k,0]));
+    if(!feeShares) { toast('Enter food orders greater than zero.'); return null; }
+    shares=Object.fromEntries(Object.keys(values).map(k=>[k,tripRound(values[k]+feeShares[k])]));
+  }
+  return {category:food?'food':'general',mode,serviceCharge:charge,orders,shares};
+}
+function renderTripSummary(group) {
+  const all=group.expenses||[];
+  const general=all.filter(e=>!e.tripData || e.tripData.category!=='food');
+  const food=all.filter(e=>e.tripData && e.tripData.category==='food');
+  const total=xs=>tripRound(xs.reduce((s,e)=>s+Number(e.amount||0),0));
+  const spent=Object.fromEntries(group.participants.map(p=>[p.key,0]));
+  const owed=Object.fromEntries(group.participants.map(p=>[p.key,0]));
+  all.forEach(e=>{
+    spent[e.paidBy]=(spent[e.paidBy]||0)+Number(e.amount||0);
+    const keys=e.participants&&e.participants.length?e.participants:group.participants.map(p=>p.key);
+    const shares=e.tripData&&e.tripData.shares || allocateTripCents(Number(e.amount||0),Object.fromEntries(keys.map(k=>[k,1]))) || {};
+    Object.entries(shares).forEach(([k,v])=>owed[k]=(owed[k]||0)+Number(v||0));
+  });
+  $('tripSummary').innerHTML=`<div class="trip-stat-grid"><div><small>General expenses</small><strong>${money(total(general))}</strong></div><div><small>Food & orders</small><strong>${money(total(food))}</strong></div><div><small>Service charges</small><strong>${money(all.reduce((s,e)=>s+Number(e.tripData&&e.tripData.serviceCharge||0),0))}</strong></div></div><h2>Trip member summary</h2><div class="trip-table-wrap"><table class="trip-table"><thead><tr><th>Member</th><th>Paid</th><th>Share</th><th>Net*</th></tr></thead><tbody>${group.participants.map(p=>`<tr><td>${esc(p.name)}</td><td>${money(spent[p.key]||0)}</td><td>${money(owed[p.key]||0)}</td><td>${money((spent[p.key]||0)-(owed[p.key]||0))}</td></tr>`).join('')}</tbody></table></div><p class="fine">*Net before recorded reimbursements. See Balances for outstanding settlements.</p>`;
+}
+
 function bind() {
   const on = (id, evt, fn) => { const el = $(id); if (el) el.addEventListener(evt, fn); };
 
@@ -2290,8 +2396,11 @@ function bind() {
   }
 
   if ($('btnSplitBack')) $('btnSplitBack').onclick = closeBillDetail;
+  on('tripCategory','change',updateTripFormMode);
+  on('tripAllocation','change',updateTripFormMode);
 
-  if ($('btnAddPersonFabTop')) $('btnAddPersonFabTop').onclick = () => openBillEditor(null);
+  if ($('btnAddPersonFabTop')) $('btnAddPersonFabTop').onclick = () => { creatingTrip = false; openBillEditor(null); };
+  if ($('btnCreateTripSplit')) $('btnCreateTripSplit').onclick = () => { creatingTrip = true; openBillEditor(null); };
 
   if ($('btnEditGroupTitle')) {
     $('btnEditGroupTitle').onclick = () => {
@@ -2353,16 +2462,17 @@ function bind() {
       sharedWith = group.shared ? parts.filter(p => p.code && !isMeParticipant(p)).length : 0;
     } else if (mode === 'cloud' && sb && profile) {
       const g = {
-        id: uid(), name, emoji: finalEmoji, archived: false, shared: true,
+        id: uid(), name, emoji: finalEmoji, archived: false, shared: true, trip: creatingTrip,
         createdBy: user.id, meKey: profile.code, participants: parts, settlements: [], expenses: []
       };
       if (!(await saveBillRemote(g.id, name, finalEmoji, parts))) return;
+      if (creatingTrip && !(await saveTripTypeRemote(g.id))) { await sb.from("bills").delete().eq("id",g.id); return; }
       state.billGroups.push(g); cacheWrite();
       sharedWith = parts.filter(p => p.code && !isMeParticipant(p)).length;
     } else {
       if (mode === 'cloud') toast('Sync is not set up yet, so this bill stays on this device.');
       state.billGroups.push({
-        id: 'g_' + Date.now(), name, emoji: finalEmoji, archived: false, shared: false,
+        id: 'g_' + Date.now(), name, emoji: finalEmoji, archived: false, shared: false, trip: creatingTrip,
         meKey: meParticipant().key, participants: parts, settlements: [], expenses: []
       });
       save();
@@ -2430,7 +2540,8 @@ function bind() {
       if (!group) return;
       if (!group.participants.length) { toast('Add participants to this bill first.'); return; }
 
-      $('splitExpenseModalTitle').textContent = 'Add Shared Expense';
+      $('splitExpenseModalTitle').textContent = group.trip ? 'Add Trip Expense' : 'Add Shared Expense';
+      setupTripExpenseForm(group, null);
       $('splitExpId').value = '';
       $('splitExpTitle').value = '';
       $('splitExpAmount').value = '';
@@ -2463,7 +2574,13 @@ function bind() {
     if (!group || !title || !(amount > 0)) return;
 
     const existing = expId ? group.expenses.find(x => x.id === expId) : null;
-    const exp = { id: existing ? existing.id : uid(), title, amount, paidBy, participants: [...selectedSplitParticipants], date: dateVal };
+    let tripData = null;
+    if (group.trip) {
+      tripData = collectTripExpense(group, amount);
+      if (!tripData) return;
+    }
+    if (!group.trip && !selectedSplitParticipants.length) { toast('Select at least one person.'); return; }
+    const exp = { id: existing ? existing.id : uid(), title, amount, paidBy, participants: group.trip ? Object.keys(tripData.shares) : [...selectedSplitParticipants], date: dateVal, tripData };
 
     if (group.shared) {
       const r = await rpcOk(sb.from('bill_expenses').upsert(expenseRow(group.id, exp)), "Couldn't save the expense. Check your connection and try again.");
@@ -2482,7 +2599,8 @@ function bind() {
 
     const exp = group.expenses.find(x => String(x.id) === card.dataset.id);
     if (exp) {
-      $('splitExpenseModalTitle').textContent = 'Edit Shared Expense';
+      $('splitExpenseModalTitle').textContent = group.trip ? 'Edit Trip Expense' : 'Edit Shared Expense';
+      setupTripExpenseForm(group, exp);
       $('splitExpId').value = exp.id;
       $('splitExpTitle').value = exp.title;
       $('splitExpAmount').value = exp.amount;

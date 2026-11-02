@@ -672,3 +672,27 @@ li.tx .amt{ font-weight:600; font-size:var(--fs-base); }
 @media (prefers-reduced-motion: reduce){
   *{ scroll-behavior:auto !important; }
 }
+
+/* Trip Split: inherits Ledger surface, typography and theme tokens */
+.split-create-options{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:var(--gap)}
+.split-create-options .cta{margin:0;min-height:49px}
+.trip-group-hint{background:var(--card-2);border:1px solid var(--line);padding:10px 12px;border-radius:var(--radius-md);margin:12px 0}
+.trip-summary{padding:14px;margin-top:12px}
+.trip-summary h2{margin:14px 0 8px}
+.trip-stat-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.trip-stat-grid>div{background:var(--card-2);border:1px solid var(--line);border-radius:var(--radius-md);padding:10px 8px;min-width:0}
+.trip-stat-grid small{display:block;color:var(--muted);font-size:var(--fs-xs)}
+.trip-stat-grid strong{display:block;overflow-wrap:anywhere;font-family:var(--font-num);font-size:var(--fs-sm);margin-top:5px}
+.trip-table-wrap{overflow-x:auto}
+.trip-table{width:100%;border-collapse:collapse;text-align:right;white-space:nowrap;font-size:var(--fs-sm)}
+.trip-table th,.trip-table td{padding:9px 6px;border-bottom:1px solid var(--line)}
+.trip-table th:first-child,.trip-table td:first-child{text-align:left}
+.trip-table th{color:var(--muted);font-weight:500}
+.trip-expense-fields{display:grid;gap:12px;border-top:1px solid var(--line);padding-top:12px}
+.trip-members-grid{display:grid;gap:7px}
+.trip-member-row{display:grid;grid-template-columns:1fr minmax(90px,130px);align-items:center;gap:10px;background:var(--card-2);padding:7px 10px;border-radius:var(--radius-md);border:1px solid var(--line)}
+.trip-member-row label{display:flex;align-items:center;gap:7px;min-width:0;overflow-wrap:anywhere}
+.trip-member-row input[type=number]{padding:7px 8px;text-align:right}
+@media(max-width:380px){.split-create-options{grid-template-columns:1fr}.trip-stat-grid{grid-template-columns:1fr 1fr}}
+
+.trip-expense-type{margin-top:5px}.trip-share-breakdown{display:flex;flex-wrap:wrap;column-gap:10px;row-gap:3px;margin-top:4px;font-size:var(--fs-xs);color:var(--muted)}.trip-share-breakdown b{color:var(--text)}

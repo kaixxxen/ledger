@@ -191,7 +191,7 @@
         </div>
       </header>
 
-      <button type="button" class="secondary cta stack-gap" id="btnAddPersonFabTop">+ Add a Bill</button>
+      <div class="split-create-options"><button type="button" class="secondary cta" id="btnAddPersonFabTop">+ Add a Bill</button><button type="button" class="secondary cta" id="btnCreateTripSplit">✈ Create Trip Split</button></div>
 
       <p class="muted split-subhead">Track shared expenses with friends & sync in real-time</p>
       
@@ -241,6 +241,7 @@
 
       <!-- EXPENSES TAB -->
       <div id="splitTabExpenses">
+        <div id="tripSummary" class="card trip-summary" hidden></div>
         <button type="button" class="secondary cta stack-gap" id="btnOpenAddSplitExpense">+ Add Expense to Bill</button>
 
         <div id="splitExpensesGroupedList"></div>
@@ -467,6 +468,7 @@
         </div>
       </div>
 
+      <p id="groupTripHint" class="fine trip-group-hint" hidden>Trip Split includes general expenses, individual food orders, service charges, and automatic per-person balances. Ledger IDs share the trip with other members.</p>
       <div class="participants-section">
         <label class="lbl">Participants (name or Ledger ID)</label>
         <div class="add-participant-row">
@@ -558,7 +560,7 @@
         </div>
       </div>
 
-      <div>
+      <div id="normalSplitParticipants">
         <label class="lbl">Shared By (Participants)</label>
         <div id="splitParticipantsToggleGrid" class="participant-select-grid"></div>
         <p class="fine muted calc-note" id="splitCalcExplanation">
@@ -566,6 +568,10 @@
         </p>
       </div>
 
+      <div id="tripExpenseFields" class="trip-expense-fields" hidden>
+        <div class="row2"><div><label class="lbl" for="tripCategory">Expense type</label><select id="tripCategory"><option value="general">General travel expense</option><option value="food">Individual food orders</option></select></div><div id="tripAllocationWrap"><label class="lbl" for="tripAllocation">Split method</label><select id="tripAllocation"><option value="equal">Equal split</option><option value="custom">Custom amounts</option></select></div><div id="tripServiceWrap" hidden><label class="lbl" for="tripServiceCharge">Service charge</label><input id="tripServiceCharge" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></div></div>
+        <label class="lbl">Members & amounts</label><div id="tripMembersGrid" class="trip-members-grid"></div><p class="fine" id="tripModeHelp"></p>
+      </div>
       <div class="btnrow modal-actions">
         <button type="submit" class="primary">Save Expense</button>
         <button type="button" class="secondary danger" id="btnDeleteSplitExpense" hidden>Delete Expense</button>
