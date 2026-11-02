@@ -682,6 +682,8 @@ function armCharts() {
   });
 }
 
+let barsDrawnW = 0, resizeTimer = null;
+
 function renderHome() {
   const txs = monthTx();
   const inc = sum(txs, 'income'), exp = sum(txs, 'expense');
@@ -708,7 +710,7 @@ function renderHome() {
   renderCardReminders();
 
   if ($('homeEmpty')) $('homeEmpty').hidden = state.tx.length > 0;
-  if ($('homeCharts')) $('homeCharts').hidden = state.tx.length === 0;
+  $$('.home-chart').forEach(el => { el.hidden = state.tx.length === 0; });
   if (!state.tx.length) return;
 
   // DONUT PIE CHART
@@ -760,22 +762,41 @@ function renderHome() {
     months.push({ d, spent, cur: i === 0 });
   }
   const max = Math.max(...months.map(m => m.spent), 1);
-  const bw = 34, gap = (300 - 6 * bw) / 6;
+  // Drawn 1:1 with the card's real width, so labels keep their true size on phone and desktop alike.
+  const holder = $('barsBody');
+  const W = Math.max(240, Math.round((holder && holder.clientWidth) || 300));
+  barsDrawnW = W;
+  const H = 154, base = 120, topY = 30;
+  const slot = W / 6, bw = Math.max(18, Math.min(44, Math.round(slot * 0.5)));
+  const gridLines = [0, 0.5, 1].map(f => {
+    const y = Math.round(base - f * (base - topY));
+    return `<line x1="0" x2="${W}" y1="${y}" y2="${y}" class="b-grid${f === 0 ? ' base' : ''}" />`;
+  }).join('');
   const bars = months.map((m, i) => {
-    const targetH = m.spent > 0 ? Math.max(4, (m.spent / max) * 78) : 2;
-    const x = Math.round(gap / 2 + i * (bw + gap));
-    const finalY = Math.round(100 - targetH);
-    return `<g class="animated-bar-group">
+    const h = m.spent > 0 ? Math.max(8, (m.spent / max) * (base - topY)) : 0;
+    const x = Math.round(slot * i + (slot - bw) / 2);
+    const y = Math.round(base - h);
+    const cx = x + bw / 2;
+    const r = Math.min(8, h, bw / 2);
+    const shape = h
+      ? `<path class="b-bar${m.cur ? ' cur' : ''}" d="M${x},${base} V${y + r} Q${x},${y} ${x + r},${y} H${x + bw - r} Q${x + bw},${y} ${x + bw},${y + r} V${base} Z"
+          style="transform-origin:${cx}px ${base}px; animation: barGrow 0.6s cubic-bezier(0.22, 0.9, 0.3, 1) ${i * 0.07}s both;" />`
+      : `<rect class="b-zero" x="${x}" y="${base - 2}" width="${bw}" height="2" rx="1" />`;
+    return `<g>
       <title>${esc(m.d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }))}: ${money(m.spent)}</title>
-      <rect x="${x}" y="${finalY}" width="${bw}" height="${targetH}" rx="5" 
-        style="fill:var(--accent); opacity:${m.cur ? 1 : 0.25}; transform-origin: ${x + bw/2}px 100px; animation: barGrow 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) ${i * 0.08}s both;" />
-      ${m.spent > 0 ? `<text x="${x + bw / 2}" y="${finalY - 6}" class="b-val" text-anchor="middle" style="font-size: 11px; fill: var(--text); animation: fadeInLabel 0.4s ease ${0.2 + i * 0.08}s both;">${short(m.spent)}</text>` : ''}
-      <text x="${x + bw / 2}" y="117" class="b-lbl${m.cur ? ' cur' : ''}" text-anchor="middle" style="font-size: 11px; fill: var(--text); opacity: ${m.cur ? 1 : 0.6};">${m.d.toLocaleDateString(undefined, { month: 'short' })}</text>
+      ${shape}
+      ${h ? `<text x="${cx}" y="${y - 8}" class="b-val${m.cur ? ' cur' : ''}" style="animation: fadeInLabel 0.4s ease ${0.25 + i * 0.07}s both;">${short(m.spent)}</text>` : ''}
+      <text x="${cx}" y="${base + 20}" class="b-lbl${m.cur ? ' cur' : ''}">${m.d.toLocaleDateString(undefined, { month: 'short' })}</text>
     </g>`;
   }).join('');
 
-  if ($('barsBody')) {
-    $('barsBody').innerHTML = `<div class="bars" style="overflow: visible;"><svg viewBox="0 0 300 126" role="img" aria-label="Spending over six months" style="width:100%; height:auto;">${bars}</svg></div>`;
+  if (holder) {
+    holder.innerHTML = `<div class="bars"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Spending over six months">
+      <defs>
+        <linearGradient id="gBarCur" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--gold)" /><stop offset="1" style="stop-color:var(--accent)" /></linearGradient>
+        <linearGradient id="gBarPast" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--muted);stop-opacity:.5" /><stop offset="1" style="stop-color:var(--muted);stop-opacity:.14" /></linearGradient>
+      </defs>
+      ${gridLines}${bars}</svg></div>`;
   }
 
   // PAYMENT METHOD BREAKDOWN BAR
@@ -2085,6 +2106,14 @@ function bind() {
   }
 
   if ($('addExpenseCancel')) $('addExpenseCancel').onclick = () => { if ($('addExpenseModal')) $('addExpenseModal').hidden = true; };
+  // redraw the bar chart when its card changes width (rotation, window resize, sidebar layout)
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      const h = $('barsBody');
+      if (h && h.clientWidth && Math.abs(h.clientWidth - barsDrawnW) > 16 && currentPage === 'home') renderHome();
+    }, 200);
+  });
   window.addEventListener('hashchange', () => { if ($('app') && !$('app').hidden) route(); });
 
   document.addEventListener('click', e => {

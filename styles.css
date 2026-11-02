@@ -271,6 +271,11 @@ li.tx + li.tx::before,
   .card-reminder-item:hover, li.tx:hover, .fixed-item:hover{ background:var(--bar); }
 }
 
+/* home cards: mobile order is reminders → where it went → last 6 months → payment breakdown */
+.home-cols{ display:flex; flex-direction:column; }
+.home-col{ display:contents; }
+.c-reminders{ order:1; } .c-donut{ order:2; } .c-bars{ order:3; } .c-pay{ order:4; }
+
 /* charts */
 .donut-wrap{ display:flex; align-items:center; gap:22px; padding:6px 0; }
 .donut{ width:124px; height:124px; flex:none; }
@@ -284,10 +289,16 @@ li.tx + li.tx::before,
 .legend b{ font-weight:600; font-size:var(--fs-sm); }
 .legend em{ font-style:normal; color:var(--muted); text-align:right; font-size:var(--fs-xs); }
 .bars{ width:100%; padding-top:8px; }
-.bars svg{ display:block; width:100%; height:auto; max-height:230px; }
-.b-val{ font-size:11px; font-weight:600; fill:var(--text); text-anchor:middle; }
-.b-lbl{ font-size:11px; fill:var(--muted); text-anchor:middle; font-weight:500; }
+.bars svg{ display:block; width:100%; height:auto; overflow:visible; }
+.b-val{ font-family:var(--font-num); font-size:var(--fs-xs); font-weight:600; fill:var(--muted); text-anchor:middle; letter-spacing:-.02em; }
+.b-val.cur{ fill:var(--text); font-weight:700; }
+.b-lbl{ font-size:var(--fs-xs); fill:var(--muted); text-anchor:middle; font-weight:500; }
 .b-lbl.cur{ fill:var(--text); font-weight:700; }
+.b-grid{ stroke:var(--line); stroke-width:1; stroke-dasharray:3 5; }
+.b-grid.base{ stroke-dasharray:none; }
+.b-bar{ fill:url(#gBarPast); }
+.b-bar.cur{ fill:url(#gBarCur); filter:drop-shadow(0 6px 10px color-mix(in srgb, var(--gold) 32%, transparent)); }
+.b-zero{ fill:var(--line); }
 .split{ display:flex; height:8px; border-radius:4px; overflow:hidden; margin-bottom:12px; background:var(--bar); gap:2px; }
 .split i{ display:block; height:100%; min-width:0; transition:width .5s ease; }
 .split-legend{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
@@ -626,8 +637,9 @@ li.tx .amt{ font-weight:600; font-size:var(--fs-base); }
   #page-home > .top{ margin-bottom:0; }
   #page-home .hero, #page-home .stats, #page-home .progress, #page-home .card{ margin:0; }
   #page-home .hero{ padding:34px 24px 30px; }
-  #homeCharts{ display:contents; }
-  #cardRemindersSection{ align-self:stretch; }
+  #page-home > .home-cols{ grid-column:1 / -1; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:start; }
+  .home-col{ display:flex; flex-direction:column; gap:16px; min-width:0; }
+  .home-col .card{ order:0; margin:0; }
   .donut{ width:148px; height:148px; }
 
   /* expenses: summary column + list */

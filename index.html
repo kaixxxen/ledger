@@ -102,32 +102,39 @@
     </div>
     <div class="progress" id="prog" hidden><i></i></div>
 
-    <!-- Credit Card Due Date Reminders -->
-    <section class="card" id="cardRemindersSection">
-      <div class="card-head">
-        <h2>Credit Card Due Dates</h2>
-        <button type="button" class="text-link" id="btnManageCardsHome">+ Manage Cards</button>
+    <div class="home-cols">
+      <!-- left column on desktop -->
+      <div class="home-col">
+        <!-- Credit Card Due Date Reminders -->
+        <section class="card c-reminders" id="cardRemindersSection">
+          <div class="card-head">
+            <h2>Credit Card Due Dates</h2>
+            <button type="button" class="text-link" id="btnManageCardsHome">+ Manage Cards</button>
+          </div>
+          <div id="cardReminders"></div>
+        </section>
+
+        <div class="card empty-card c-reminders" id="homeEmpty" hidden>
+          Nothing logged yet. Add an expense or split a bill to see your stats here.
+        </div>
+
+        <section class="card home-chart c-bars">
+          <h2>Last 6 months</h2>
+          <div id="barsBody"></div>
+        </section>
       </div>
-      <div id="cardReminders"></div>
-    </section>
 
-    <div class="card empty-card" id="homeEmpty" hidden>
-      Nothing logged yet. Add an expense or split a bill to see your stats here.
-    </div>
-
-    <div id="homeCharts">
-      <section class="card">
-        <h2>Where it went</h2>
-        <div id="donutBody"></div>
-      </section>
-      <section class="card">
-        <h2>Last 6 months</h2>
-        <div id="barsBody"></div>
-      </section>
-      <section class="card">
-        <h2>Payment breakdown</h2>
-        <div id="splitBody"></div>
-      </section>
+      <!-- right column on desktop: payment breakdown sits directly under "Where it went" -->
+      <div class="home-col">
+        <section class="card home-chart c-donut">
+          <h2>Where it went</h2>
+          <div id="donutBody"></div>
+        </section>
+        <section class="card home-chart c-pay">
+          <h2>Payment breakdown</h2>
+          <div id="splitBody"></div>
+        </section>
+      </div>
     </div>
   </section>
 
