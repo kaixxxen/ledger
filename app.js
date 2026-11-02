@@ -2045,14 +2045,38 @@ function setupTripExpenseForm(group, exp) {
   }).join('');
   updateTripFormMode();
 }
+function tripIsAutoAmount() {
+  return $('tripCategory').value === 'food' || $('tripAllocation').value === 'custom';
+}
+function updateTripAmount() {
+  const amountEl = $('splitExpAmount');
+  if (!amountEl || !tripIsAutoAmount()) return;
+  // Work in integer cents to avoid floating-point accumulation in the UI.
+  const cents = $$('#tripMembersGrid [data-trip-member]').reduce((total, member) => {
+    if (!member.checked) return total;
+    const input = $$('#tripMembersGrid [data-trip-amount]').find(x => x.dataset.tripAmount === member.dataset.tripMember);
+    const number = Number(input && input.value);
+    return total + (Number.isFinite(number) && number >= 0 ? Math.round(number * 100) : 0);
+  }, 0);
+  const fee = Number($('tripServiceCharge').value);
+  const feeCents = Number.isFinite(fee) && fee > 0 ? Math.round(fee * 100) : 0;
+  amountEl.value = ((cents + feeCents) / 100).toFixed(2);
+}
 function updateTripFormMode() {
-  const food=$('tripCategory').value==='food';
-  $('tripAllocationWrap').hidden=food;
-  $('tripServiceWrap').hidden=!food;
-  const custom=food || $('tripAllocation').value==='custom';
-  $$('#tripMembersGrid [data-trip-amount]').forEach(i=>i.hidden=!custom);
-  $('tripModeHelp').textContent=food?'Enter each person’s food subtotal. Service charge is distributed proportionally.':
-    custom?'Enter each person’s exact share. The shares must total the expense amount.':'The total will be split equally between checked members.';
+  const food = $('tripCategory').value === 'food';
+  const custom = tripIsAutoAmount();
+  $('tripAllocationWrap').hidden = food;
+  $('tripServiceWrap').hidden = !custom;
+  $$('#tripMembersGrid [data-trip-amount]').forEach(i => i.hidden = !custom);
+  $('splitExpAmount').readOnly = custom;
+  $('splitExpAmount').classList.toggle('trip-amount-auto', custom);
+  $('splitExpAmount').title = custom ? 'Automatically calculated from selected members and service charge' : '';
+  $('tripModeHelp').textContent = food
+    ? 'Enter each selected person’s food subtotal. The Amount updates automatically, including service charge distributed proportionally.'
+    : custom
+      ? 'Enter each selected member’s share. Amount automatically includes their shares and any service charge (distributed proportionally).'
+      : 'Enter the bill Amount above. It will be split equally between checked members.';
+  if (custom) updateTripAmount();
 }
 function collectTripExpense(group,amount) {
   const chosen=$$('#tripMembersGrid [data-trip-member]').filter(x=>x.checked);
@@ -2061,28 +2085,34 @@ function collectTripExpense(group,amount) {
   const values={};
   for(const node of chosen) {
     const key=node.dataset.tripMember;
-    const v=Number($$('#tripMembersGrid [data-trip-amount]').find(x=>x.dataset.tripAmount===key).value);
-    if (!Number.isFinite(v) || v<0) { toast('Enter valid nonnegative amounts.'); return null; }
+    const raw=$$('#tripMembersGrid [data-trip-amount]').find(x=>x.dataset.tripAmount===key).value;
+    const v=raw.trim()===''?0:Number(raw);
+    if (!Number.isFinite(v) || v<0 || Math.round(v*100)/100 !== v) { toast('Enter nonnegative amounts with up to two decimals.'); return null; }
     values[key]=v;
   }
   let shares, charge=0, orders=null;
-  if(mode==='equal') shares=allocateTripCents(amount,Object.fromEntries(chosen.map(x=>[x.dataset.tripMember,1])));
-  else if(mode==='custom') {
-    shares=Object.fromEntries(Object.entries(values).map(([k,v])=>[k,tripRound(v)]));
-    if(Math.abs(Object.values(shares).reduce((s,v)=>s+v,0)-amount)>0.009) {
-      toast('Custom shares must add up to the full expense amount.'); return null;
-    }
+  if (mode === 'equal') {
+    shares = allocateTripCents(amount, Object.fromEntries(chosen.map(x => [x.dataset.tripMember, 1])));
   } else {
-    charge=tripRound(Number($('tripServiceCharge').value)||0);
-    if(charge<0 || charge>amount) { toast('Invalid service charge.'); return null; }
-    const subtotal=tripRound(Object.values(values).reduce((s,v)=>s+v,0));
-    if(Math.abs(subtotal+charge-amount)>0.009) {
-      toast('Food orders plus service charge must equal the expense amount.'); return null;
+    const rawCharge = $('tripServiceCharge').value.trim();
+    charge = rawCharge === '' ? 0 : Number(rawCharge);
+    if (!Number.isFinite(charge) || charge < 0 || Math.round(charge * 100) / 100 !== charge) {
+      toast('Enter a valid nonnegative service charge with up to two decimals.'); return null;
     }
-    orders=values;
-    const feeShares=charge?allocateTripCents(charge,values):Object.fromEntries(Object.keys(values).map(k=>[k,0]));
-    if(!feeShares) { toast('Enter food orders greater than zero.'); return null; }
-    shares=Object.fromEntries(Object.keys(values).map(k=>[k,tripRound(values[k]+feeShares[k])]));
+    charge = tripRound(charge);
+    const base = Object.fromEntries(Object.entries(values).map(([k,v]) => [k,tripRound(v)]));
+    const subtotalCents = Object.values(base).reduce((s,v) => s + Math.round(v*100), 0);
+    if ((subtotalCents + Math.round(charge*100)) !== Math.round(amount*100)) {
+      toast('Amount must equal the selected custom amounts plus service charge.'); return null;
+    }
+    if (charge && subtotalCents === 0) {
+      toast('Enter at least one positive member amount to distribute the service charge.'); return null;
+    }
+    const feeShares = charge ? allocateTripCents(charge,base) : Object.fromEntries(Object.keys(base).map(k=>[k,0]));
+    if (!feeShares) { toast('Could not distribute the service charge.'); return null; }
+    shares = Object.fromEntries(Object.keys(base).map(k => [k,tripRound(base[k]+feeShares[k]) ]));
+    // Preserve pre-fee member entries so reopening an expense never adds the fee twice.
+    orders = base;
   }
   return {category:food?'food':'general',mode,serviceCharge:charge,orders,shares};
 }
@@ -2398,6 +2428,9 @@ function bind() {
   if ($('btnSplitBack')) $('btnSplitBack').onclick = closeBillDetail;
   on('tripCategory','change',updateTripFormMode);
   on('tripAllocation','change',updateTripFormMode);
+  on('tripServiceCharge','input',updateTripAmount);
+  on('tripMembersGrid','input',updateTripAmount);
+  on('tripMembersGrid','change',updateTripAmount);
 
   if ($('btnAddPersonFabTop')) $('btnAddPersonFabTop').onclick = () => { creatingTrip = false; openBillEditor(null); };
   if ($('btnCreateTripSplit')) $('btnCreateTripSplit').onclick = () => { creatingTrip = true; openBillEditor(null); };
@@ -2545,6 +2578,7 @@ function bind() {
       $('splitExpId').value = '';
       $('splitExpTitle').value = '';
       $('splitExpAmount').value = '';
+      if (group.trip) updateTripFormMode();
       $('splitExpDate').value = today();
 
       $('splitExpPaidBy').innerHTML = paidByOptions(group);
@@ -2604,6 +2638,7 @@ function bind() {
       $('splitExpId').value = exp.id;
       $('splitExpTitle').value = exp.title;
       $('splitExpAmount').value = exp.amount;
+      if (group.trip) updateTripFormMode();
       $('splitExpDate').value = exp.date;
 
       $('splitExpPaidBy').innerHTML = paidByOptions(group);

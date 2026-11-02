@@ -1,4 +1,4 @@
-const CACHE = 'ledger-v26-trip';
+const CACHE = 'ledger-v27-trip-auto-total';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'

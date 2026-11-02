@@ -696,3 +696,6 @@ li.tx .amt{ font-weight:600; font-size:var(--fs-base); }
 @media(max-width:380px){.split-create-options{grid-template-columns:1fr}.trip-stat-grid{grid-template-columns:1fr 1fr}}
 
 .trip-expense-type{margin-top:5px}.trip-share-breakdown{display:flex;flex-wrap:wrap;column-gap:10px;row-gap:3px;margin-top:4px;font-size:var(--fs-xs);color:var(--muted)}.trip-share-breakdown b{color:var(--text)}
+
+/* Trip Split: show that the computed total cannot be manually overridden. */
+#splitExpAmount.trip-amount-auto { background:var(--card-2); color:var(--text); border-style:dashed; cursor:default; font-weight:700; }
