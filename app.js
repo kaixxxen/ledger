@@ -64,7 +64,13 @@ let view = new Date(); view.setDate(1);
 let formType = 'expense', formMethod = 'cash';
 let fMethod = 'all';
 let txViewTab = 'expenses';
-let expensesLimit = 10;
+const LIMIT = 5;            // list rows shown before "See all"
+const expanded = {};        // which lists are expanded
+let txSearch = '';
+const limited = (key, arr) => expanded[key] ? arr : arr.slice(0, LIMIT);
+const moreBtn = (key, total) => total > LIMIT
+  ? `<button type="button" class="see-all-btn" data-key="${key}">${expanded[key] ? 'Show less' : `See all (${total})`}</button>` : '';
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 let cardsFilter = 'all';
 let currentPage = null;
 
@@ -73,7 +79,6 @@ let activeSplitTab = 'expenses';
 let activeRealtimeChannel = null;
 let selectedSplitParticipants = [];
 let pendingParticipants = [];
-let groupExpensesExpanded = false;
 
 // ---- shared bills / permanent Ledger ID ----
 let profile = null;            // { code, nick } - permanent Ledger ID issued by the server
@@ -167,7 +172,7 @@ function blank() {
     customCats: [],
     customIncomeCats: [],
     cards: [],
-    tricounts: [],
+    billGroups: [],
     fixedTx: [],
     budget: 0,
     cur: '₱',
@@ -177,6 +182,9 @@ function blank() {
 
 function normalize(raw) {
   const s = Object.assign(blank(), raw && typeof raw === 'object' ? raw : {});
+  // older saves stored bill groups under a different key
+  if (raw && Array.isArray(raw.tricounts) && !(Array.isArray(raw.billGroups) && raw.billGroups.length)) s.billGroups = raw.tricounts;
+  delete s.tricounts;
   s.userCode = String(s.userCode || generateUserCode()).toUpperCase();
   s.nickname = String(s.nickname || '').trim();
 
@@ -185,6 +193,7 @@ function normalize(raw) {
     bank: String((c && c.bank) || 'Bank').trim(),
     name: String((c && c.name) || 'Card').trim(),
     type: c && c.type === 'debit' ? 'debit' : 'credit',
+    lastPaid: String((c && c.lastPaid) || ''),
     statementDay: Math.max(1, Math.min(31, parseInt(c && c.statementDay) || 1)),
     dueDaysAfter: Math.max(1, Math.min(90, parseInt(c && (c.dueDaysAfter || c.dueDays || c.dueDay)) || 21))
   }));
@@ -208,7 +217,7 @@ function normalize(raw) {
     ? { key: String(x.key || x.name || '').trim(), name: String(x.name || x.key || '').trim(), code: x.code ? String(x.code).toUpperCase() : null }
     : { key: String(x == null ? '' : x).trim(), name: String(x == null ? '' : x).trim(), code: null };
 
-  s.tricounts = (Array.isArray(s.tricounts) ? s.tricounts : []).map(p => {
+  s.billGroups = (Array.isArray(s.billGroups) ? s.billGroups : []).map(p => {
     const seen = new Set();
     const parts = (Array.isArray(p.participants) ? p.participants : [meIdentifier]).map(toPart)
       .filter(x => x.key && !seen.has(x.key) && seen.add(x.key));
@@ -251,7 +260,8 @@ function normalize(raw) {
     indefinite: f.indefinite !== false,
     totalMonths: parseInt(f.totalMonths) || 12,
     monthsElapsed: parseInt(f.monthsElapsed) || 0,
-    startDate: String(f.startDate || today())
+    startDate: String(f.startDate || today()),
+    skip: Array.isArray(f.skip) ? f.skip.map(String) : []
   }));
 
   s.budget = Number(s.budget) > 0 ? Number(s.budget) : 0;
@@ -388,12 +398,44 @@ function closeCardModal() {
   if ($('cardForm')) $('cardForm').reset();
 }
 
-// Plays a short slide/fade on an element. dir: 1 = from the right, -1 = from the left, 0 = fade up.
+// iOS-friendly animations use the Web Animations API (no dependence on CSS class timing).
+const reduceMotion = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+// Slide/fade an element in. dir: 1 = from the right, -1 = from the left, 0 = fade up.
 function slideIn(el, dir) {
-  if (!el) return;
-  el.classList.remove('slide-in-right', 'slide-in-left', 'fade-up');
-  void el.offsetWidth;
-  el.classList.add(dir > 0 ? 'slide-in-right' : dir < 0 ? 'slide-in-left' : 'fade-up');
+  if (!el || !el.animate) return;
+  const calm = reduceMotion();               // Reduce Motion on: fade only, no movement
+  const dx = calm ? 0 : dir * 34;
+  const dy = calm || dir !== 0 ? 0 : 10;
+  try {
+    el.animate(
+      [{ opacity: 0, transform: `translate3d(${dx}px, ${dy}px, 0)` }, { opacity: 1, transform: 'translate3d(0, 0, 0)' }],
+      { duration: calm ? 180 : 340, easing: 'cubic-bezier(.22,.8,.3,1)', fill: 'backwards' }
+    );
+  } catch (e) {}
+}
+
+// Modals & action sheet animate every time they are opened.
+function initModalAnimations() {
+  $$('.modal-backdrop, .action-sheet-backdrop').forEach(bd => {
+    const sheet = bd.classList.contains('action-sheet-backdrop');
+    new MutationObserver(() => {
+      if (bd.hidden || !bd.animate) return;
+      const calm = reduceMotion();
+      try {
+        bd.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, easing: 'ease-out' });
+        const card = bd.firstElementChild;
+        if (card && !calm) {
+          card.animate(
+            sheet
+              ? [{ transform: 'translate3d(0, 56px, 0)', opacity: .4 }, { transform: 'translate3d(0, 0, 0)', opacity: 1 }]
+              : [{ transform: 'translate3d(0, 26px, 0) scale(.95)', opacity: 0 }, { transform: 'translate3d(0, 0, 0) scale(1)', opacity: 1 }],
+            { duration: 340, easing: 'cubic-bezier(.2,.9,.3,1)' }
+          );
+        }
+      } catch (e) {}
+    }).observe(bd, { attributes: true, attributeFilter: ['hidden'] });
+  });
 }
 
 function route() {
@@ -476,8 +518,7 @@ function renderAll() {
       nameStr = user.email.split('@')[0];
       nameStr = nameStr.charAt(0).toUpperCase() + nameStr.slice(1);
     }
-    if (!nameStr) nameStr = 'Eric';
-    $('homeGreeting').textContent = `Hi ${nameStr}!`;
+    $('homeGreeting').textContent = nameStr ? `Hi ${nameStr}!` : 'Hi there!';
   }
 
   populateCardDropdowns();
@@ -487,8 +528,8 @@ function renderAll() {
   renderFixedExpenses();
   renderExpenses();
   renderSettings();
-  renderTricountsList();
-  if (selectedGroupId) renderTricountDetail();
+  renderBillList();
+  if (selectedGroupId) renderBillDetail();
 }
 
 function getEffectiveExpenseYm(t) {
@@ -561,40 +602,43 @@ function populateCardDropdowns() {
 }
 
 function processRecurringExpensesForCurrentMonth() {
-  const currentYm = ym(view);
-  
+  // Logs every missing month from each schedule's start up to the month being viewed
+  // (never more than a year ahead, so browsing doesn't create endless future entries).
+  const now = new Date();
+  const maxAhead = new Date(now.getFullYear(), now.getMonth() + 12, 1);
+  const endDate = view > maxAhead ? maxAhead : (view > now ? view : now);
+  const endYm = ym(endDate);
+  const [eY, eM] = endYm.split('-').map(Number);
+  let changed = false;
+
   state.fixedTx = (state.fixedTx || []).filter(f => {
-    if (f.indefinite) return true;
-    return f.monthsElapsed < f.totalMonths;
-  });
-
-  state.fixedTx.forEach(f => {
-    const startYm = f.startDate ? f.startDate.slice(0, 7) : currentYm;
-    if (currentYm >= startYm) {
-      const [sY, sM] = startYm.split('-').map(Number);
-      const [vY, vM] = currentYm.split('-').map(Number);
-      const monthDiff = (vY - sY) * 12 + (vM - sM);
-
-      if (monthDiff >= 0 && (f.indefinite || monthDiff < f.totalMonths)) {
-        const autoId = 'auto_' + f.id + '_' + currentYm;
-        const alreadyLogged = state.tx.some(t => t.id === autoId || (t.note === f.title && t.amount === f.amount && t.date && t.date.startsWith(currentYm)));
-
-        if (!alreadyLogged) {
-          state.tx.push({
-            id: autoId,
-            type: f.type || 'expense',
-            amount: f.amount,
-            category: f.category,
-            method: f.method || 'cash',
-            cardId: f.cardId || '',
-            note: f.title,
-            date: currentYm + '-01'
-          });
-          f.monthsElapsed = monthDiff + 1;
-        }
-      }
+    const startYm = (f.startDate || today()).slice(0, 7);
+    const [sY, sM] = startYm.split('-').map(Number);
+    const last = (eY - sY) * 12 + (eM - sM);
+    const startDay = parseInt((f.startDate || '').slice(8, 10)) || 1;
+    let generated = 0;
+    for (let i = 0; i <= last; i++) {
+      if (!f.indefinite && i >= f.totalMonths) break;
+      generated = i + 1;
+      const d = new Date(sY, sM - 1 + i, 1);
+      const mYm = ym(d);
+      if ((f.skip || []).includes(mYm)) continue;
+      const autoId = 'auto_' + f.id + '_' + mYm;
+      const logged = state.tx.some(t => t.id === autoId ||
+        (t.note === f.title && t.amount === f.amount && t.date && t.date.startsWith(mYm)));
+      if (logged) continue;
+      const day = Math.min(startDay, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate());
+      state.tx.push({
+        id: autoId, type: f.type || 'expense', amount: f.amount, category: f.category,
+        method: f.method || 'cash', cardId: f.cardId || '', note: f.title, date: `${mYm}-${pad(day)}`
+      });
+      changed = true;
     }
+    if (f.monthsElapsed !== generated) { f.monthsElapsed = generated; }
+    // finished fixed-length schedules drop off once every month is logged
+    return f.indefinite || generated < f.totalMonths;
   });
+  if (changed) save();
 }
 
 function renderHome() {
@@ -728,60 +772,56 @@ function renderCardReminders() {
 
   const now = new Date();
   const todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const clampDay = (y, m, d) => new Date(y, m, Math.min(d, new Date(y, m + 1, 0).getDate()));
 
   const cardStatusList = creditCards.map(c => {
-    if (!c) return null;
     const stmtDay = parseInt(c.statementDay) || 1;
     const dueDaysAfter = parseInt(c.dueDaysAfter || c.dueDays || c.dueDay) || 21;
 
-    let y = now.getFullYear(); let m = now.getMonth();
-    let maxDayInM = new Date(y, m + 1, 0).getDate();
-    let cutoffDate = new Date(y, m, Math.min(stmtDay, maxDayInM));
-
-    if (now < cutoffDate) {
-      m -= 1;
-      maxDayInM = new Date(y, m + 1, 0).getDate();
-      cutoffDate = new Date(y, m, Math.min(stmtDay, maxDayInM));
-    }
+    // latest statement date that has already happened
+    let cutoffDate = clampDay(now.getFullYear(), now.getMonth(), stmtDay);
+    if (todayZero < cutoffDate) cutoffDate = clampDay(now.getFullYear(), now.getMonth() - 1, stmtDay);
+    const prevCutoff = clampDay(cutoffDate.getFullYear(), cutoffDate.getMonth() - 1, stmtDay);
 
     const dueDate = new Date(cutoffDate.getTime());
     dueDate.setDate(dueDate.getDate() + dueDaysAfter);
-
-    const diffMs = dueDate - todayZero;
-    const daysLeft = Math.round(diffMs / 86400000);
+    const daysLeft = Math.round((dueDate - todayZero) / 86400000);
 
     const cardExpenses = state.tx.filter(t => t.type === 'expense' && t.method === 'card' && t.cardId === c.id);
+    const at = t => new Date(t.date + 'T00:00');
+    // only purchases on THIS statement (after the previous cutoff, up to this cutoff)
+    const currentDueSpent = cardExpenses.filter(t => at(t) > prevCutoff && at(t) <= cutoffDate).reduce((s, t) => s + t.amount, 0);
+    const nextCycleSpent = cardExpenses.filter(t => at(t) > cutoffDate).reduce((s, t) => s + t.amount, 0);
+    const cutoffStr = ymd(cutoffDate);
+    const paid = !!c.lastPaid && c.lastPaid >= cutoffStr;
 
-    const currentDueSpent = cardExpenses.filter(t => new Date(t.date + 'T00:00') <= cutoffDate).reduce((s, t) => s + t.amount, 0);
-    const nextCycleSpent = cardExpenses.filter(t => new Date(t.date + 'T00:00') > cutoffDate).reduce((s, t) => s + t.amount, 0);
+    return { ...c, statementDay: stmtDay, dueDaysAfter, dueDate, cutoffDate, cutoffStr, paid, daysLeft, currentDueSpent, nextCycleSpent };
+  }).sort((a, b) => (a.paid - b.paid) || (a.daysLeft - b.daysLeft));
 
-    return { ...c, statementDay: stmtDay, dueDaysAfter, dueDate, cutoffDate, daysLeft, currentDueSpent, nextCycleSpent };
-  }).filter(Boolean).sort((a, b) => a.daysLeft - b.daysLeft);
-
-  el.innerHTML = cardStatusList.map(c => {
+  el.innerHTML = limited('reminders', cardStatusList).map(c => {
     let badgeClass = 'good';
     let badgeText = `${c.daysLeft} days left`;
-    if (c.daysLeft === 0) { badgeClass = 'bad'; badgeText = 'Due Today'; }
+    if (c.paid) { badgeClass = 'good'; badgeText = 'Paid ✓'; }
+    else if (c.daysLeft === 0) { badgeClass = 'bad'; badgeText = 'Due Today'; }
     else if (c.daysLeft < 0) { badgeClass = 'bad'; badgeText = `${Math.abs(c.daysLeft)}d Overdue`; }
     else if (c.daysLeft <= 3) { badgeClass = 'bad'; badgeText = `Due in ${c.daysLeft}d`; }
     else if (c.daysLeft <= 7) { badgeClass = 'warn'; badgeText = `Due in ${c.daysLeft}d`; }
 
-    const dateFormatted = c.dueDate ? c.dueDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—';
-    const cutoffFormatted = c.cutoffDate ? c.cutoffDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—';
-
+    const fmt = d => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     return `
       <div class="card-reminder-item">
         <div class="card-info">
           <div class="card-title"><span class="bank-tag">${esc(c.bank)}</span><span>${esc(c.name)}</span></div>
-          <small class="card-dates">Due: <b>${dateFormatted}</b> (Cutoff: ${cutoffFormatted})</small>
+          <small class="card-dates">Due: <b>${fmt(c.dueDate)}</b> (Cutoff: ${fmt(c.cutoffDate)})</small>
         </div>
         <div class="card-status">
           <span class="due-badge ${badgeClass}">${badgeText}</span>
           <div class="card-spent-current">Due: ${money(c.currentDueSpent)}</div>
           ${c.nextCycleSpent > 0 ? `<div class="card-spent-next">Next Cycle: ${money(c.nextCycleSpent)}</div>` : ''}
+          <button type="button" class="mark-paid-btn" data-id="${esc(c.id)}" data-cutoff="${c.cutoffStr}" data-paid="${c.paid ? 1 : 0}">${c.paid ? 'Undo paid' : 'Mark as paid'}</button>
         </div>
       </div>`;
-  }).join('');
+  }).join('') + moreBtn('reminders', cardStatusList.length);
 }
 
 function ensureOption(sel, val) {
@@ -807,7 +847,7 @@ function renderFixedExpenses() {
     el.innerHTML = '<p class="muted">No recurring items added yet. Check <b>Recurring monthly</b> when adding a transaction to save it here.</p>';
     return;
   }
-  el.innerHTML = state.fixedTx.map(f => `
+  el.innerHTML = limited('fixed', state.fixedTx).map(f => `
     <div class="fixed-item" data-id="${esc(f.id)}" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
       <div>
         <strong>${esc(f.title)}</strong>
@@ -817,7 +857,7 @@ function renderFixedExpenses() {
         <b class="${f.type === 'income' ? 'in' : ''}">${f.type === 'income' ? '+' : ''}${money(f.amount)}/mo</b>
         <button type="button" class="del-fixed-btn" data-id="${esc(f.id)}" style="color: var(--bad); background: none; border: none; cursor: pointer; font-size: 16px;">✕</button>
       </div>
-    </div>`).join('');
+    </div>`).join('') + moreBtn('fixed', state.fixedTx.length);
 
   $$('#fixedExpensesList .fixed-item').forEach(item => {
     item.onclick = (e) => {
@@ -869,17 +909,20 @@ function renderExpenses() {
 
   let txs = all;
   if (fMethod !== 'all') txs = txs.filter(t => t.type === 'expense' && t.method === fMethod);
-  txs = txs.slice().sort((a, b) => b.date.localeCompare(a.date) || Number(b.id) - Number(b.id));
+  if (txSearch) {
+    txs = txs.filter(t => `${t.note} ${t.category} ${t.amount}`.toLowerCase().includes(txSearch));
+  }
+  txs = txs.slice().sort((a, b) => b.date.localeCompare(a.date) || String(b.id).localeCompare(String(a.id), undefined, { numeric: true }));
 
   if ($('empty')) {
     $('empty').hidden = txs.length > 0;
-    $('empty').textContent = all.length ? 'No entries match these filters.' : 'Nothing logged this month.';
+    $('empty').textContent = all.length ? 'No entries match your filters.' : 'Nothing logged this month.';
   }
 
-  const visibleTxs = txs.slice(0, expensesLimit);
+  const visibleTxs = limited('tx', txs);
   if ($('btnSeeMoreExpenses')) {
-    $('btnSeeMoreExpenses').hidden = txs.length <= expensesLimit;
-    $('btnSeeMoreExpenses').textContent = `See More (${txs.length - expensesLimit} remaining)`;
+    $('btnSeeMoreExpenses').hidden = txs.length <= LIMIT;
+    $('btnSeeMoreExpenses').textContent = expanded.tx ? 'Show less' : `See all (${txs.length})`;
   }
   
   if ($('list')) {
@@ -994,32 +1037,32 @@ function initEmojiPickerPopover() {
   });
 }
 
-function renderTricountsList() {
-  const el = $('tricountsList');
+function renderBillList() {
+  const el = $('billsList');
   if (!el) return;
-  const activeGroups = (state.tricounts || []).filter(g => !g.archived);
+  const activeGroups = (state.billGroups || []).filter(g => !g.archived);
 
   if (activeGroups.length === 0) {
     el.innerHTML = '<div class="empty-card card">No active bill added. Tap <b>+ Add a Bill</b> to add one or check <b>Archives</b>!</div>';
     return;
   }
 
-  el.innerHTML = activeGroups.map(g => `
-    <div class="tricount-card" data-id="${esc(g.id)}">
-      <div class="tricount-card-left">
-        <span class="tricount-emoji">${esc(g.emoji)}</span>
+  el.innerHTML = limited('bills', activeGroups).map(g => `
+    <div class="bill-card" data-id="${esc(g.id)}">
+      <div class="bill-card-left">
+        <span class="bill-emoji">${esc(g.emoji)}</span>
         <div>
-          <div class="tricount-name-row"><span class="tricount-name">${esc(g.name)}</span>${g.shared ? '<span class="tag shared-tag">Shared</span>' : ''}</div>
+          <div class="bill-name-row"><span class="bill-name">${esc(g.name)}</span>${g.shared ? '<span class="tag shared-tag">Shared</span>' : ''}</div>
           <small class="muted fine">${g.participants.length} members (${esc(g.participants.map(p => p.name).join(', '))})</small>
         </div>
       </div>
-      <span class="tricount-chevron">›</span>
-    </div>`).join('');
+      <span class="bill-chevron">›</span>
+    </div>`).join('') + moreBtn('bills', activeGroups.length);
 
-  $$('#tricountsList .tricount-card').forEach(card => {
-    const group = state.tricounts.find(g => g.id === card.dataset.id);
+  $$('#billsList .bill-card').forEach(card => {
+    const group = state.billGroups.find(g => g.id === card.dataset.id);
     if (!group) return;
-    card.onclick = () => openTricountDetail(group.id);
+    card.onclick = () => openBillDetail(group.id);
 
     attachLongPress(card, () => {
       const leaving = group.shared && user && group.createdBy !== user.id;
@@ -1027,7 +1070,7 @@ function renderTricountsList() {
         {
           text: '📁 Archive Bill',
           action: async () => {
-            if (await setArchived(group, true)) { renderTricountsList(); toast(`Archived ${group.name}`); }
+            if (await setArchived(group, true)) { renderBillList(); toast(`Archived ${group.name}`); }
           }
         },
         { text: '✏️ Edit Bill Details', action: () => openBillEditor(group) },
@@ -1037,69 +1080,69 @@ function renderTricountsList() {
   });
 }
 
-function renderArchivedTricountsList() {
-  const el = $('archivedTricountsList');
+function renderArchivedBillList() {
+  const el = $('archivedBillsList');
   if (!el) return;
-  const archivedGroups = (state.tricounts || []).filter(g => g.archived);
+  const archivedGroups = (state.billGroups || []).filter(g => g.archived);
 
   if (archivedGroups.length === 0) {
     el.innerHTML = '<div class="empty-card card">No archived bills found.</div>';
     return;
   }
 
-  el.innerHTML = archivedGroups.map(g => `
-    <div class="tricount-card" data-id="${esc(g.id)}">
-      <div class="tricount-card-left">
-        <span class="tricount-emoji">${esc(g.emoji)}</span>
-        <div class="tricount-card-info">
-          <div class="tricount-name">${esc(g.name)}</div>
+  el.innerHTML = limited('archived', archivedGroups).map(g => `
+    <div class="bill-card" data-id="${esc(g.id)}">
+      <div class="bill-card-left">
+        <span class="bill-emoji">${esc(g.emoji)}</span>
+        <div class="bill-card-info">
+          <div class="bill-name">${esc(g.name)}</div>
           <small class="muted fine">Archived · ${g.participants.length} members</small>
         </div>
       </div>
       <button type="button" class="unarchive-btn" data-id="${esc(g.id)}">Restore</button>
-    </div>`).join('');
+    </div>`).join('') + moreBtn('archived', archivedGroups.length);
 
-  $$('#archivedTricountsList .tricount-card').forEach(card => {
-    const group = state.tricounts.find(g => g.id === card.dataset.id);
+  $$('#archivedBillsList .bill-card').forEach(card => {
+    const group = state.billGroups.find(g => g.id === card.dataset.id);
     if (!group) return;
     card.onclick = (e) => {
       if (e.target.closest('.unarchive-btn')) return;
-      openTricountDetail(group.id);
+      openBillDetail(group.id);
     };
   });
 
-  $$('#archivedTricountsList .unarchive-btn').forEach(btn => {
+  $$('#archivedBillsList .unarchive-btn').forEach(btn => {
     btn.onclick = async (e) => {
       e.stopPropagation();
-      const group = state.tricounts.find(g => g.id === btn.dataset.id);
+      const group = state.billGroups.find(g => g.id === btn.dataset.id);
       if (group && await setArchived(group, false)) {
-        renderArchivedTricountsList();
-        renderTricountsList();
+        renderArchivedBillList();
+        renderBillList();
         toast(`Restored "${group.name}" to active bills!`);
       }
     };
   });
 }
 
-function openTricountDetail(id) {
+function openBillDetail(id) {
   selectedGroupId = id;
-  groupExpensesExpanded = false;
+  expanded.groupExp = false; expanded.history = false; expanded.balances = false;
   $('splitMainView').hidden = true;
   if ($('splitArchiveView')) $('splitArchiveView').hidden = true;
   $('splitDetailView').hidden = false;
   slideIn($('splitDetailView'), 1);
-  renderTricountDetail();
+  renderBillDetail();
   if (mode === 'cloud') scheduleSharedReload(0);
 }
 
-function closeTricountDetail() {
+function closeBillDetail() {
   selectedGroupId = null;
-  groupExpensesExpanded = false;
+  expanded.groupExp = false; expanded.history = false; expanded.balances = false;
   $('splitDetailView').hidden = true;
   if ($('splitArchiveView')) $('splitArchiveView').hidden = true;
   $('splitMainView').hidden = false;
   slideIn($('splitMainView'), -1);
-  renderTricountsList();
+  renderBillList();
 }
 
 
@@ -1177,7 +1220,7 @@ async function loadSharedBills() {
       }))
     }));
 
-    state.tricounts = (state.tricounts || []).filter(g => !g.shared).concat(shared);
+    state.billGroups = (state.billGroups || []).filter(g => !g.shared).concat(shared);
     cacheWrite();
     refreshSplitUi();
   } catch (err) {
@@ -1188,13 +1231,13 @@ async function loadSharedBills() {
 }
 
 function refreshSplitUi() {
-  if (selectedGroupId && !state.tricounts.some(g => g.id === selectedGroupId)) {
-    closeTricountDetail(); toast('That bill is no longer available.');
+  if (selectedGroupId && !state.billGroups.some(g => g.id === selectedGroupId)) {
+    closeBillDetail(); toast('That bill is no longer available.');
   } else if (selectedGroupId) {
-    renderTricountDetail();
+    renderBillDetail();
   }
-  renderTricountsList();
-  if ($('splitArchiveView') && !$('splitArchiveView').hidden) renderArchivedTricountsList();
+  renderBillList();
+  if ($('splitArchiveView') && !$('splitArchiveView').hidden) renderArchivedBillList();
 }
 
 function scheduleSharedReload(ms) {
@@ -1271,10 +1314,10 @@ async function removeBill(group) {
       : await rpcOk(sb.rpc('leave_bill', { p_bill: group.id }), "Couldn't leave the bill.");
     if (!r) return;
   }
-  state.tricounts = state.tricounts.filter(g => g.id !== group.id);
+  state.billGroups = state.billGroups.filter(g => g.id !== group.id);
   persistGroup(group);
-  if (selectedGroupId === group.id) closeTricountDetail(); else renderTricountsList();
-  if ($('splitArchiveView') && !$('splitArchiveView').hidden) renderArchivedTricountsList();
+  if (selectedGroupId === group.id) closeBillDetail(); else renderBillList();
+  if ($('splitArchiveView') && !$('splitArchiveView').hidden) renderArchivedBillList();
   toast(creator ? 'Bill deleted' : 'You left the bill');
 }
 
@@ -1335,9 +1378,9 @@ function calculateGroupBalance(group) {
   return { balances, settlements, totalExpenses, myNet };
 }
 
-function renderTricountDetail() {
-  const group = (state.tricounts || []).find(g => g.id === selectedGroupId);
-  if (!group) { closeTricountDetail(); return; }
+function renderBillDetail() {
+  const group = (state.billGroups || []).find(g => g.id === selectedGroupId);
+  if (!group) { closeBillDetail(); return; }
 
   if ($('splitPersonAvatar')) $('splitPersonAvatar').textContent = group.emoji || '🐶';
   if ($('splitPersonName')) $('splitPersonName').textContent = group.name;
@@ -1355,12 +1398,12 @@ function renderTricountDetail() {
   if ($('splitTabHistory')) $('splitTabHistory').hidden = activeSplitTab !== 'history';
   setSeg('splitDetailTabs', activeSplitTab);
 
-  if (activeSplitTab === 'expenses') renderTricountExpensesList(group);
-  else if (activeSplitTab === 'balances') renderTricountBalancesTab(group);
-  else if (activeSplitTab === 'history') renderTricountHistoryTab(group);
+  if (activeSplitTab === 'expenses') renderBillExpensesList(group);
+  else if (activeSplitTab === 'balances') renderBillBalancesTab(group);
+  else if (activeSplitTab === 'history') renderBillHistoryTab(group);
 }
 
-function renderTricountExpensesList(group) {
+function renderBillExpensesList(group) {
   const el = $('splitExpensesGroupedList');
   const seeAllBtn = $('btnSeeAllGroupExpenses');
   if (!el) return;
@@ -1374,13 +1417,11 @@ function renderTricountExpensesList(group) {
   const totalCount = group.expenses.length;
   let allSortedExps = group.expenses.slice().sort((a, b) => b.date.localeCompare(a.date) || String(b.id).localeCompare(String(a.id)));
 
-  if (!groupExpensesExpanded && totalCount > 10) {
-    allSortedExps = allSortedExps.slice(0, 10);
-  }
+  allSortedExps = limited('groupExp', allSortedExps);
 
   if (seeAllBtn) {
-    seeAllBtn.hidden = totalCount <= 10;
-    seeAllBtn.textContent = groupExpensesExpanded ? 'Show Less' : `See All Expenses (${totalCount - 10} more)`;
+    seeAllBtn.hidden = totalCount <= LIMIT;
+    seeAllBtn.textContent = expanded.groupExp ? 'Show less' : `See all (${totalCount})`;
   }
 
   const groups = {};
@@ -1405,7 +1446,7 @@ function renderTricountExpensesList(group) {
       `).join('');
 
       return `
-        <div class="tricount-expense-card edit-split-exp-btn" data-id="${esc(exp.id)}" style="cursor: pointer;">
+        <div class="bill-expense-card edit-split-exp-btn" data-id="${esc(exp.id)}" style="cursor: pointer;">
           <div class="exp-left">
             <div>
               <div class="exp-title">
@@ -1431,7 +1472,7 @@ function renderTricountExpensesList(group) {
   }).join('');
 }
 
-function renderTricountBalancesTab(group) {
+function renderBillBalancesTab(group) {
   const { settlements, myNet } = calculateGroupBalance(group);
   const status = $('splitBannerStatus');
   const sub = $('splitBannerSub');
@@ -1457,17 +1498,17 @@ function renderTricountBalancesTab(group) {
     return;
   }
 
-  list.innerHTML = settlements.map(s => `
-    <div class="srow">
+  list.innerHTML = limited('balances', settlements).map(s => `
+    <div class="srow settle-row" data-from="${esc(s.from)}" data-to="${esc(s.to)}" data-amount="${s.amount}" title="Tap to record this payment">
       <div class="user-item">
         <div class="user-avatar-circle" style="background: var(--bar); color: var(--text);">💸</div>
         <div><strong>${esc(labelFor(group, s.from))}</strong> owes <strong>${esc(labelFor(group, s.to))}</strong></div>
       </div>
       <span class="bold">${money(s.amount)}</span>
-    </div>`).join('');
+    </div>`).join('') + moreBtn('balances', settlements.length);
 }
 
-function renderTricountHistoryTab(group) {
+function renderBillHistoryTab(group) {
   const el = $('splitHistoryList');
   if (!el) return;
 
@@ -1477,15 +1518,15 @@ function renderTricountHistoryTab(group) {
     return;
   }
 
-  el.innerHTML = history.slice().reverse().map(s => `
+  el.innerHTML = limited('history', history.slice().reverse()).map(s => `
     <div class="history-item">
       <div>
         <strong>${esc(labelFor(group, s.from))}</strong> paid <strong>${esc(labelFor(group, s.to))}</strong>
         <small class="muted" style="display: block;">${esc(s.method || 'GCash')} · ${s.date || today()} ${s.note ? '· ' + esc(s.note) : ''}</small>
       </div>
-      <b class="pos-text">+${money(s.amount)}</b>
+      <div style="display:flex;align-items:center;gap:10px;"><b class="pos-text">+${money(s.amount)}</b><button type="button" class="del-settle-btn" data-id="${esc(s.id)}" aria-label="Delete payment">✕</button></div>
     </div>
-  `).join('');
+  `).join('') + moreBtn('history', history.length);
 }
 
 function parseCsvLine(line) {
@@ -1516,7 +1557,7 @@ function importSplitwiseCsv(file) {
     const costIdx = header.findIndex(h => h.includes('cost') || h.includes('amount') || h.includes('total'));
     const payerIdx = header.findIndex(h => h.includes('paid') || h.includes('payer') || h.includes('who paid'));
 
-    const group = state.tricounts.find(g => g.id === selectedGroupId);
+    const group = state.billGroups.find(g => g.id === selectedGroupId);
     if (!group) return;
 
     const me = myKeyFor(group);
@@ -1547,7 +1588,7 @@ function importSplitwiseCsv(file) {
     }
     group.expenses.push(...imported);
     persistGroup(group);
-    renderTricountDetail(); toast(`Successfully imported ${imported.length} expenses!`);
+    renderBillDetail(); toast(`Successfully imported ${imported.length} expenses!`);
   };
   reader.readAsText(file);
 }
@@ -1612,7 +1653,7 @@ function renderSettings() {
     if (!shown.length) {
       cl.innerHTML = `<div class="srow"><span class="fine">${all.length ? 'No ' + cardsFilter + ' cards yet.' : 'No cards added yet.'}</span></div>`;
     } else {
-      cl.innerHTML = shown.map(c => `
+      cl.innerHTML = limited('cards', shown).map(c => `
         <div class="card-item">
           <div class="card-item-details">
             <strong><span class="type-pill ${c.type}">${c.type === 'debit' ? 'Debit' : 'Credit'}</span>${esc(c.bank)} - ${esc(c.name)}</strong>
@@ -1622,7 +1663,7 @@ function renderSettings() {
             <button type="button" class="icon-btn edit-card-btn" data-id="${esc(c.id)}">Edit</button>
             <button type="button" class="icon-btn del-card-btn" data-id="${esc(c.id)}">✕</button>
           </div>
-        </div>`).join('');
+        </div>`).join('') + moreBtn('cards', shown.length);
     }
   }
 
@@ -1661,7 +1702,7 @@ function addTx(t) {
 function saveCard(cardData) {
   if (cardData.id) {
     const idx = state.cards.findIndex(c => c.id === cardData.id);
-    if (idx >= 0) state.cards[idx] = cardData;
+    if (idx >= 0) state.cards[idx] = Object.assign({}, state.cards[idx], cardData);
   } else {
     cardData.id = 'c_' + Date.now();
     state.cards.push(cardData);
@@ -1689,7 +1730,7 @@ function setSync(text) { const el = $('syncState'); if (el) el.textContent = tex
 // Shared bills live in their own server tables, so they are never copied into the private ledger_data row.
 function ledgerSnapshot() {
   const snap = JSON.parse(JSON.stringify(state));
-  snap.tricounts = (snap.tricounts || []).filter(g => !g.shared);
+  snap.billGroups = (snap.billGroups || []).filter(g => !g.shared);
   return snap;
 }
 
@@ -1726,9 +1767,9 @@ async function pull() {
       if (isDirty() || state.updated > remote.updated) {
         schedulePush(0);
       } else if (remote.updated > state.updated) {
-        const keepShared = (state.tricounts || []).filter(g => g.shared);
+        const keepShared = (state.billGroups || []).filter(g => g.shared);
         state = remote;
-        state.tricounts = (remote.tricounts || []).filter(g => !g.shared).concat(keepShared);
+        state.billGroups = (remote.billGroups || []).filter(g => !g.shared).concat(keepShared);
         cacheWrite(); renderAll();
       }
     }
@@ -1826,6 +1867,53 @@ function bind() {
   }
 
   initEmojiPickerPopover();
+  initModalAnimations();
+
+  // "See all" / "Show less" for every long list
+  document.addEventListener('click', e => {
+    const b = e.target.closest('.see-all-btn'); if (!b) return;
+    const key = b.dataset.key;
+    expanded[key] = !expanded[key];
+    const fn = { cards: renderSettings, tx: renderExpenses, fixed: renderFixedExpenses, bills: renderBillList,
+                 archived: renderArchivedBillList, reminders: renderCardReminders, groupExp: renderBillDetail,
+                 history: renderBillDetail, balances: renderBillDetail }[key] || renderAll;
+    fn();
+  });
+
+  // credit card: mark current statement paid / undo
+  on('cardReminders', 'click', e => {
+    const b = e.target.closest('.mark-paid-btn'); if (!b) return;
+    const card = state.cards.find(c => c.id === b.dataset.id); if (!card) return;
+    card.lastPaid = b.dataset.paid === '1' ? '' : b.dataset.cutoff;
+    save(); renderCardReminders();
+    toast(card.lastPaid ? `${card.bank} marked as paid` : 'Paid mark removed');
+  });
+
+  on('txSearch', 'input', () => { txSearch = $('txSearch').value.trim().toLowerCase(); expanded.tx = false; renderExpenses(); });
+
+  on('splitHistoryList', 'click', async e => {
+    const b = e.target.closest('.del-settle-btn'); if (!b) return;
+    const group = state.billGroups.find(g => g.id === selectedGroupId);
+    if (!group || !confirm('Delete this recorded payment?')) return;
+    if (group.shared) {
+      const r = await rpcOk(sb.from('bill_settlements').delete().eq('id', b.dataset.id).select('id'), "Couldn't delete the payment.");
+      if (!r) return;
+      if (!(r.data || []).length) { toast("Couldn't delete that payment (no permission)."); return; }
+    }
+    group.settlements = (group.settlements || []).filter(x => String(x.id) !== b.dataset.id);
+    persistGroup(group); renderBillDetail(); toast('Payment deleted');
+  });
+
+  // tap outside a sheet / press Escape to close it
+  let downTarget = null;
+  document.addEventListener('pointerdown', e => { downTarget = e.target; });
+  document.addEventListener('click', e => {
+    const t = e.target;
+    if (t === downTarget && t.classList && (t.classList.contains('modal-backdrop') || t.classList.contains('action-sheet-backdrop'))) t.hidden = true;
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') $$('.modal-backdrop:not([hidden]), .action-sheet-backdrop:not([hidden])').forEach(m => { m.hidden = true; });
+  });
 
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && mode === 'cloud') loadSharedBills();
@@ -1852,8 +1940,8 @@ function bind() {
 
   if ($('btnAddExpenseBtn')) {
     $('btnAddExpenseBtn').onclick = () => {
+      if ($('date')) $('date').value = today();
       if ($('addExpenseModal')) $('addExpenseModal').hidden = false;
-      if ($('note')) $('note').focus();
     };
   }
 
@@ -1863,7 +1951,7 @@ function bind() {
   document.addEventListener('click', e => {
     const b = e.target.closest('button[data-m]'); if (!b) return;
     view = new Date(view.getFullYear(), view.getMonth() + Number(b.dataset.m), 1);
-    expensesLimit = 10; renderAll();
+    expanded.tx = false; renderAll();
   });
 
   if ($('btnManageCardsHome')) $('btnManageCardsHome').onclick = () => { location.hash = '#settings'; };
@@ -1954,7 +2042,19 @@ function bind() {
         state.tx = state.tx.filter(t => !String(t.id).startsWith('auto_' + id));
         state.fixedTx = state.fixedTx.filter(x => x.id !== id);
       } else {
+        const removed = state.tx.find(t => String(t.id) === id);
         state.tx = state.tx.filter(t => String(t.id) !== id);
+        // deleting an auto-logged recurring entry should not bring it back
+        const m = /^auto_(.+)_(\d{4}-\d{2})$/.exec(id);
+        const sched = m ? state.fixedTx.find(x => x.id === m[1]) : null;
+        if (sched) { sched.skip = (sched.skip || []).concat(m[2]); }
+        save(); $('editExpenseModal').hidden = true; renderAll();
+        toast('Entry deleted', 'Undo', () => {
+          if (!removed) return;
+          if (sched) sched.skip = (sched.skip || []).filter(x => x !== m[2]);
+          state.tx.push(removed); save(); renderAll();
+        });
+        return;
       }
       save(); $('editExpenseModal').hidden = true; renderAll(); toast('Deleted');
     };
@@ -1995,7 +2095,7 @@ function bind() {
     $('btnOpenArchiveSubpage').onclick = () => {
       $('splitMainView').hidden = true;
       $('splitArchiveView').hidden = false;
-      renderArchivedTricountsList();
+      renderArchivedBillList();
     };
   }
 
@@ -2003,17 +2103,17 @@ function bind() {
     $('btnArchiveBack').onclick = () => {
       $('splitArchiveView').hidden = true;
       $('splitMainView').hidden = false;
-      renderTricountsList();
+      renderBillList();
     };
   }
 
-  if ($('btnSplitBack')) $('btnSplitBack').onclick = closeTricountDetail;
+  if ($('btnSplitBack')) $('btnSplitBack').onclick = closeBillDetail;
 
   if ($('btnAddPersonFabTop')) $('btnAddPersonFabTop').onclick = () => openBillEditor(null);
 
   if ($('btnEditGroupTitle')) {
     $('btnEditGroupTitle').onclick = () => {
-      const group = state.tricounts.find(g => g.id === selectedGroupId);
+      const group = state.billGroups.find(g => g.id === selectedGroupId);
       if (group) openBillEditor(group);
     };
   }
@@ -2063,7 +2163,7 @@ function bind() {
     let sharedWith = 0;
 
     if (editId) {
-      const group = state.tricounts.find(g => g.id === editId);
+      const group = state.billGroups.find(g => g.id === editId);
       if (!group) return;
       if (group.shared && !(await saveBillRemote(group.id, name, finalEmoji, parts))) return;
       group.name = name; group.emoji = finalEmoji; group.participants = parts;
@@ -2075,11 +2175,11 @@ function bind() {
         createdBy: user.id, meKey: profile.code, participants: parts, settlements: [], expenses: []
       };
       if (!(await saveBillRemote(g.id, name, finalEmoji, parts))) return;
-      state.tricounts.push(g); cacheWrite();
+      state.billGroups.push(g); cacheWrite();
       sharedWith = parts.filter(p => p.code && !isMeParticipant(p)).length;
     } else {
       if (mode === 'cloud') toast('Sync is not set up yet, so this bill stays on this device.');
-      state.tricounts.push({
+      state.billGroups.push({
         id: 'g_' + Date.now(), name, emoji: finalEmoji, archived: false, shared: false,
         meKey: meParticipant().key, participants: parts, settlements: [], expenses: []
       });
@@ -2087,13 +2187,13 @@ function bind() {
     }
 
     $('addPersonModal').hidden = true;
-    if (selectedGroupId) renderTricountDetail(); else renderTricountsList();
+    if (selectedGroupId) renderBillDetail(); else renderBillList();
     toast(sharedWith ? `Saved and shared with ${sharedWith} ${sharedWith === 1 ? 'person' : 'people'}` : (editId ? 'Saved bill updates!' : 'Bill created!'));
   });
 
   if ($('btnDeleteGroup')) {
     $('btnDeleteGroup').onclick = () => {
-      const g = state.tricounts.find(x => x.id === $('editGroupId').value);
+      const g = state.billGroups.find(x => x.id === $('editGroupId').value);
       if (!g) return;
       $('addPersonModal').hidden = true;
       removeBill(g);
@@ -2109,17 +2209,9 @@ function bind() {
     const b = e.target.closest('button'); if (!b) return;
     const order = ['expenses', 'balances', 'history'];
     const was = activeSplitTab;
-    activeSplitTab = b.dataset.v; renderTricountDetail();
+    activeSplitTab = b.dataset.v; renderBillDetail();
     if (was !== activeSplitTab) slideIn($({ expenses: 'splitTabExpenses', balances: 'splitTabBalances', history: 'splitTabHistory' }[activeSplitTab]), order.indexOf(activeSplitTab) > order.indexOf(was) ? 1 : -1);
   });
-
-  if ($('btnSeeAllGroupExpenses')) {
-    $('btnSeeAllGroupExpenses').onclick = () => {
-      groupExpensesExpanded = !groupExpensesExpanded;
-      const group = state.tricounts.find(g => g.id === selectedGroupId);
-      if (group) renderTricountExpensesList(group);
-    };
-  }
 
   function renderParticipantToggleGrid(group) {
     const grid = $('splitParticipantsToggleGrid');
@@ -2152,7 +2244,7 @@ function bind() {
 
   if ($('btnOpenAddSplitExpense')) {
     $('btnOpenAddSplitExpense').onclick = () => {
-      const group = state.tricounts.find(g => g.id === selectedGroupId);
+      const group = state.billGroups.find(g => g.id === selectedGroupId);
       if (!group) return;
       if (!group.participants.length) { toast('Add participants to this bill first.'); return; }
 
@@ -2185,7 +2277,7 @@ function bind() {
     const dateVal = $('splitExpDate').value || today();
     const paidBy = $('splitExpPaidBy').value;
 
-    const group = state.tricounts.find(g => g.id === selectedGroupId);
+    const group = state.billGroups.find(g => g.id === selectedGroupId);
     if (!group || !title || !(amount > 0)) return;
 
     const existing = expId ? group.expenses.find(x => x.id === expId) : null;
@@ -2197,13 +2289,13 @@ function bind() {
     }
     if (existing) Object.assign(existing, exp); else group.expenses.push(exp);
     persistGroup(group);
-    $('addSplitExpenseModal').hidden = true; renderTricountDetail(); toast('Expense saved to bill!');
+    $('addSplitExpenseModal').hidden = true; renderBillDetail(); toast('Expense saved to bill!');
   });
 
   on('splitExpensesGroupedList', 'click', e => {
     const card = e.target.closest('.edit-split-exp-btn');
     if (!card) return;
-    const group = state.tricounts.find(g => g.id === selectedGroupId);
+    const group = state.billGroups.find(g => g.id === selectedGroupId);
     if (!group) return;
 
     const exp = group.expenses.find(x => String(x.id) === card.dataset.id);
@@ -2229,7 +2321,7 @@ function bind() {
   if ($('btnDeleteSplitExpense')) {
     $('btnDeleteSplitExpense').onclick = async () => {
       const expId = $('splitExpId').value;
-      const group = state.tricounts.find(g => g.id === selectedGroupId);
+      const group = state.billGroups.find(g => g.id === selectedGroupId);
       if (!group || !expId || !confirm('Delete this bill expense?')) return;
       if (group.shared) {
         const r = await rpcOk(sb.from('bill_expenses').delete().eq('id', expId), "Couldn't delete the expense.");
@@ -2237,13 +2329,13 @@ function bind() {
       }
       group.expenses = group.expenses.filter(x => String(x.id) !== expId);
       persistGroup(group);
-      $('addSplitExpenseModal').hidden = true; renderTricountDetail(); toast('Expense deleted');
+      $('addSplitExpenseModal').hidden = true; renderBillDetail(); toast('Expense deleted');
     };
   }
 
   if ($('btnSettleUp')) {
-    $('btnSettleUp').onclick = () => {
-      const group = state.tricounts.find(g => g.id === selectedGroupId);
+    const openSettle = pre => {
+      const group = state.billGroups.find(g => g.id === selectedGroupId);
       if (!group) return;
 
       const opts = paidByOptions(group);
@@ -2255,15 +2347,25 @@ function bind() {
       if ($('settleReceiver') && other) $('settleReceiver').value = other.key;
       if ($('settleAmount')) $('settleAmount').value = '';
       if ($('settleNote')) $('settleNote').value = '';
+      if (pre) {
+        if (pre.from) $('settlePayer').value = pre.from;
+        if (pre.to) $('settleReceiver').value = pre.to;
+        if (pre.amount) $('settleAmount').value = pre.amount;
+      }
       if ($('settleModal')) $('settleModal').hidden = false;
     };
+    $('btnSettleUp').onclick = () => openSettle();
+    on('splitBalancesList', 'click', e => {
+      const r = e.target.closest('.settle-row'); if (!r) return;
+      openSettle({ from: r.dataset.from, to: r.dataset.to, amount: Number(r.dataset.amount).toFixed(2) });
+    });
   }
 
   if ($('settleCancel')) $('settleCancel').onclick = () => { if ($('settleModal')) $('settleModal').hidden = true; };
 
   on('settleForm', 'submit', async e => {
     e.preventDefault();
-    const group = state.tricounts.find(g => g.id === selectedGroupId);
+    const group = state.billGroups.find(g => g.id === selectedGroupId);
     if (!group) return;
 
     const from = $('settlePayer').value;
@@ -2285,12 +2387,12 @@ function bind() {
     if (!group.settlements) group.settlements = [];
     group.settlements.push(s);
     persistGroup(group);
-    $('settleModal').hidden = true; renderTricountDetail(); toast(`Recorded payment of ${money(amount)}!`);
+    $('settleModal').hidden = true; renderBillDetail(); toast(`Recorded payment of ${money(amount)}!`);
   });
 
   if ($('btnLogShareToMainExpenses')) {
     $('btnLogShareToMainExpenses').onclick = () => {
-      const group = state.tricounts.find(g => g.id === selectedGroupId);
+      const group = state.billGroups.find(g => g.id === selectedGroupId);
       if (!group) return;
       const { myNet } = calculateGroupBalance(group);
       if (Math.abs(myNet) < 0.01) { toast('Fully settled up. No net share to log.'); return; }
@@ -2309,7 +2411,7 @@ function bind() {
 
   on('methodChips', 'click', e => {
     const b = e.target.closest('.chip'); if (!b) return;
-    fMethod = b.dataset.v; expensesLimit = 10;
+    fMethod = b.dataset.v; expanded.tx = false;
     $$('#methodChips .chip').forEach(c => c.classList.toggle('on', c === b));
     renderExpenses();
   });
@@ -2321,7 +2423,7 @@ function bind() {
   });
   on('cardsFilterSeg', 'click', e => {
     const b = e.target.closest('button'); if (!b) return;
-    cardsFilter = b.dataset.v; renderSettings();
+    cardsFilter = b.dataset.v; expanded.cards = false; renderSettings();
   });
   if ($('cardModalCancel')) $('cardModalCancel').onclick = closeCardModal;
 
