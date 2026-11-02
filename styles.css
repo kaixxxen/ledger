@@ -622,7 +622,7 @@ main{ overflow-x:clip; }
   position:fixed; left:50%; transform:translateX(-50%);
   bottom:calc(14px + env(safe-area-inset-bottom));
   display:flex; justify-content:space-between; align-items:center; gap:8px;
-  padding:6px 10px; z-index:20;
+  padding:0 10px; height:64px; z-index:20;
   background:var(--card); border:1px solid var(--line); border-radius:var(--radius-pill);
   box-shadow:0 8px 28px rgba(0,0,0,.16);
   width:calc(100% - 32px); max-width:480px;
@@ -635,10 +635,11 @@ main{ overflow-x:clip; }
 }
 .dock button{
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
-  flex:1; min-width:0; padding:8px 12px 7px; border-radius:var(--radius-pill);
+  flex:1; min-width:0; height:50px; padding:0 12px; border-radius:var(--radius-pill); line-height:1;
   font-size:var(--fs-xs); font-weight:500; color:var(--muted);
 }
-.dock svg{ width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+.dock button span{ display:block; height:12px; line-height:12px; }
+.dock svg{ flex:none; width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
 .dock button.on{ color:var(--text); background:var(--bar); font-weight:600; }
 
 /* ---------- toast ---------- */
@@ -685,9 +686,24 @@ main{ overflow-x:clip; }
   border: 1.5px solid var(--accent);
 }
 
-/* credit card reminders are tappable (opens the Mark as paid sheet) */
-.card-reminder-item{ cursor:pointer; -webkit-user-select:none; user-select:none; transition:background-color .15s ease; }
-.card-reminder-item:active{ background:var(--bar); }
 
 /* charts wait (paused) until scrolled into view */
 .anim-wait, .anim-wait *{ animation-play-state:paused !important; }
+
+/* credit card reminders: tappable rows with a soft rounded highlight that has breathing room */
+.card-reminder-item{
+  position:relative; margin:0 -10px; padding:12px 10px; border-bottom:0; border-radius:var(--radius-md);
+  cursor:pointer; -webkit-user-select:none; user-select:none; transition:background-color .15s ease;
+}
+.card-reminder-item + .card-reminder-item::before{
+  content:''; position:absolute; top:0; left:10px; right:10px; height:1px; background:var(--line);
+}
+.card-reminder-item:active{ background:var(--bar); }
+@media (hover:hover){ .card-reminder-item:hover{ background:var(--bar); } }
+
+/* repeat selector in the add / edit sheets */
+.recur-block{ margin-top:10px; border-top:1px solid var(--line); padding-top:12px; display:grid; gap:8px; }
+.recur-block .lbl{ margin-bottom:0; }
+#recurringOptionsWrap{ display:grid; gap:8px; }
+#recurMonthsWrap, #editRecurMonthsWrap{ display:flex; align-items:center; gap:8px; }
+#recurMonthsWrap .mini-in, #editRecurMonthsWrap .mini-in{ width:70px; padding:6px 8px; text-align:center; }

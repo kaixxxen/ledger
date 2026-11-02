@@ -943,7 +943,7 @@ function renderFixedExpenses() {
       ensureOption($('editCategory'), f.category); $('editCategory').value = f.category;
       setSeg('editMethodSeg', f.method || 'cash'); syncEditCardSelect(f.cardId || '');
       if ($('editRecurringSection')) $('editRecurringSection').hidden = false;
-      if ($('editIsIndefinite')) $('editIsIndefinite').checked = f.indefinite;
+      setSeg('editRecurLenSeg', f.indefinite ? 'ongoing' : 'fixed');
       if ($('editRecurMonthsWrap')) $('editRecurMonthsWrap').hidden = f.indefinite;
       if ($('editRecurTotalMonths')) $('editRecurTotalMonths').value = f.totalMonths || 12;
       $('editModalTitle').textContent = 'Edit Recurring Expense';
@@ -2094,8 +2094,16 @@ function bind() {
   });
 
   on('category', 'change', syncCustomCatField);
-  on('isRecurring', 'change', () => { if ($('recurringOptionsWrap')) $('recurringOptionsWrap').hidden = !$('isRecurring').checked; });
-  on('isIndefinite', 'change', () => { if ($('recurMonthsWrap')) $('recurMonthsWrap').hidden = $('isIndefinite').checked; });
+  on('recurSeg', 'click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    setSeg('recurSeg', b.dataset.v);
+    if ($('recurringOptionsWrap')) $('recurringOptionsWrap').hidden = b.dataset.v !== 'monthly';
+  });
+  on('recurLenSeg', 'click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    setSeg('recurLenSeg', b.dataset.v);
+    if ($('recurMonthsWrap')) $('recurMonthsWrap').hidden = b.dataset.v !== 'fixed';
+  });
 
   on('form', 'submit', e => {
     e.preventDefault();
@@ -2113,10 +2121,10 @@ function bind() {
     let noteVal = $('note').value.trim();
     const dateVal = $('date').value || today();
 
-    const makeRecurring = $('isRecurring') && $('isRecurring').checked;
+    const makeRecurring = segVal('recurSeg') === 'monthly';
     if (makeRecurring) {
       noteVal = noteVal || catVal;
-      const indefinite = !$('isIndefinite') || $('isIndefinite').checked;
+      const indefinite = segVal('recurLenSeg') !== 'fixed';
       state.fixedTx.push({
         id: 'f_' + Date.now(), title: noteVal, amount, category: catVal, type, method, cardId,
         indefinite, totalMonths: Math.max(1, parseInt($('recurTotalMonths') && $('recurTotalMonths').value) || 12),
@@ -2131,7 +2139,9 @@ function bind() {
     if ($('customCategoryInput')) $('customCategoryInput').value = '';
     if ($('category')) $('category').selectedIndex = 0;
     syncCustomCatField();
-    if ($('isRecurring')) { $('isRecurring').checked = false; if ($('recurringOptionsWrap')) $('recurringOptionsWrap').hidden = true; }
+    setSeg('recurSeg', 'once'); setSeg('recurLenSeg', 'ongoing');
+    if ($('recurringOptionsWrap')) $('recurringOptionsWrap').hidden = true;
+    if ($('recurMonthsWrap')) $('recurMonthsWrap').hidden = true;
     if ($('date')) $('date').value = today();
     if ($('addExpenseModal')) $('addExpenseModal').hidden = true;
     toast(makeRecurring ? 'Logged and set to recur monthly' : 'Logged!');
@@ -2152,7 +2162,11 @@ function bind() {
     setSeg('editMethodSeg', b.dataset.v);
     syncEditCardSelect();
   });
-  on('editIsIndefinite', 'change', () => { if ($('editRecurMonthsWrap')) $('editRecurMonthsWrap').hidden = $('editIsIndefinite').checked; });
+  on('editRecurLenSeg', 'click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    setSeg('editRecurLenSeg', b.dataset.v);
+    if ($('editRecurMonthsWrap')) $('editRecurMonthsWrap').hidden = b.dataset.v !== 'fixed';
+  });
 
   if ($('btnDeleteExpenseFromModal')) {
     $('btnDeleteExpenseFromModal').onclick = () => {
@@ -2197,7 +2211,7 @@ function bind() {
       const f = state.fixedTx.find(x => x.id === id);
       if (f) {
         f.amount = amt; f.category = cat; f.title = note || cat; f.type = activeType; f.method = activeMethod; f.cardId = cardId;
-        f.indefinite = !$('editIsIndefinite') || $('editIsIndefinite').checked;
+        f.indefinite = segVal('editRecurLenSeg') !== 'fixed';
         f.totalMonths = Math.max(1, parseInt($('editRecurTotalMonths') && $('editRecurTotalMonths').value) || 12);
         save(); $('editExpenseModal').hidden = true; renderAll(); toast('Recurring expense updated!');
       }
@@ -2610,6 +2624,7 @@ function bind() {
   if ($('date')) $('date').value = today();
 }
 
+function segVal(id) { const b = $$('#' + id + ' button.on')[0]; return b ? b.dataset.v : ''; }
 function setSeg(id, value) { $$('#' + id + ' button').forEach(b => b.classList.toggle('on', b.dataset.v === value)); }
 
 function exportCsv() {
