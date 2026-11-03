@@ -1,4 +1,4 @@
-const CACHE = 'ledger-v36-premium-ui';
+const CACHE = 'ledger-v37-bill-cards';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'

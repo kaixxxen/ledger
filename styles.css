@@ -938,3 +938,52 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 /* Preserve the previous compact iPhone controls and safe-area scrolling. */
 :root[data-os="ios"] input[type="date"]{font-family:var(--font-ui)}
 @media(prefers-reduced-motion:reduce){.dock svg,.bill-card{transition:none}}
+
+
+/* Ledger v37: resilient bill-card typography and native SVG grip.
+   Visual-only change: sorting, pinning and settlement data are untouched. */
+#billsList .bill-card { gap: 9px; }
+#billsList .bill-card-left { flex: 1 1 auto; min-width: 0; gap: 11px; }
+#billsList .bill-card-info { flex: 1 1 auto; min-width: 0; }
+#billsList .bill-name-row { display: block; min-width: 0; }
+#billsList .bill-name-row .bill-name {
+  display: block; min-width: 0; overflow: visible; text-overflow: clip;
+  white-space: normal; overflow-wrap: anywhere; line-height: 1.35;
+}
+#billsList .bill-card-meta {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 5px 7px;
+  min-width: 0; margin-top: 5px;
+}
+#billsList .bill-card-meta .shared-tag {
+  flex: 0 0 auto; line-height: 1.35;
+  padding: 2px 7px; font-size: var(--fs-xs);
+}
+#billsList .bill-card-meta small.muted.fine {
+  display: inline; margin: 0; min-width: 0;
+  font-size: var(--fs-xs); white-space: nowrap;
+}
+#billsList .bill-drag-handle {
+  appearance: none; -webkit-appearance: none; display: grid;
+  place-items: center; flex: 0 0 30px; width: 30px; height: 36px;
+  padding: 0; border: 1px solid transparent;
+  border-radius: 9px; color: var(--muted);
+  background: transparent; cursor: grab; touch-action: none;
+}
+#billsList .bill-drag-handle .bill-grip-icon {
+  display: block; width: 18px; height: 23px;
+  flex: none; fill: currentColor; pointer-events: none;
+}
+#billsList .bill-drag-handle:active { cursor: grabbing; }
+@media (hover: hover) {
+  #billsList .bill-drag-handle:hover {
+    color: var(--text); background: var(--bar); border-color: var(--line);
+  }
+}
+@media (max-width: 420px) {
+  #billsList .bill-card { padding: 12px 11px; gap: 6px; }
+  #billsList .bill-card-left { gap: 9px; }
+  #billsList .bill-emoji { font-size: 22px; }
+  #billsList .bill-pin-btn { width: 30px; height: 32px; }
+  #billsList .bill-drag-handle { flex-basis: 26px; width: 26px; }
+  #billsList .bill-chevron { font-size: var(--fs-md); }
+}

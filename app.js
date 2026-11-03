@@ -1234,12 +1234,16 @@ function renderBillList() {
   const others=orderedBillSection(all.filter(g=>!pins.has(String(g.id))));
   const visible=[...pinned,...limited('bills',others)];
   el.innerHTML=visible.map(g=>`<div class="bill-card ${pins.has(String(g.id))?'is-pinned':''}" data-id="${esc(g.id)}">
-    <div class="bill-card-left"><span class="bill-emoji">${esc(g.emoji)}</span><div>
-      <div class="bill-name-row"><span class="bill-name">${esc(g.name)}</span>${g.trip?'<span class="tag shared-tag">Trip Split</span>':''}${g.shared?'<span class="tag shared-tag">Shared</span>':''}</div>
-      <small class="muted fine">${g.participants.length} members (${esc(g.participants.map(p=>p.name).join(', '))})</small>
+    <div class="bill-card-left"><span class="bill-emoji">${esc(g.emoji)}</span><div class="bill-card-info">
+      <div class="bill-name-row"><span class="bill-name">${esc(g.name)}</span></div>
+      <div class="bill-card-meta">
+        ${g.trip?'<span class="tag shared-tag">Trip Split</span>':''}
+        ${g.shared?'<span class="tag shared-tag">Shared</span>':''}
+        <small class="muted fine">${g.participants.length} ${g.participants.length===1?'member':'members'}</small>
+      </div>
     </div></div>
     <button type="button" class="bill-pin-btn ${pins.has(String(g.id))?'on':''}" aria-label="${pins.has(String(g.id))?'Unpin':'Pin'} ${esc(g.name)}" aria-pressed="${pins.has(String(g.id))}" title="Pin to top">📌</button>
-    <button type="button" class="bill-drag-handle" aria-label="Move ${esc(g.name)} within ${pins.has(String(g.id))?'pinned':'unpinned'} bills" title="Drag to reorder (tap to move down)">⠿</button>
+    <button type="button" class="bill-drag-handle" aria-label="Move ${esc(g.name)} within ${pins.has(String(g.id))?'pinned':'unpinned'} bills" title="Drag to reorder" draggable="false"><svg class="bill-grip-icon" viewBox="0 0 20 24" aria-hidden="true" focusable="false" fill="currentColor"><circle cx="6" cy="5" r="1.6"/><circle cx="14" cy="5" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="14" cy="12" r="1.6"/><circle cx="6" cy="19" r="1.6"/><circle cx="14" cy="19" r="1.6"/></svg></button>
     <span class="bill-chevron">›</span></div>`).join('')+moreBtn('bills',others.length);
   $$('#billsList .bill-card').forEach(card=>{
     const group=state.billGroups.find(g=>String(g.id)===card.dataset.id); if(!group)return;
