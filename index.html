@@ -193,7 +193,8 @@
 
       <div class="split-create-options"><button type="button" class="secondary cta" id="btnAddPersonFabTop">+ Add a Bill</button><button type="button" class="secondary cta" id="btnCreateTripSplit">✈ Create Trip Split</button></div>
 
-      <p class="muted split-subhead">Track shared expenses with friends & sync in real-time</p>
+      <div class="bill-sort-bar"><label for="billSortSelect">Sort bills</label><select id="billSortSelect" aria-label="Sort bills"><option value="manual">Custom order</option><option value="az">Name: A–Z</option><option value="za">Name: Z–A</option><option value="newest">Newest first</option></select></div>
+      <p class="muted split-subhead">Pinned bills first · Drag ⠿ to reorder</p>
       
       <div id="billsList" class="bills-list"></div>
     </div>
@@ -577,7 +578,7 @@
       </div>
 
       <div id="tripExpenseFields" class="trip-expense-fields" hidden>
-        <div class="row2"><div><label class="lbl" for="tripCategory">Expense type</label><select id="tripCategory"><option value="general">Group</option><option value="food">Individual</option></select></div><div id="tripAllocationWrap"><label class="lbl" for="tripAllocation">Split method</label><select id="tripAllocation"><option value="equal">Equal split</option><option value="custom">Custom amounts</option></select></div><div id="tripServiceWrap" hidden><label class="lbl" for="tripServiceCharge">Service charge</label><input id="tripServiceCharge" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></div></div>
+        <div class="row2"><div><label class="lbl" for="tripCategory">Expense type</label><select id="tripCategory"><option value="general">Group</option><option value="food">Individual</option></select></div><div id="tripAllocationWrap"><label class="lbl" for="tripAllocation">Split method</label><select id="tripAllocation"><option value="equal">Equal split</option></select></div><div id="tripServiceWrap" hidden><label class="lbl" for="tripServiceCharge">Service charge</label><input id="tripServiceCharge" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></div></div>
         <label class="lbl">Members & amounts</label><div id="tripMembersGrid" class="trip-members-grid"></div><p class="fine" id="tripModeHelp"></p>
       </div>
       <details class="receipt-scan" data-receipt-target="split">
@@ -587,7 +588,7 @@
           <label class="secondary receipt-picker">📎 Upload receipt<input type="file" accept="image/*" data-receipt-input="upload" hidden></label>
         </div>
         <div class="receipt-scan-result" role="status" aria-live="polite" hidden></div>
-        <p class="fine muted">Check scanned details before saving. Receipts are not stored.</p>
+        
       </div></details>
       <div class="btnrow modal-actions">
         <button type="submit" class="primary">Save Expense</button>
@@ -655,7 +656,7 @@
           <label class="secondary receipt-picker">📎 Upload receipt<input type="file" accept="image/*" data-receipt-input="upload" hidden></label>
         </div>
         <div class="receipt-scan-result" role="status" aria-live="polite" hidden></div>
-        <p class="fine muted">Check scanned details before saving. Receipts are not stored.</p>
+        
       </div></details>
       <div class="btnrow modal-actions">
         <button type="submit" class="primary">Save Changes</button>
@@ -759,7 +760,7 @@
           <label class="secondary receipt-picker">📎 Upload receipt<input type="file" accept="image/*" data-receipt-input="upload" hidden></label>
         </div>
         <div class="receipt-scan-result" role="status" aria-live="polite" hidden></div>
-        <p class="fine muted">Check scanned details before saving. Receipts are not stored.</p>
+        
       </div></details>
       <div class="btnrow modal-actions">
         <button class="primary" type="submit">Log Expense</button>

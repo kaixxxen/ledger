@@ -234,6 +234,7 @@ function normalize(raw) {
       trip: !!p.trip,
       shared: !!p.shared,
       createdBy: String(p.createdBy || ''),
+      createdAt: String(p.createdAt || ''),
       meKey: String(p.meKey || ''),
       participants: parts,
       settlements: (Array.isArray(p.settlements) ? p.settlements : []).map(x => ({
@@ -342,6 +343,7 @@ function attachLongPress(element, callback) {
   let startX = 0, startY = 0;
 
   const start = e => {
+    if (e.target && e.target.closest && e.target.closest('.bill-drag-handle,.bill-pin-btn')) return;
     element._lpFired = false;
     element.classList.add('long-pressing');
     const touch = e.touches ? e.touches[0] : e;
@@ -796,7 +798,7 @@ function renderHome() {
   if (holder) {
     holder.innerHTML = `<div class="bars"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Spending over six months">
       <defs>
-        <linearGradient id="gBarCur" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--gold)" /><stop offset="1" style="stop-color:var(--accent)" /></linearGradient>
+        <linearGradient id="gBarCur" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--gold)" /><stop offset="1" style="stop-color:var(--blue-strong)" /></linearGradient>
         <linearGradient id="gBarPast" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--muted);stop-opacity:.5" /><stop offset="1" style="stop-color:var(--muted);stop-opacity:.14" /></linearGradient>
       </defs>
       ${gridLines}${bars}</svg></div>`;
@@ -1139,69 +1141,122 @@ function initEmojiPickerPopover() {
   });
 }
 
-// Pins are a per-account display preference: no shared-bill database migration needed.
+// Per-account, per-device display preferences. They never modify a shared bill for other members.
 const pinnedBillKey = () => 'ledger.pinnedBills.' + (mode === 'cloud' && user ? user.id : 'local');
-function pinnedBillIds() {
-  try { const ids = JSON.parse(lsGet(pinnedBillKey()) || '[]'); return Array.isArray(ids) ? ids.map(String) : []; }
+const billOrderKey = () => 'ledger.billOrder.' + (mode === 'cloud' && user ? user.id : 'local');
+const billSortKey = () => 'ledger.billSort.' + (mode === 'cloud' && user ? user.id : 'local');
+function readStringArray(key) {
+  try { const ids=JSON.parse(lsGet(key)||'[]'); return Array.isArray(ids) ? [...new Set(ids.map(String))] : []; }
   catch { return []; }
 }
+const pinnedBillIds = () => readStringArray(pinnedBillKey());
+const billSortMode = () => lsGet(billSortKey()) || 'manual';
 function toggleBillPin(id) {
-  const ids = new Set(pinnedBillIds());
-  const wasPinned = ids.has(String(id));
-  if (wasPinned) ids.delete(String(id)); else ids.add(String(id));
-  lsSet(pinnedBillKey(), JSON.stringify([...ids]));
+  const ids=new Set(pinnedBillIds()), wasPinned=ids.has(String(id));
+  if(wasPinned) ids.delete(String(id)); else ids.add(String(id));
+  lsSet(pinnedBillKey(),JSON.stringify([...ids]));
+  // Keep new pins ordered without disturbing the order of other groups.
+  renderBillList(); toast(wasPinned?'Bill unpinned':'Bill pinned to the top');
+}
+function orderedBillSection(groups) {
+  const how=billSortMode();
+  if(how==='az') return groups.sort((a,b)=>a.name.localeCompare(b.name));
+  if(how==='za') return groups.sort((a,b)=>b.name.localeCompare(a.name));
+  if(how==='newest') return groups.sort((a,b)=>{
+    const da=Date.parse(a.createdAt||'')||0, db=Date.parse(b.createdAt||'')||0;
+    return db-da; // Old records without timestamps retain their original relative order.
+  });
+  const saved=readStringArray(billOrderKey());
+  const index=new Map(saved.map((id,i)=>[id,i]));
+  return groups.sort((a,b)=>{
+    const ia=index.has(String(a.id))?index.get(String(a.id)):1e9;
+    const ib=index.has(String(b.id))?index.get(String(b.id)):1e9;
+    return ia-ib;
+  });
+}
+function reorderedBill(id, targetId) {
+  if(id===targetId) return;
+  const pins=new Set(pinnedBillIds());
+  if(pins.has(id)!==pins.has(targetId)) { toast('Pinned bills can only move among pinned bills.'); return; }
+  const all=(state.billGroups||[]).filter(g=>!g.archived);
+  const current=orderedBillSection(all.filter(g=>pins.has(String(g.id))))
+    .concat(orderedBillSection(all.filter(g=>!pins.has(String(g.id)))));
+  const ids=current.map(g=>String(g.id));
+  const from=ids.indexOf(id), to=ids.indexOf(targetId);
+  if(from<0||to<0) return;
+  ids.splice(from,1); ids.splice(to,0,id);
+  lsSet(billOrderKey(),JSON.stringify(ids)); lsSet(billSortKey(),'manual');
+  if($('billSortSelect')) $('billSortSelect').value='manual';
   renderBillList();
-  toast(wasPinned ? 'Bill unpinned' : 'Bill pinned to the top');
+}
+function initBillDrag() {
+  const container=$('billsList'); if(!container||container.dataset.dragReady) return;
+  container.dataset.dragReady='1';
+  let dragging=null, hovering=null;
+  const clear=()=>{ container.querySelectorAll('.bill-card').forEach(x=>x.classList.remove('dragging','drop-target')); dragging=null; hovering=null; };
+  container.addEventListener('pointerdown',e=>{
+    const handle=e.target.closest('.bill-drag-handle'); if(!handle) return;
+    const card=handle.closest('.bill-card'); if(!card) return;
+    e.preventDefault(); e.stopPropagation();
+    dragging=card.dataset.id;
+    handle.setPointerCapture(e.pointerId);
+    card.classList.add('dragging');
+  });
+  container.addEventListener('pointermove',e=>{
+    if(!dragging) return;
+    const target=document.elementFromPoint(e.clientX,e.clientY)?.closest('.bill-card');
+    container.querySelectorAll('.bill-card').forEach(x=>x.classList.remove('drop-target'));
+    if(target && target.dataset.id!==dragging){hovering=target.dataset.id;target.classList.add('drop-target');}else hovering=null;
+  });
+  container.addEventListener('pointerup',e=>{
+    if(!dragging) return;
+    const a=dragging,b=hovering; clear();if(b) reorderedBill(a,b);
+  });
+  container.addEventListener('pointercancel',clear);
+  // Keyboard-accessible reorder. Pointer dragging doesn't fire a second click movement.
+  container.addEventListener('keydown',e=>{
+    const handle=e.target.closest('.bill-drag-handle');
+    if(!handle || !['ArrowUp','ArrowDown'].includes(e.key)) return;
+    e.preventDefault();e.stopPropagation();
+    const card=handle.closest('.bill-card'),list=[...container.querySelectorAll('.bill-card')];
+    const pins=new Set(pinnedBillIds());
+    const allowed=list.filter(x=>pins.has(x.dataset.id)===pins.has(card.dataset.id));
+    const i=allowed.indexOf(card),next=allowed[i+(e.key==='ArrowUp'?-1:1)];
+    if(next) reorderedBill(card.dataset.id,next.dataset.id);
+  });
 }
 function renderBillList() {
-  const el = $('billsList');
-  if (!el) return;
-  const activeGroups = (state.billGroups || []).filter(g => !g.archived);
-  if (activeGroups.length === 0) {
-    el.innerHTML = '<div class="empty-card card">No active bill added. Tap <b>+ Add a Bill</b> or <b>Create Trip Split</b> to get started!</div>';
-    return;
-  }
-  const pins = new Set(pinnedBillIds());
-  const pinned = activeGroups.filter(g => pins.has(String(g.id)));
-  const others = activeGroups.filter(g => !pins.has(String(g.id)));
-  const visible = [...pinned, ...limited('bills', others)];
-  el.innerHTML = visible.map(g => `
-    <div class="bill-card ${pins.has(String(g.id)) ? 'is-pinned' : ''}" data-id="${esc(g.id)}">
-      <div class="bill-card-left">
-        <span class="bill-emoji">${esc(g.emoji)}</span>
-        <div>
-          <div class="bill-name-row"><span class="bill-name">${esc(g.name)}</span>${g.trip ? '<span class="tag shared-tag">Trip Split</span>' : ''}${g.shared ? '<span class="tag shared-tag">Shared</span>' : ''}</div>
-          <small class="muted fine">${g.participants.length} members (${esc(g.participants.map(p => p.name).join(', '))})</small>
-        </div>
-      </div>
-      <button type="button" class="bill-pin-btn ${pins.has(String(g.id)) ? 'on' : ''}" aria-label="${pins.has(String(g.id)) ? 'Unpin' : 'Pin'} ${esc(g.name)}" title="${pins.has(String(g.id)) ? 'Unpin' : 'Pin to top'}" aria-pressed="${pins.has(String(g.id))}" data-pin-id="${esc(g.id)}">📌</button>
-      <span class="bill-chevron">›</span>
-    </div>`).join('') + moreBtn('bills', others.length);
-
-  $$('#billsList .bill-card').forEach(card => {
-    const group = state.billGroups.find(g => String(g.id) === card.dataset.id);
-    if (!group) return;
-    card.querySelector('.bill-pin-btn').addEventListener('click', e => {
-      e.stopPropagation(); toggleBillPin(group.id);
-    });
-    card.onclick = e => {
-      if (e.target.closest('.bill-pin-btn')) return;
-      if (card._lpFired) { card._lpFired = false; return; }
-      openBillDetail(group.id);
-    };
-    attachLongPress(card, e => {
-      if (e.target && e.target.closest && e.target.closest('.bill-pin-btn')) return;
-      const leaving = group.shared && user && group.createdBy !== user.id;
-      showActionSheet(group.name, `Members: ${group.participants.map(p => p.name).join(', ')}`, [
-        { text: pins.has(String(group.id)) ? '📌 Unpin Bill' : '📌 Pin to Top', action: () => toggleBillPin(group.id) },
-        { text: '📁 Archive Bill', action: async () => {
-          if (await setArchived(group, true)) { renderBillList(); toast(`Archived ${group.name}`); }
-        } },
-        { text: '✏️ Edit Bill Details', action: () => openBillEditor(group) },
-        { text: leaving ? '🚪 Leave Bill' : '🗑️ Delete Bill', danger: true, action: () => removeBill(group) }
+  const el=$('billsList');if(!el)return;
+  const all=(state.billGroups||[]).filter(g=>!g.archived);
+  if(!all.length){el.innerHTML='<div class="empty-card card">No active bills yet. Add a Bill or Create Trip Split.</div>';return;}
+  const pins=new Set(pinnedBillIds());
+  const pinned=orderedBillSection(all.filter(g=>pins.has(String(g.id))));
+  const others=orderedBillSection(all.filter(g=>!pins.has(String(g.id))));
+  const visible=[...pinned,...limited('bills',others)];
+  el.innerHTML=visible.map(g=>`<div class="bill-card ${pins.has(String(g.id))?'is-pinned':''}" data-id="${esc(g.id)}">
+    <div class="bill-card-left"><span class="bill-emoji">${esc(g.emoji)}</span><div>
+      <div class="bill-name-row"><span class="bill-name">${esc(g.name)}</span>${g.trip?'<span class="tag shared-tag">Trip Split</span>':''}${g.shared?'<span class="tag shared-tag">Shared</span>':''}</div>
+      <small class="muted fine">${g.participants.length} members (${esc(g.participants.map(p=>p.name).join(', '))})</small>
+    </div></div>
+    <button type="button" class="bill-pin-btn ${pins.has(String(g.id))?'on':''}" aria-label="${pins.has(String(g.id))?'Unpin':'Pin'} ${esc(g.name)}" aria-pressed="${pins.has(String(g.id))}" title="Pin to top">📌</button>
+    <button type="button" class="bill-drag-handle" aria-label="Move ${esc(g.name)} within ${pins.has(String(g.id))?'pinned':'unpinned'} bills" title="Drag to reorder (tap to move down)">⠿</button>
+    <span class="bill-chevron">›</span></div>`).join('')+moreBtn('bills',others.length);
+  $$('#billsList .bill-card').forEach(card=>{
+    const group=state.billGroups.find(g=>String(g.id)===card.dataset.id); if(!group)return;
+    card.querySelector('.bill-pin-btn').onclick=e=>{e.stopPropagation();toggleBillPin(group.id);};
+    card.onclick=e=>{if(e.target.closest('.bill-pin-btn,.bill-drag-handle'))return;if(card._lpFired){card._lpFired=false;return;}openBillDetail(group.id);};
+    attachLongPress(card,e=>{
+      if(e.target?.closest?.('.bill-pin-btn,.bill-drag-handle'))return;
+      const leaving=group.shared&&user&&group.createdBy!==user.id;
+      showActionSheet(group.name,`Members: ${group.participants.map(p=>p.name).join(', ')}`,[
+        {text:pins.has(String(group.id))?'📌 Unpin Bill':'📌 Pin to Top',action:()=>toggleBillPin(group.id)},
+        {text:'📁 Archive Bill',action:async()=>{if(await setArchived(group,true)){renderBillList();toast(`Archived ${group.name}`);}}},
+        {text:'✏️ Edit Bill Details',action:()=>openBillEditor(group)},
+        {text:leaving?'🚪 Leave Bill':'🗑️ Delete Bill',danger:true,action:()=>removeBill(group)}
       ]);
     });
   });
+  initBillDrag();
 }
 
 function renderArchivedBillList() {
@@ -1329,7 +1384,7 @@ async function loadSharedBills() {
 
     const shared = (b.data || []).map(x => ({
       id: x.id, name: x.name, emoji: x.emoji || '🐶', shared: true, trip: !!x.is_trip,
-      createdBy: x.created_by, archived: !!arch[x.id],
+      createdBy: x.created_by, createdAt: x.created_at || '', archived: !!arch[x.id],
       participants: (x.participants || []).map(p => ({
         key: p.key || p.code || p.name, code: p.code || null,
         name: (p.code && nick[p.code]) || p.name || 'Ledger user'
@@ -2119,7 +2174,7 @@ function setupTripExpenseForm(group, exp) {
   if (!group.trip) return;
   const data=exp && exp.tripData || {};
   $('tripCategory').value=data.category || 'general';
-  $('tripAllocation').value=data.mode || 'equal';
+  $('tripAllocation').value = 'equal';
   $('tripServiceCharge').value=data.serviceCharge || '';
   $('tripMembersGrid').innerHTML=group.participants.map(p=>{
     const chosen= !exp || (data.shares && Object.hasOwn(data.shares,p.key));
@@ -2128,9 +2183,12 @@ function setupTripExpenseForm(group, exp) {
     return `<div class="trip-member-row"><label><input type="checkbox" data-trip-member="${esc(p.key)}" ${chosen?'checked':''}> ${esc(p.name)}</label><input type="number" inputmode="decimal" min="0" step="0.01" placeholder="Amount" data-trip-amount="${esc(p.key)}" value="${esc(value)}"></div>`;
   }).join('');
   updateTripFormMode();
+  if (data.category === 'general' && data.mode === 'custom') {
+    $('tripModeHelp').textContent = 'Previously custom: saving will split this expense equally. Review before saving.';
+  }
 }
 function tripIsAutoAmount() {
-  return $('tripCategory').value === 'food' || $('tripAllocation').value === 'custom';
+  return $('tripCategory').value === 'food' || ($('tripCategory').value === 'general' && $('tripAllocation').value === 'custom');
 }
 function updateTripAmount() {
   const amountEl = $('splitExpAmount');
@@ -2149,8 +2207,10 @@ function updateTripAmount() {
 function updateTripFormMode() {
   const food = $('tripCategory').value === 'food';
   const custom = tripIsAutoAmount();
+  // Group expenses always use equal split; old saved custom expenses remain readable.
+  // When opening an old custom Group expense, convert to equal only on an explicit type change.
   $('tripAllocationWrap').hidden = food;
-  $('tripServiceWrap').hidden = !custom;
+  $('tripServiceWrap').hidden = !food && !custom;
   $$('#tripMembersGrid [data-trip-amount]').forEach(i => i.hidden = !custom);
   $('splitExpAmount').readOnly = custom;
   $('splitExpAmount').classList.toggle('trip-amount-auto', custom);
@@ -2226,6 +2286,10 @@ function bind() {
     });
   }
 
+  if ($('billSortSelect')) {
+    $('billSortSelect').value=billSortMode();
+    $('billSortSelect').addEventListener('change', e=>{lsSet(billSortKey(),e.target.value);renderBillList();});
+  }
   initEmojiPickerPopover();
   initModalAnimations();
 
@@ -2510,7 +2574,7 @@ function bind() {
   }
 
   if ($('btnSplitBack')) $('btnSplitBack').onclick = closeBillDetail;
-  on('tripCategory','change',updateTripFormMode);
+  on('tripCategory','change',() => { $('tripAllocation').value='equal'; updateTripFormMode(); });
   on('tripAllocation','change',updateTripFormMode);
   on('tripServiceCharge','input',updateTripAmount);
   on('tripMembersGrid','input',updateTripAmount);
@@ -2580,7 +2644,7 @@ function bind() {
     } else if (mode === 'cloud' && sb && profile) {
       const g = {
         id: uid(), name, emoji: finalEmoji, archived: false, shared: true, trip: creatingTrip,
-        createdBy: user.id, meKey: profile.code, participants: parts, settlements: [], expenses: []
+        createdBy: user.id, createdAt: new Date().toISOString(), meKey: profile.code, participants: parts, settlements: [], expenses: []
       };
       if (!(await saveBillRemote(g.id, name, finalEmoji, parts))) return;
       if (creatingTrip && !(await saveTripTypeRemote(g.id))) { await sb.from("bills").delete().eq("id",g.id); return; }
@@ -2589,7 +2653,7 @@ function bind() {
     } else {
       if (mode === 'cloud') toast('Sync is not set up yet, so this bill stays on this device.');
       state.billGroups.push({
-        id: 'g_' + Date.now(), name, emoji: finalEmoji, archived: false, shared: false, trip: creatingTrip,
+        id: 'g_' + Date.now(), name, emoji: finalEmoji, archived: false, shared: false, trip: creatingTrip, createdAt: new Date().toISOString(),
         meKey: meParticipant().key, participants: parts, settlements: [], expenses: []
       });
       save();
@@ -3053,7 +3117,7 @@ function initReceiptScanner() {
     section.querySelectorAll('input[type="file"]').forEach(input => input.addEventListener('change', async () => {
       const file=input.files && input.files[0];
       if (!file) return;
-      result.hidden=false;result.classList.remove('warn');result.textContent='Reading receipt on your device…';
+      result.hidden = true; result.classList.remove('warn'); result.textContent = '';
       // Check type and size before decoding to protect low-memory phones.
       if (!file.type.startsWith('image/') || file.size > 12*1024*1024) {
         result.classList.add('warn');result.textContent='Choose a JPG, PNG or other image under 12 MB.';input.value='';return;
@@ -3074,13 +3138,12 @@ function initReceiptScanner() {
         }
         if (info.merchant && $(fields.name) && !$(fields.name).value.trim()) {$(fields.name).value=info.merchant;applied.push('merchant');}
         // Default dates usually prefilled with today; suggest receipt date without overwriting.
-        result.classList.add('warn');
-        result.textContent=`Receipt read (${Math.round(confidence)}% OCR text confidence). ${applied.length?'Suggested '+applied.join(' and ')+'. ':'No fields were overwritten.'}`+
-          (info.date?`\nDetected date: ${info.date} — check the Date field.`:'\nDate not reliably detected.')+
-          (info.amount!=null?`\nPossible total: ${info.amount.toFixed(2)}${info.confidentTotal?'':' (uncertain)'}.`:'\nTotal could not be identified.')+
-          '\n⚠ Review every field against your receipt before saving. OCR can misread faded, blurry, or complex receipts.';
+        // No verbose OCR report; show a short verification note only when uncertain.
+        result.hidden = confidence < 70 || !info.confidentTotal;
+        result.classList.toggle('warn', !result.hidden);
+        result.textContent = result.hidden ? '' : 'Please verify the scanned details.';
       } catch(err) {
-        result.classList.add('warn');result.textContent='Could not read this receipt. Enter the details manually and verify them. '+(err.message||'');
+        result.hidden=false; result.classList.add('warn'); result.textContent='Could not read receipt. Enter details manually.';
       } finally {
         section.querySelectorAll('input[type="file"]').forEach(el=>{el.disabled=false;el.value='';});
       }

@@ -817,3 +817,29 @@ li.tx .amt{ font-weight:600; font-size:var(--fs-base); }
 .share-ledger-copy{display:flex;flex-direction:column;gap:3px;min-width:0;font-size:var(--fs-base)}
 .share-ledger-copy .fine{margin:0!important}
 .share-ledger-btn{white-space:nowrap;padding:10px 13px;font-size:var(--fs-sm);border-radius:var(--radius-md);}
+
+/* Ledger v34 · blue accent, accessible sorting, and uniform form controls */
+:root{--gold:#3678da;--blue-soft:#78c5ff;--blue-strong:#2667cc;--blue-glow:rgba(61,146,247,.22);}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--gold:#78baff;--blue-soft:#9cd9ff;--blue-strong:#549dff;--blue-glow:rgba(86,162,255,.24);}}
+:root[data-theme="dark"]{--gold:#78baff;--blue-soft:#9cd9ff;--blue-strong:#549dff;--blue-glow:rgba(86,162,255,.24);}
+.hero{background:linear-gradient(145deg,#183d7a 0%,#0c234c 62%,#09172f 100%);}
+.hero::after{background:radial-gradient(circle,rgba(108,195,255,.31),transparent 70%);}
+.progress i{background:linear-gradient(90deg,var(--blue-strong),var(--blue-soft));}
+.b-bar.cur{filter:drop-shadow(0 6px 10px var(--blue-glow));}
+.dock button.on{color:var(--blue-strong);background:color-mix(in srgb,var(--gold) 12%,var(--card));}
+.dock button.on svg{stroke:var(--gold);}
+.bill-sort-bar{display:flex;align-items:center;justify-content:flex-end;gap:9px;margin:4px 0 8px;}
+.bill-sort-bar label{font-size:var(--fs-xs);color:var(--muted);}
+.bill-sort-bar select{width:auto;max-width:170px;font-size:var(--fs-xs);padding:7px 27px 7px 10px;background:var(--card);}
+.bill-drag-handle{touch-action:none;user-select:none;flex:none;width:28px;height:34px;display:grid;place-items:center;font-size:19px;color:var(--muted);cursor:grab;border-radius:8px;}
+.bill-drag-handle:active{cursor:grabbing;}
+.bill-card.dragging{opacity:.58;border-color:var(--gold);}
+.bill-card.drop-target{outline:2px dashed var(--gold);outline-offset:2px;}
+.bill-pin-btn{width:32px;height:32px;}
+#addSplitExpenseModal .row2 input:not([type="checkbox"]),
+#addSplitExpenseModal .row2 select{box-sizing:border-box;height:44px;min-height:44px;padding:10px 12px;border-radius:var(--radius-md);line-height:normal;}
+#addSplitExpenseModal .row2 input[type="date"]{height:44px;min-height:44px;padding:9px 8px!important;}
+#addSplitExpenseModal .row2>div{min-width:0;}
+#tripAllocationWrap[hidden],#tripServiceWrap[hidden]{display:none!important;}
+@media(max-width:600px){#addSplitExpenseModal .row2 input:not([type="checkbox"]),#addSplitExpenseModal .row2 select,#addSplitExpenseModal .row2 input[type="date"]{height:42px;min-height:42px;}}
+@media(prefers-reduced-motion:reduce){.bill-card{transition:none;}}
