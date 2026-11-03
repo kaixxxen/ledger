@@ -1,4 +1,4 @@
-const CACHE = 'ledger-v40-global-fab-settings';
+const CACHE = 'ledger-v41-avatar-toolbar-glow';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'

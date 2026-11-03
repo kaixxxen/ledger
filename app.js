@@ -1134,49 +1134,74 @@ function initEmojiPickerPopover() {
   const popover = $('emojiPickerPopover');
   const grid = $('emojiGrid');
   const typeInput = $('typeEmojiInput');
+  const searchInput = $('emojiSearchInput');
   const closeBtn = $('closeEmojiPickerBtn');
+  const confirmBtn = $('confirmEmojiPickerBtn');
+  if (!btn || !popover || !grid || !confirmBtn) return;
 
-  if (!btn || !popover || !grid) return;
-
-  grid.innerHTML = DEFAULT_AVATAR_EMOJIS.map(e => `
-    <button type="button" class="emoji-grid-item" data-emoji="${e}">${e}</button>
-  `).join('');
-
-  const selectEmoji = (emoji) => {
-    const symbol = emoji || '🐶';
-    btn.textContent = symbol;
-    if (hiddenInput) hiddenInput.value = symbol;
+  // Move to the top-level document so tall content cannot be clipped by the scrolling bill modal.
+  document.body.appendChild(popover);
+  const names = ['Dog','Cat','Mouse','Hamster','Rabbit','Fox','Bear','Panda','Koala','Tiger','Lion','Cow','Pig','Frog','Monkey','Chicken','Penguin','Bird','Duck','Eagle','Owl','Bat','Wolf','Boar','Horse','Unicorn','Bee','Bug','Butterfly','Turtle'];
+  let pendingEmoji = '';
+  let priorFocus = null;
+  const renderChoices = () => {
+    const query = (searchInput?.value || '').trim().toLowerCase();
+    grid.innerHTML = DEFAULT_AVATAR_EMOJIS.map((emoji, i) => ({emoji, name:names[i] || 'Animal'}))
+      .filter(item => item.name.toLowerCase().includes(query))
+      .map(item => `<button type="button" class="emoji-grid-item${item.emoji === pendingEmoji ? ' is-selected' : ''}" data-emoji="${item.emoji}" aria-label="${item.name}" aria-pressed="${item.emoji === pendingEmoji}"><span>${item.emoji}</span></button>`).join('')
+      || '<p class="emoji-no-results">No matching animals. Try another search or paste an emoji.</p>';
+  };
+  const close = () => {
     popover.hidden = true;
+    document.body.classList.remove('emoji-picker-open');
+    if (priorFocus?.isConnected) priorFocus.focus();
   };
-
-  btn.onclick = (e) => {
-    e.stopPropagation();
-    popover.hidden = !popover.hidden;
-    if (!popover.hidden && typeInput) typeInput.focus();
+  const open = () => {
+    priorFocus = document.activeElement;
+    pendingEmoji = hiddenInput?.value || btn.textContent.trim() || '🐶';
+    if (searchInput) searchInput.value = '';
+    if (typeInput) typeInput.value = '';
+    renderChoices();
+    popover.hidden = false;
+    document.body.classList.add('emoji-picker-open');
+    (searchInput || closeBtn).focus();
   };
-
-  if (closeBtn) closeBtn.onclick = () => { popover.hidden = true; };
-
-  grid.onclick = (e) => {
+  btn.onclick = e => { e.stopPropagation(); if (popover.hidden) open(); else close(); };
+  closeBtn?.addEventListener('click', close);
+  popover.addEventListener('click', e => { if (e.target === popover) close(); });
+  grid.addEventListener('click', e => {
     const item = e.target.closest('.emoji-grid-item');
-    if (item && item.dataset.emoji) selectEmoji(item.dataset.emoji);
-  };
-
-  if (typeInput) {
-    typeInput.oninput = (e) => {
-      const val = e.target.value.trim();
-      if (val) {
-        selectEmoji(Array.from(val).pop() || '🐶');
-        typeInput.value = '';
-      }
-    };
-  }
-
-  document.addEventListener('click', (e) => {
-    if (popover && !popover.hidden && !popover.contains(e.target) && e.target !== btn) {
-      popover.hidden = true;
+    if (!item) return;
+    pendingEmoji = item.dataset.emoji;
+    if (typeInput) typeInput.value = '';
+    renderChoices();
+  });
+  searchInput?.addEventListener('input', renderChoices);
+  typeInput?.addEventListener('input', () => {
+    const value = typeInput.value.trim();
+    if (value) { pendingEmoji = value; renderChoices(); }
+  });
+  confirmBtn.addEventListener('click', () => {
+    const emoji = (typeInput?.value || '').trim() || pendingEmoji || '🐶';
+    btn.textContent = emoji;
+    if (hiddenInput) hiddenInput.value = emoji;
+    close();
+  });
+  document.addEventListener('keydown', e => {
+    if (popover.hidden) return;
+    if (e.key === 'Escape') { e.preventDefault(); close(); }
+    // Keep keyboard navigation inside the open picker.
+    if (e.key === 'Tab') {
+      const controls = Array.from(popover.querySelectorAll('button:not([disabled]),input:not([disabled])')).filter(el => el.getClientRects().length);
+      if (!controls.length) return;
+      const first = controls[0], last = controls[controls.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     }
   });
+  // Opening another app modal closes the picker without changing its saved avatar.
+  new MutationObserver(() => { if ($('addPersonModal')?.hidden && !popover.hidden) close(); })
+    .observe($('addPersonModal'), {attributes:true,attributeFilter:['hidden']});
 }
 
 // Per-account, per-device display preferences. They never modify a shared bill for other members.

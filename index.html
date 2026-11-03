@@ -183,8 +183,10 @@
         </div>
       </header>
 
-      <div class="bill-sort-bar"><label for="billSortSelect">Sort bills</label><select id="billSortSelect" aria-label="Sort bills"><option value="manual">Custom order</option><option value="az">Name: A–Z</option><option value="za">Name: Z–A</option><option value="newest">Newest first</option></select></div>
-      <p class="muted split-subhead">Pinned bills first · Drag ⠿ to reorder</p>
+      <div class="bill-list-toolbar">
+        <p class="muted split-subhead"><svg class="toolbar-grip" viewBox="0 0 20 24" aria-hidden="true" focusable="false"><circle cx="6" cy="5" r="2"/><circle cx="14" cy="5" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="14" cy="12" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="14" cy="19" r="2"/></svg><span>Pinned first · Drag to reorder</span></p>
+        <div class="bill-sort-bar"><label for="billSortSelect">Sort</label><select id="billSortSelect" aria-label="Sort bills"><option value="manual">Custom order</option><option value="az">Name: A–Z</option><option value="za">Name: Z–A</option><option value="newest">Newest first</option></select></div>
+      </div>
       
       <div id="billsList" class="bills-list"></div>
     </div>
@@ -471,14 +473,19 @@
             <button type="button" id="emojiAvatarBtn" class="emoji-avatar-btn" title="Choose animal emoji avatar">🐶</button>
             <input type="hidden" id="customEmojiInput" value="🐶">
             
-            <div id="emojiPickerPopover" class="emoji-popover" hidden>
-              <div class="emoji-popover-header">
-                <span>Choose Animal Avatar</span>
-                <button type="button" id="closeEmojiPickerBtn" class="emoji-popover-close">&times;</button>
-              </div>
-              <div class="emoji-grid" id="emojiGrid"></div>
-              <div class="emoji-popover-footer">
-                <input type="text" id="typeEmojiInput" placeholder="Type or paste emoji..." maxlength="4" aria-label="Type custom emoji">
+            <div id="emojiPickerPopover" class="emoji-popover" role="dialog" aria-modal="true" aria-labelledby="emojiPickerTitle" hidden>
+              <div class="emoji-picker-panel">
+                <div class="emoji-popover-header">
+                  <div><strong id="emojiPickerTitle">Choose an avatar</strong><span>Give this bill its own little personality.</span></div>
+                  <button type="button" id="closeEmojiPickerBtn" class="emoji-popover-close" aria-label="Close avatar picker">&times;</button>
+                </div>
+                <label class="emoji-search-wrap" for="emojiSearchInput"><span aria-hidden="true">⌕</span><input type="search" id="emojiSearchInput" placeholder="Search animals" autocomplete="off" aria-label="Search animal avatars"></label>
+                <div class="emoji-grid" id="emojiGrid" aria-label="Animal avatar choices"></div>
+                <div class="emoji-popover-footer">
+                  <label for="typeEmojiInput">Or use your own emoji</label>
+                  <input type="text" id="typeEmojiInput" placeholder="Paste an emoji" maxlength="8" aria-label="Custom avatar emoji">
+                  <button type="button" id="confirmEmojiPickerBtn" class="primary emoji-picker-confirm">Use this avatar</button>
+                </div>
               </div>
             </div>
           </div>
