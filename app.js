@@ -459,6 +459,40 @@ function initModalAnimations() {
   });
 }
 
+// Floating creation menu. No duplicate business logic: delegate to the established modal handlers.
+function closeGlobalActions() {
+  const menu = $('globalActionsMenu'), dismiss = $('globalActionsDismiss'), toggle = $('globalActionsToggle');
+  if (menu) menu.hidden = true;
+  if (dismiss) dismiss.hidden = true;
+  if (toggle) { toggle.setAttribute('aria-expanded', 'false'); toggle.classList.remove('is-open'); }
+}
+function setGlobalActionsOpen(open) {
+  const menu = $('globalActionsMenu'), dismiss = $('globalActionsDismiss'), toggle = $('globalActionsToggle');
+  if (!menu || !toggle) return;
+  const inBill = currentPage === 'split' && !!selectedGroupId && !!$('splitDetailView') && !$('splitDetailView').hidden;
+  if ($('globalAddToBill')) $('globalAddToBill').hidden = !inBill;
+  menu.hidden = !open;
+  if (dismiss) dismiss.hidden = !open;
+  toggle.setAttribute('aria-expanded', String(open));
+  toggle.classList.toggle('is-open', open);
+}
+function initGlobalActions() {
+  const toggle = $('globalActionsToggle'), menu = $('globalActionsMenu');
+  if (!toggle || !menu) return;
+  toggle.addEventListener('click', () => setGlobalActionsOpen(menu.hidden));
+  $('globalActionsDismiss')?.addEventListener('click', closeGlobalActions);
+  menu.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-create]'); if (!btn) return;
+    const action = btn.dataset.create;
+    closeGlobalActions();
+    const targets = {expense:'btnAddExpenseBtn',bill:'btnAddPersonFabTop',detailed:'btnCreateTripSplit','in-bill':'btnOpenAddSplitExpense'};
+    const target = $(targets[action]);
+    if (target) target.click();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !menu.hidden) { closeGlobalActions(); toggle.focus(); }
+  });
+}
 function route() {
   let name = (location.hash || '').replace('#', '');
   if (!PAGES.includes(name)) name = 'home';
@@ -471,6 +505,7 @@ function route() {
   try { window.scrollTo(0, 0); } catch {}
   if (prev && prev !== name) slideIn($('page-' + name), PAGES.indexOf(name) > PAGES.indexOf(prev) ? 1 : -1);
   currentPage = name;
+  closeGlobalActions();
   renderAll();
 }
 
@@ -478,6 +513,7 @@ function showApp() {
   if ($('auth')) $('auth').hidden = true;
   if ($('app')) $('app').hidden = false;
   if ($('dock')) $('dock').hidden = false;
+  if ($('globalActions')) $('globalActions').hidden = false;
   ensureDockGradient();
   route();
 }
@@ -493,6 +529,8 @@ function ensureDockGradient() {
 function showAuth() {
   if ($('app')) $('app').hidden = true;
   if ($('dock')) $('dock').hidden = true;
+  closeGlobalActions();
+  if ($('globalActions')) $('globalActions').hidden = true;
   if ($('auth')) $('auth').hidden = false;
   authMsg('');
   // Without a cloud config there is nothing to sign in to, so hide the provider options.
@@ -2725,7 +2763,7 @@ function bind() {
       if (!group) return;
       if (!group.participants.length) { toast('Add participants to this bill first.'); return; }
 
-      $('splitExpenseModalTitle').textContent = group.trip ? 'Add Trip Expense' : 'Add Shared Expense';
+      $('splitExpenseModalTitle').textContent = group.trip ? 'Add Detailed Expense' : 'Add Shared Expense';
       setupTripExpenseForm(group, null);
       $('splitExpId').value = '';
       $('splitExpTitle').value = '';
@@ -3018,6 +3056,7 @@ function registerServiceWorker() {
 }
 
 async function boot() {
+  initGlobalActions();
   try {
     registerServiceWorker();
     applyTheme(getTheme());
