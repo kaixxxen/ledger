@@ -44,7 +44,7 @@
 
   /* font stacks */
   --font-ui:'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  --font-num:'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'Inter', monospace;
+  --font-num:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
   /* radii */
   --radius-sm:6px; --radius-md:10px; --radius-lg:16px; --radius-pill:999px;
@@ -109,7 +109,7 @@ h1,h2,h3,p{ margin:0; }
 ul{ list-style:none; margin:0; padding:0; }
 code{ font-family:var(--font-num); }
 
-/* figures use JetBrains Mono everywhere */
+/* Financial figures use Inter tabular numerals. */
 .num, .big, .stat b, .mini b, li.tx .amt, .exp-amount, .card-spent-current, .card-spent-next, .paid-amount,
 .d-val, .b-val, .legend b, .legend em, .split-legend b, .split-stats-bar b, .fixed-item b, .history-item b,
 .settle-row .bold, .hero-split b, .clickable-code, input[type="number"], .mini-in{
@@ -843,3 +843,98 @@ li.tx .amt{ font-weight:600; font-size:var(--fs-base); }
 #tripAllocationWrap[hidden],#tripServiceWrap[hidden]{display:none!important;}
 @media(max-width:600px){#addSplitExpenseModal .row2 input:not([type="checkbox"]),#addSplitExpenseModal .row2 select,#addSplitExpenseModal .row2 input[type="date"]{height:42px;min-height:42px;}}
 @media(prefers-reduced-motion:reduce){.bill-card{transition:none;}}
+
+
+/* =======================================================================
+   Ledger v36: visual polish only. No state, calculations or data changes.
+   The values below override legacy presentation rules deliberately.
+   ======================================================================= */
+:root {
+  --bg:#f3f6fc;
+  --card:#ffffff;
+  --card-2:#f8faff;
+  --text:#17243a;
+  --muted:#66758a;
+  --line:#e3eaf5;
+  --bar:#edf2fb;
+  --accent:#194fbd;
+  --on-accent:#ffffff;
+  --gold:#3978df;
+  --blue-strong:#2368d0;
+  --blue-soft:#83c9ff;
+  --radius-sm:8px;
+  --radius-md:12px;
+  --radius-lg:18px;
+  --shadow-sm:0 2px 6px rgba(20,53,106,.035), 0 1px 2px rgba(20,53,106,.025);
+  --shadow-md:0 12px 36px -16px rgba(20,54,108,.22);
+  --shadow-lg:0 28px 72px -28px rgba(14,38,83,.35);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]){
+    --bg:#0c111c;--card:#151e2b;--card-2:#1a2636;--text:#f2f6ff;
+    --muted:#9caec4;--line:#29384e;--bar:#202f43;
+    --accent:#8dbbff;--on-accent:#101b30;--gold:#77b3ff;
+    --blue-strong:#92c0ff;--blue-soft:#b7dcff;
+    --shadow-sm:0 2px 9px rgba(0,0,0,.15);
+    --shadow-md:0 16px 44px -18px rgba(0,0,0,.54);
+    --shadow-lg:0 28px 72px -25px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0c111c;--card:#151e2b;--card-2:#1a2636;--text:#f2f6ff;
+  --muted:#9caec4;--line:#29384e;--bar:#202f43;
+  --accent:#8dbbff;--on-accent:#101b30;--gold:#77b3ff;
+  --blue-strong:#92c0ff;--blue-soft:#b7dcff;
+  --shadow-sm:0 2px 9px rgba(0,0,0,.15);
+  --shadow-md:0 16px 44px -18px rgba(0,0,0,.54);
+  --shadow-lg:0 28px 72px -25px rgba(0,0,0,.7);
+}
+/* Number typography: proportional aesthetics, aligned columns. */
+.num,.big,.stat b,.mini b,li.tx .amt,.exp-amount,.card-spent-current,
+.card-spent-next,.paid-amount,.d-val,.b-val,.legend b,.legend em,
+.split-legend b,.split-stats-bar b,.fixed-item b,.history-item b,
+.settle-row .bold,.hero-split b,.clickable-code,input[type="number"],.mini-in,
+.trip-stat-grid strong,.trip-table td:not(:first-child),.font-preview b {
+  font-family:var(--font-num);
+  font-variant-numeric:tabular-nums lining-nums;
+  font-feature-settings:"tnum" 1,"lnum" 1;
+  letter-spacing:-.025em;
+}
+.big,.hero-split b,.paid-amount{letter-spacing:-.045em}
+/* Restrained blue depth, ample contrast, low-noise surfaces. */
+.hero {
+  background:linear-gradient(130deg,#246ce2 0%,#184ea8 52%,#102e68 100%);
+  border-color:rgba(255,255,255,.13);
+  box-shadow:0 14px 34px -18px rgba(26,89,189,.48),inset 0 1px rgba(255,255,255,.16);
+}
+.hero::after{right:-45px;top:-85px;width:290px;height:290px;background:radial-gradient(circle,rgba(163,222,255,.31),transparent 67%)}
+.hero small{color:rgba(255,255,255,.77)}
+.hero .big{color:#fff}
+.card,.stat,.mini,.bill-card,.bill-expense-card{border-color:var(--line)}
+.card,.bill-card,.bill-expense-card{box-shadow:var(--shadow-sm)}
+.card:hover{border-color:color-mix(in srgb,var(--gold) 17%,var(--line))}
+.primary{background:linear-gradient(130deg,#216bd6,#194fb4);color:#fff;border:1px solid rgba(20,65,143,.18);box-shadow:0 5px 14px -8px rgba(29,101,215,.52)}
+:root[data-theme="dark"] .primary{background:linear-gradient(135deg,#8ebfff,#6d9ce9);color:#111c2e}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .primary{background:linear-gradient(135deg,#8ebfff,#6d9ce9);color:#111c2e}}
+.secondary.cta{border-color:color-mix(in srgb,var(--gold) 54%,var(--line));background:var(--card)}
+.secondary.cta:hover{border-color:var(--gold);background:var(--card-2)}
+input,select,textarea{background:var(--card-2)}
+input:focus,select:focus,textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px color-mix(in srgb,var(--gold) 17%,transparent)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.seg{background:var(--bar);border:1px solid color-mix(in srgb,var(--line) 85%,transparent)}
+.seg button.on{box-shadow:0 1px 5px rgba(15,45,90,.10)}
+.dock{border-color:color-mix(in srgb,var(--gold) 12%,var(--line));box-shadow:0 13px 40px -16px rgba(23,71,138,.27),0 3px 10px rgba(23,71,138,.05)}
+.dock svg{stroke-width:1.85;transition:transform .18s ease}
+.dock button.on{background:color-mix(in srgb,var(--gold) 12%,var(--card));color:var(--blue-strong)}
+.dock button.on svg{stroke:currentColor;stroke-width:2.05}
+@media(hover:hover){.dock button:hover svg{transform:translateY(-1px)}}
+.bill-card{transition:border-color .15s ease,box-shadow .15s ease,background-color .15s ease,transform .15s ease}
+@media(hover:hover){.bill-card:hover{border-color:color-mix(in srgb,var(--gold) 38%,var(--line));box-shadow:var(--shadow-md)}}
+.bill-name{letter-spacing:-.015em}
+.bill-card.is-pinned{border-color:color-mix(in srgb,var(--gold) 38%,var(--line))}
+.bill-pin-btn.on{background:color-mix(in srgb,var(--gold) 13%,var(--card))}
+.modal-card{border-radius:22px;box-shadow:var(--shadow-lg)}
+.modal-backdrop{background:rgba(9,20,39,.54)}
+/* Preserve the previous compact iPhone controls and safe-area scrolling. */
+:root[data-os="ios"] input[type="date"]{font-family:var(--font-ui)}
+@media(prefers-reduced-motion:reduce){.dock svg,.bill-card{transition:none}}

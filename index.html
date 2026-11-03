@@ -11,16 +11,15 @@
 <meta name="description" content="Ledger">
 <meta name="color-scheme" content="light dark">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#fafaf8" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#131312" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f3f6fc" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c1220" media="(prefers-color-scheme: dark)">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script>
-  /* Runs before first paint: theme, saved text size, and which UI font to use.
-     iOS (iPhone / iPad, any browser) keeps its own system font; every other device loads Inter. */
+  /* Apply saved appearance before first paint. iOS retains its native UI font. */
   (function () {
     var d = document.documentElement;
     try {
@@ -35,11 +34,6 @@
     var ios = /iP(hone|ad|od)/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     if (ios) {
       d.setAttribute('data-os', 'ios');
-    } else {
-      var l = document.createElement('link');
-      l.rel = 'stylesheet';
-      l.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap';
-      document.head.appendChild(l);
     }
   })();
 </script>
@@ -774,19 +768,19 @@
 <nav class="dock" id="dock" aria-label="Main" hidden>
   <div class="dock-brand"><img src="icon-192.png" alt="" width="30" height="30"><span>Ledger</span></div>
   <button type="button" data-go="home">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1v-9.5z"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v9a2 2 0 0 1-2 2h-4.5v-7h-5v7H5a2 2 0 0 1-2-2z"/></svg>
     <span>Home</span>
   </button>
   <button type="button" data-go="expenses">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 8h10M7 12h10M7 16h6"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
     <span>Expenses</span>
   </button>
   <button type="button" data-go="split">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M17.5 5.5a3 3 0 0 1 0 5.5M17 14a5 5 0 0 1 4 5v1"/></svg>
     <span>Split</span>
   </button>
   <button type="button" data-go="settings">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2.5" fill="var(--card)"/><circle cx="15" cy="17" r="2.5" fill="var(--card)"/></svg>
     <span>Settings</span>
   </button>
 </nav>
