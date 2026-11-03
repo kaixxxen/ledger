@@ -594,8 +594,21 @@
       </div>
 
       <div id="tripExpenseFields" class="trip-expense-fields" hidden>
-        <div class="row2"><div><label class="lbl" for="tripCategory">Expense type</label><select id="tripCategory"><option value="general">Group</option><option value="food">Individual</option></select></div><div id="tripAllocationWrap"><label class="lbl" for="tripAllocation">Split method</label><select id="tripAllocation"><option value="equal">Equal split</option></select></div><div id="tripServiceWrap" hidden><label class="lbl" for="tripServiceCharge">Service charge</label><input id="tripServiceCharge" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></div></div>
-        <label class="lbl">Members & amounts</label><div id="tripMembersGrid" class="trip-members-grid"></div><p class="fine" id="tripModeHelp"></p>
+        <div class="row2"><div><label class="lbl" for="tripCategory">Expense type</label><select id="tripCategory"><option value="general">Group</option><option value="food">Individual</option><option value="delivery">Food Delivery</option></select></div><div id="tripAllocationWrap"><label class="lbl" for="tripAllocation">Split method</label><select id="tripAllocation"><option value="equal">Equal split</option></select></div><div id="tripServiceWrap" hidden><label class="lbl" for="tripServiceCharge">Service charge</label><input id="tripServiceCharge" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></div></div>
+        <div id="deliveryExtras" class="delivery-extras" hidden>
+          <div class="delivery-heading"><strong>Delivery bill adjustments</strong><span class="fine">Amounts for the whole order</span></div>
+          <div class="row2">
+            <div><label class="lbl" for="deliveryFee">Delivery fee</label><input id="deliveryFee" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></div>
+            <div><label class="lbl" for="deliveryPlatformFee">Other / platform fees</label><input id="deliveryPlatformFee" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></div>
+          </div>
+          <div class="row2">
+            <div><label class="lbl" for="deliveryDiscount">Discount / voucher</label><input id="deliveryDiscount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></div>
+            <div><label class="lbl" for="deliveryFeeMode">Split fees by</label><select id="deliveryFeeMode"><option value="equal">Equally</option><option value="proportional">Order value</option></select></div>
+          </div>
+          <div><label class="lbl" for="deliveryDiscountMode">Apply discount</label><select id="deliveryDiscountMode"><option value="proportional">Proportional to order + fees</option><option value="equal">Equally (capped per member)</option></select></div>
+          <p class="fine" id="deliveryBreakdown" aria-live="polite"></p>
+        </div>
+        <label class="lbl" id="tripMembersLabel">Members & amounts</label><div id="tripMembersGrid" class="trip-members-grid"></div><p class="fine" id="tripModeHelp"></p>
       </div>
       <details class="receipt-scan" data-receipt-target="split">
         <summary class="receipt-scan-head"><strong>Scan / upload receipt</strong><span class="fine muted">Optional</span></summary><div class="receipt-scan-content">

@@ -1216,3 +1216,14 @@ main{padding-bottom:calc(174px + env(safe-area-inset-bottom))}
 .hero::after{will-change:transform,opacity;animation:ledgerHeroGlow 13s ease-in-out infinite alternate;transform-origin:center;}
 @keyframes ledgerHeroGlow{0%{transform:translate3d(-18px,10px,0) scale(.95);opacity:.65}50%{transform:translate3d(20px,0,0) scale(1.11);opacity:.92}100%{transform:translate3d(-9px,17px,0) scale(1.03);opacity:.73}}
 @media(prefers-reduced-motion:reduce){.hero::after{animation:none!important;will-change:auto}}
+
+/* v42 · Food Delivery within Detailed Split */
+.delivery-extras{display:grid;gap:10px;padding:12px;border-radius:var(--radius-md);background:var(--card-2);border:1px solid var(--line)}
+.delivery-extras[hidden]{display:none!important}
+.delivery-heading{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px}
+.delivery-heading strong{font-size:var(--fs-sm);font-weight:650}
+.delivery-heading .fine{font-size:var(--fs-xs)}
+.delivery-extras input,.delivery-extras select{min-height:43px}
+#deliveryBreakdown{margin:0;line-height:1.5;font-size:var(--fs-xs);color:var(--muted)}
+#deliveryBreakdown.delivery-error{color:var(--bad)}
+@media(max-width:380px){.delivery-extras .row2{grid-template-columns:1fr 1fr;gap:8px}}
