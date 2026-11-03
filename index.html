@@ -24,7 +24,7 @@
     var d = document.documentElement;
     try {
       var t = localStorage.getItem('ledger.theme');
-      if (t === 'light' || t === 'dark') d.setAttribute('data-theme', t);
+      d.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
     } catch (e) {}
     try {
       var s = localStorage.getItem('ledger.fontScale');
@@ -185,7 +185,7 @@
         </div>
       </header>
 
-      <div class="split-create-options"><button type="button" class="secondary cta" id="btnAddPersonFabTop">+ Add a Bill</button><button type="button" class="secondary cta" id="btnCreateTripSplit">✈ Create Trip Split</button></div>
+      <div class="split-create-options"><button type="button" class="secondary cta" id="btnAddPersonFabTop">+ Add a Bill</button><button type="button" class="secondary cta" id="btnCreateTripSplit">＋ Detailed Split</button></div>
 
       <div class="bill-sort-bar"><label for="billSortSelect">Sort bills</label><select id="billSortSelect" aria-label="Sort bills"><option value="manual">Custom order</option><option value="az">Name: A–Z</option><option value="za">Name: Z–A</option><option value="newest">Newest first</option></select></div>
       <p class="muted split-subhead">Pinned bills first · Drag ⠿ to reorder</p>
@@ -471,7 +471,7 @@
         </div>
       </div>
 
-      <p id="groupTripHint" class="fine trip-group-hint" hidden>Trip Split includes general expenses, individual food orders, service charges, and automatic per-person balances. Ledger IDs share the trip with other members.</p>
+      <p id="groupTripHint" class="fine trip-group-hint" hidden>Detailed Split includes shared costs, individual itemized amounts, service fees, and automatic per-person balances. Share with other Ledger users using their IDs.</p>
       <div class="participants-section">
         <label class="lbl">Participants (name or Ledger ID)</label>
         <div class="add-participant-row">

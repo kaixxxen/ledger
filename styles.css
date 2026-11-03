@@ -987,3 +987,99 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   #billsList .bill-drag-handle { flex-basis: 26px; width: 26px; }
   #billsList .bill-chevron { font-size: var(--fs-md); }
 }
+
+
+/* Ledger v38 · Midnight · restrained pastel-blue accents and glass navigation.
+   Existing application layout and calculation selectors are deliberately preserved. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg:#08090b;
+  --card:#151618;
+  --card-2:#1c1e21;
+  --text:#f4f5f6;
+  --muted:#a2a6ad;
+  --line:#2b2e32;
+  --bar:#22252a;
+  --accent:#e9eef3;
+  --on-accent:#101215;
+  --gold:#a7d5f1;
+  --blue-strong:#b8dbf4;
+  --blue-soft:#d4edfb;
+  --good:#82c5a4;
+  --bad:#ef9b98;
+  --warn:#e9bf81;
+  --shadow-sm:0 2px 12px rgba(0,0,0,.16);
+  --shadow-md:0 14px 40px rgba(0,0,0,.38);
+  --shadow-lg:0 30px 70px rgba(0,0,0,.68);
+}
+:root[data-theme="dark"] body { background:#08090b; }
+:root[data-theme="dark"] .hero {
+  background:linear-gradient(135deg,#242a31 0%,#161b20 57%,#101418 100%);
+  border:1px solid #3c444a;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.09),0 14px 32px rgba(0,0,0,.25);
+}
+:root[data-theme="dark"] .hero::after {
+  background:radial-gradient(circle,rgba(173,218,244,.12),transparent 68%);
+}
+:root[data-theme="dark"] .primary {
+  background:#e9eef3;color:#131619;border:1px solid #e9eef3;
+  box-shadow:none;
+}
+:root[data-theme="dark"] .primary:hover { background:#d4e7f4; }
+:root[data-theme="dark"] .secondary.cta {
+  border:1px solid #434a50;background:#191b1e;color:#eef1f4;
+}
+:root[data-theme="dark"] .secondary.cta:hover { background:#23272b;border-color:#7b8c98; }
+:root[data-theme="dark"] .card,
+:root[data-theme="dark"] .bill-card,
+:root[data-theme="dark"] .bill-expense-card,
+:root[data-theme="dark"] .stat,
+:root[data-theme="dark"] .mini {
+  background:#151618;border-color:#292d30;box-shadow:none;
+}
+:root[data-theme="dark"] .card:hover { border-color:#343c42; }
+:root[data-theme="dark"] .bill-card.is-pinned { border-color:#536777; }
+:root[data-theme="dark"] .bill-pin-btn.on { color:#b9def6;background:rgba(169,213,241,.10); }
+:root[data-theme="dark"] .seg { background:#202225;border-color:#292c30; }
+:root[data-theme="dark"] .seg button.on { background:#34373b;color:#fff;box-shadow:none; }
+:root[data-theme="dark"] .chip.on { background:#b5d9f0;border-color:#b5d9f0;color:#141a20; }
+:root[data-theme="dark"] .progress i { background:linear-gradient(90deg,#819eb5,#b5d9f0); }
+:root[data-theme="dark"] .b-bar.cur { filter:none; }
+:root[data-theme="dark"] .auth-card { background:#16181a; }
+:root[data-theme="dark"] #auth { background:radial-gradient(550px 300px at 50% 0,rgba(168,213,241,.09),transparent 75%),#08090b; }
+:root[data-theme="dark"] .modal-backdrop { background:rgba(0,0,0,.75); }
+:root[data-theme="dark"] .modal-card { background:#17191c;border-color:#373a3f; }
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea { background:#212327;border-color:#3a3e43; }
+:root[data-theme="dark"] input:focus,
+:root[data-theme="dark"] select:focus,
+:root[data-theme="dark"] textarea:focus {border-color:#a7d5f1;box-shadow:0 0 0 3px rgba(167,213,241,.13)}
+/* Platform-inspired glass, not Apple-native Liquid Glass API. */
+@media(max-width:899px) {
+  :root[data-theme="dark"] .dock {
+    background:rgba(38,40,44,.68)!important;
+    border:1px solid rgba(255,255,255,.21);
+    box-shadow:0 13px 42px rgba(0,0,0,.50),inset 0 1px rgba(255,255,255,.12);
+    -webkit-backdrop-filter:blur(24px) saturate(1.45);
+    backdrop-filter:blur(24px) saturate(1.45);
+    padding:4px 8px;height:66px;
+  }
+  :root[data-theme="dark"] .dock button {height:52px;transition:background .23s cubic-bezier(.2,.75,.2,1),color .23s ease,transform .23s ease;}
+  :root[data-theme="dark"] .dock button.on { background:rgba(182,218,241,.20);color:#e8f5ff;box-shadow:inset 0 1px rgba(255,255,255,.14); }
+  :root[data-theme="dark"] .dock button.on svg { stroke:#b7def6; }
+  :root[data-theme="dark"] .dock button:active { transform:scale(.96); }
+}
+@media(min-width:900px) {
+  :root[data-theme="dark"] .dock {background:#131517!important;border-right:1px solid #2e3236;box-shadow:none;}
+  :root[data-theme="dark"] .dock button.on {background:#242b31;color:#cce8fa;}
+  :root[data-theme="dark"] .dock button.on svg {stroke:currentColor;}
+}
+@media(prefers-reduced-motion:reduce){.dock button,.dock svg{transition:none!important}}
+/* Friendlier, denser list rhythm without shrinking touch targets. */
+#billsList .bill-card { min-height:66px; }
+#billsList .bill-name-row .bill-name { font-weight:650;letter-spacing:-.018em; }
+#billsList .bill-card-meta { gap:4px 7px; }
+#billsList .bill-card-meta .shared-tag {background:var(--bar);color:var(--muted);font-weight:550;}
+:root[data-theme="dark"] .trip-stat-grid>div {background:#1e2023;border-color:#33363b;}
+:root[data-theme="dark"] .trip-table th {color:#afb5bd;}

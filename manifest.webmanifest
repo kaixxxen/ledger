@@ -1,13 +1,13 @@
 {
   "name": "Ledger",
   "short_name": "Ledger",
-  "description": "A calm, private place for expenses, shared bills, and trip splits.",
+  "description": "A minimal space for expenses, shared bills and detailed splits.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#0c111c",
-  "theme_color": "#194fbd",
+  "background_color": "#08090b",
+  "theme_color": "#08090b",
   "icons": [
     {
       "src": "icon-192.png",
