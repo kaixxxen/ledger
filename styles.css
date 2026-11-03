@@ -1227,3 +1227,52 @@ main{padding-bottom:calc(174px + env(safe-area-inset-bottom))}
 #deliveryBreakdown{margin:0;line-height:1.5;font-size:var(--fs-xs);color:var(--muted)}
 #deliveryBreakdown.delivery-error{color:var(--bad)}
 @media(max-width:380px){.delivery-extras .row2{grid-template-columns:1fr 1fr;gap:8px}}
+
+/* v43 · Compact avatar chooser: scroll emoji choices, not the entire screen. */
+.emoji-popover{
+  padding:16px!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+.emoji-picker-panel{
+  width:min(100%,420px)!important;
+  max-height:min(570px,68dvh)!important;
+  padding:19px!important;
+  gap:14px!important;
+  border-radius:22px!important;
+  min-height:0!important;
+}
+.emoji-popover-header{flex:none;align-items:center!important;gap:14px!important}
+.emoji-popover-header>div{gap:5px!important}
+.emoji-popover-header strong{font-size:var(--fs-md)!important;line-height:1.3!important}
+.emoji-popover-header span{font-size:var(--fs-xs)!important;line-height:1.5!important}
+.emoji-grid{
+  flex:1 1 auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:9px!important;
+  padding:4px 4px 10px!important;
+  overflow-y:auto!important;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;
+}
+.emoji-grid-item{aspect-ratio:1.08!important;font-size:clamp(25px,5vw,30px)!important;border-radius:14px!important}
+.emoji-popover-footer{gap:9px!important;padding-top:14px!important;flex:none!important}
+.emoji-popover-footer label{display:block!important;margin:0 0 2px!important;line-height:1.5!important}
+.emoji-popover-footer input{
+  display:block!important;margin:0!important;
+  min-height:45px!important;padding:11px 14px!important;
+  border-radius:11px!important;line-height:1.4!important;
+}
+.emoji-picker-confirm{margin-top:5px!important;min-height:45px!important}
+@media(max-width:430px){
+  .emoji-popover{padding:14px!important}
+  .emoji-picker-panel{max-height:min(535px,64dvh)!important;padding:16px!important;gap:12px!important}
+  .emoji-grid{gap:8px!important}
+}
+@media(max-height:650px){
+  .emoji-picker-panel{max-height:76dvh!important;padding:13px!important;gap:9px!important}
+  .emoji-popover-header span{display:none}
+  .emoji-grid-item{font-size:25px!important}
+}

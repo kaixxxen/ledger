@@ -1134,7 +1134,6 @@ function initEmojiPickerPopover() {
   const popover = $('emojiPickerPopover');
   const grid = $('emojiGrid');
   const typeInput = $('typeEmojiInput');
-  const searchInput = $('emojiSearchInput');
   const closeBtn = $('closeEmojiPickerBtn');
   const confirmBtn = $('confirmEmojiPickerBtn');
   if (!btn || !popover || !grid || !confirmBtn) return;
@@ -1145,11 +1144,9 @@ function initEmojiPickerPopover() {
   let pendingEmoji = '';
   let priorFocus = null;
   const renderChoices = () => {
-    const query = (searchInput?.value || '').trim().toLowerCase();
     grid.innerHTML = DEFAULT_AVATAR_EMOJIS.map((emoji, i) => ({emoji, name:names[i] || 'Animal'}))
-      .filter(item => item.name.toLowerCase().includes(query))
       .map(item => `<button type="button" class="emoji-grid-item${item.emoji === pendingEmoji ? ' is-selected' : ''}" data-emoji="${item.emoji}" aria-label="${item.name}" aria-pressed="${item.emoji === pendingEmoji}"><span>${item.emoji}</span></button>`).join('')
-      || '<p class="emoji-no-results">No matching animals. Try another search or paste an emoji.</p>';
+;
   };
   const close = () => {
     popover.hidden = true;
@@ -1159,12 +1156,11 @@ function initEmojiPickerPopover() {
   const open = () => {
     priorFocus = document.activeElement;
     pendingEmoji = hiddenInput?.value || btn.textContent.trim() || '🐶';
-    if (searchInput) searchInput.value = '';
     if (typeInput) typeInput.value = '';
     renderChoices();
     popover.hidden = false;
     document.body.classList.add('emoji-picker-open');
-    (searchInput || closeBtn).focus();
+    closeBtn?.focus({preventScroll:true});
   };
   btn.onclick = e => { e.stopPropagation(); if (popover.hidden) open(); else close(); };
   closeBtn?.addEventListener('click', close);
@@ -1176,7 +1172,6 @@ function initEmojiPickerPopover() {
     if (typeInput) typeInput.value = '';
     renderChoices();
   });
-  searchInput?.addEventListener('input', renderChoices);
   typeInput?.addEventListener('input', () => {
     const value = typeInput.value.trim();
     if (value) { pendingEmoji = value; renderChoices(); }
