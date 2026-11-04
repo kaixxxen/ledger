@@ -1,4 +1,4 @@
-const CACHE = 'ledger-v48-expenses-journal';
+const CACHE = 'ledger-v50-desktop-sidebar-fix';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'
