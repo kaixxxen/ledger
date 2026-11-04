@@ -1072,15 +1072,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   :root[data-theme="dark"] .dock button:active { transform:scale(.96); }
 }
 @media(min-width:900px) {
-  :root[data-theme="dark"] .dock {background:#0f1215!important;border-right:1px solid #242a30;box-shadow:none;border-radius:0!important;}
+  :root[data-theme="dark"] .dock {background:#131517!important;border-right:1px solid #2e3236;box-shadow:none;}
   :root[data-theme="dark"] .dock button.on {background:#242b31;color:#cce8fa;}
   :root[data-theme="dark"] .dock button.on svg {stroke:currentColor;}
-}
-
-/* v50: make the desktop sidebar a clean rail, not a giant rounded panel. */
-@media (min-width:900px){
-  .dock{border-radius:0 !important; padding:26px 14px 24px; background:var(--card) !important;}
-  .dock-brand{padding:2px 12px 18px;}
 }
 @media(prefers-reduced-motion:reduce){.dock button,.dock svg{transition:none!important}}
 /* Friendlier, denser list rhythm without shrinking touch targets. */
