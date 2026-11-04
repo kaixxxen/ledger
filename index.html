@@ -179,7 +179,9 @@
       <header class="top">
         <h1>Bill Splitter</h1>
         <div class="top-actions">
-          <button type="button" class="text-link" id="btnOpenArchiveSubpage">📁 Archives</button>
+          <button type="button" class="archive-icon-button" id="btnOpenArchiveSubpage" aria-label="Open archived bills" title="Archives">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3.5 7.5V5.75A1.75 1.75 0 0 1 5.25 4h5.1l2.1 2.2h6.3A1.75 1.75 0 0 1 20.5 8v10.25A1.75 1.75 0 0 1 18.75 20H5.25a1.75 1.75 0 0 1-1.75-1.75Z"/><path d="M3.5 9h17"/><path d="M9 14.5h6"/></svg>
+          </button>
         </div>
       </header>
 
@@ -212,9 +214,13 @@
           <h1 id="splitPersonName">Group Name</h1>
         </div>
         <div class="split-header-actions">
-          <button type="button" class="icon-btn edit-group-title-btn" id="btnImportSplitwise">📥 Import CSV</button>
+          <button type="button" class="bill-detail-icon-button" id="btnImportSplitwise" aria-label="Import expenses from CSV" title="Import CSV">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 15V3m0 12-4-4m4 4 4-4"/><path d="M4 16.5V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2.5"/></svg>
+          </button>
           <input id="splitwiseCsvInput" type="file" accept=".csv,text/csv" hidden>
-          <button type="button" class="icon-btn edit-group-title-btn" id="btnEditGroupTitle">Edit</button>
+          <button type="button" class="bill-detail-icon-button" id="btnEditGroupTitle" aria-label="Edit bill details" title="Edit bill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m15.5 5.5 3 3M4 20l4.7-1 10.9-10.9a2.12 2.12 0 0 0-3-3L5.7 16 4 20Z"/><path d="M13.5 7.5l3 3"/></svg>
+          </button>
         </div>
       </header>
 
