@@ -1325,7 +1325,7 @@ main{padding-bottom:calc(174px + env(safe-area-inset-bottom))}
 @media(min-width:900px){.notification-center{right:34px;top:18px}}
 @media(max-width:600px){.notification-center{top:calc(env(safe-area-inset-top) + 7px);right:16px}.notification-toggle{width:38px;height:38px;border-radius:13px}.notification-panel{max-height:min(440px,calc(100dvh - env(safe-area-inset-top) - 72px))}#page-home>.top,#page-expenses>.top,#page-settings>.top{padding-right:46px}#splitMainView>.top{padding-right:42px}}
 @media(prefers-reduced-motion:reduce){.global-actions-menu{transition:none;filter:none}.notification-panel{animation:none}}
-@media(max-width:600px){#splitDetailView>.top,#splitArchiveView>.top{padding-right:42px}}
+@media(max-width:600px){#splitDetailView>.top,#splitArchiveView>.top{padding-right:0}}
 
 /* Ledger v45: matching Archives and Notifications header controls. */
 #splitMainView>.top .top-actions{display:flex;align-items:center;gap:10px;flex:none}
@@ -1723,4 +1723,75 @@ body > .notification-panel .notification-list{min-height:0;overflow-y:auto}
 @media(max-width:360px){
   #splitDetailView .top-split-header .split-header-actions{gap:4px}
   #splitDetailView .top-split-header{gap:5px}
+}
+
+
+/* Ledger v55 — restore a labelled Import action and flush-right bill-header controls.
+   Previous notification positioning reserved 42px at the right; the bell now lives
+   inside this header, so no reserved inset is needed. */
+#splitDetailView > .top.top-split-header {
+  width:100%;
+  padding-right:0 !important;
+  display:flex;
+  flex-flow:row nowrap;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+}
+#splitDetailView > .top.top-split-header > .split-header-left {
+  flex:1 1 0;
+  width:0;
+  min-width:0;
+  display:flex;
+  align-items:center;
+}
+#splitDetailView > .top.top-split-header > .split-header-left #splitPersonName {
+  flex:1 1 auto;
+  min-width:0;
+  overflow:hidden;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+}
+#splitDetailView > .top.top-split-header > .split-header-actions {
+  flex:0 0 auto;
+  width:max-content;
+  margin-left:auto !important;
+  margin-right:0 !important;
+  padding-right:0 !important;
+  display:flex;
+  flex-flow:row nowrap;
+  justify-content:flex-end;
+  align-items:center;
+  gap:6px;
+}
+#splitDetailView .split-header-actions > .bill-import-button {
+  width:auto !important;
+  min-width:0 !important;
+  height:42px !important;
+  min-height:42px !important;
+  flex:0 0 auto !important;
+  display:inline-flex !important;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:0 12px !important;
+  white-space:nowrap;
+}
+#splitDetailView .split-header-actions > .bill-import-button span {
+  display:inline-block;
+  font-family:var(--font-ui);
+  font-size:var(--fs-sm);
+  font-weight:650;
+  line-height:1;
+}
+@media (max-width:600px){
+  #splitDetailView > .top.top-split-header { padding-right:0 !important; gap:6px; }
+  #splitDetailView > .top.top-split-header > .split-header-actions { gap:5px; }
+  #splitDetailView .split-header-actions > .bill-import-button {
+    height:38px !important;
+    min-height:38px !important;
+    padding:0 9px !important;
+    gap:5px;
+  }
+  #splitDetailView .split-header-actions > .bill-import-button span { font-size:var(--fs-xs); }
 }

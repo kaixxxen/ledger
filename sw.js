@@ -1,4 +1,4 @@
-const CACHE = 'ledger-v54-bill-header-consistency';
+const CACHE = 'ledger-v55-bill-header-flush-right';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'
