@@ -1,4 +1,4 @@
-const CACHE = 'ledger-v53-header-inbox';
+const CACHE = 'ledger-v54-bill-header-consistency';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'

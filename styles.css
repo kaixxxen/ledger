@@ -1622,7 +1622,7 @@ input,select,textarea,.seg,.receipt-scan,.receipt-scan-head,.bill-pin-btn,.bill-
 }
 
 
-/* Ledger v53: bill-header stacking and viewport-contained inbox. */
+/* Ledger v53: viewport-contained notification inbox. */
 /* The bell scrolls with its header; its inbox and backdrop are portaled to body. */
 body > .notification-dismiss{
   position:fixed !important; inset:0 !important;
@@ -1645,29 +1645,82 @@ body > .notification-panel .notification-head > div{flex:1;min-width:0}
 body > .notification-panel .notification-head strong,
 body > .notification-panel .notification-head small{overflow-wrap:anywhere}
 body > .notification-panel .notification-list{min-height:0;overflow-y:auto}
+/* v54: Bill detail header matches the one-row Bill Splitter header.
+   Back, avatar and title stay on the left; Import, Edit and Bell on the right. */
+#splitDetailView .top-split-header{
+  display:flex;
+  flex-direction:row;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  min-width:0;
+}
+#splitDetailView .top-split-header .split-header-left{
+  display:flex;
+  align-items:center;
+  flex:1 1 auto;
+  min-width:0;
+  width:auto;
+  gap:7px;
+}
+#splitDetailView .top-split-header .split-header-left h1{
+  flex:1 1 auto;
+  min-width:0;
+  max-width:100%;
+  margin:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+#splitDetailView .top-split-header .split-header-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  flex:0 0 auto;
+  width:auto;
+  min-width:0;
+  gap:8px;
+}
+/* Import is an icon action, with its full description in aria-label/title. */
+#splitDetailView .split-header-actions .bill-import-button{
+  display:grid!important;
+  place-items:center!important;
+  flex:0 0 42px!important;
+  width:42px!important;
+  min-width:42px!important;
+  height:42px!important;
+  min-height:42px!important;
+  padding:0!important;
+  margin:0!important;
+}
+#splitDetailView .split-header-actions .bill-import-button svg{
+  width:20px;height:20px;
+}
+#splitDetailView .split-header-actions .notification-center{margin:0;flex:none;}
 @media(max-width:600px){
-  #splitDetailView .top-split-header{
-    display:grid;grid-template-columns:minmax(0,1fr);
-    align-items:center;row-gap:10px;
-  }
-  #splitDetailView .top-split-header .split-header-left{
-    grid-column:1;display:flex;width:100%;min-width:0;gap:9px;
-  }
+  #splitDetailView .top-split-header{gap:7px;}
+  #splitDetailView .top-split-header .split-header-left{gap:5px;}
   #splitDetailView .top-split-header .split-header-left h1{
-    flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;
-    white-space:nowrap;font-size:var(--fs-xl);
+    font-size:clamp(15px,4.3vw,20px);
   }
-  #splitDetailView .top-split-header .split-header-actions{
-    grid-column:1;display:flex;justify-content:flex-end;gap:8px;
-    width:100%;min-width:0;
+  #splitDetailView .top-split-header .split-header-actions{gap:6px;}
+  #splitDetailView .split-header-actions .bill-import-button{
+    flex-basis:38px!important;
+    width:38px!important;
+    min-width:38px!important;
+    height:38px!important;
+    min-height:38px!important;
   }
-  #splitDetailView .split-header-actions .bill-import-button{margin-right:auto}
-  #splitDetailView .split-header-actions .notification-center{margin-left:0}
+  #splitDetailView .split-header-actions .bill-import-button svg{width:19px;height:19px;}
+  #splitDetailView .split-header-emoji{font-size:21px;}
+  #splitDetailView #btnSplitBack.icon{width:27px;height:32px;min-width:27px;}
   body > .notification-panel{
     top:calc(env(safe-area-inset-top) + 70px) !important;
     max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 86px) !important;
   }
 }
+
 @media(max-width:360px){
-  #splitDetailView .top-split-header .split-header-actions{gap:6px}
+  #splitDetailView .top-split-header .split-header-actions{gap:4px}
+  #splitDetailView .top-split-header{gap:5px}
 }
