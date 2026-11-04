@@ -465,6 +465,14 @@
     <h3 id="groupModalTitle">Add a Bill</h3>
     <form id="addPersonForm">
       <input type="hidden" id="editGroupId">
+      <div class="bill-kind-field" id="billKindField">
+        <label class="lbl" for="billKind">Bill format</label>
+        <select id="billKind" aria-describedby="billKindHelp">
+          <option value="standard">Standard — equal sharing</option>
+          <option value="detailed">Detailed — items, fees &amp; discounts</option>
+        </select>
+        <p class="fine" id="billKindHelp">Use Detailed for individual orders, GrabFood fees or discounts.</p>
+      </div>
       
       <div class="bill-name-section">
         <label class="lbl" for="personNameInput">Bill Name</label>
@@ -799,13 +807,26 @@
 </div>
   
 
+<!-- In-app notifications: reminders and changes detected during shared-bill sync. -->
+<div id="notificationCenter" class="notification-center" hidden>
+  <button type="button" id="notificationToggle" class="notification-toggle" aria-label="Notifications" aria-expanded="false" aria-controls="notificationPanel" title="Notifications">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg><span id="notificationDot" class="notification-dot" hidden></span>
+  </button>
+  <div id="notificationDismiss" class="notification-dismiss" hidden></div>
+  <section id="notificationPanel" class="notification-panel" aria-label="Notifications" hidden>
+    <header class="notification-head"><div><strong>Notifications</strong><small>Reminders &amp; shared bill activity</small></div><button type="button" id="notificationClose" aria-label="Close notifications">×</button></header>
+    <div id="notificationList" class="notification-list"></div>
+    <footer class="notification-footer"><button type="button" id="notificationClear">Clear all</button></footer>
+  </section>
+</div>
+
 <!-- One universal action menu, available on every app page. Existing forms are reused. -->
 <div id="globalActions" class="global-actions" hidden>
   <div id="globalActionsDismiss" class="global-actions-dismiss" hidden></div>
   <div id="globalActionsMenu" class="global-actions-menu" role="menu" aria-label="Create new" hidden>
     <button type="button" role="menuitem" data-create="expense"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h14v18l-3-2-4 2-4-2-3 2z"/><path d="M8 8h8M8 12h6"/></svg><span>Add expense</span></button>
     <button type="button" role="menuitem" data-create="bill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M17 6a3 3 0 0 1 0 6M17 14a5 5 0 0 1 4 5v1"/></svg><span>Add a bill</span></button>
-    <button type="button" role="menuitem" data-create="detailed"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg><span>Detailed split</span></button>
+    
     <button type="button" role="menuitem" data-create="in-bill" id="globalAddToBill" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Add expense to this bill</span></button>
   </div>
   <button id="globalActionsToggle" type="button" class="global-actions-toggle" aria-label="Create expense or bill" aria-haspopup="menu" aria-expanded="false" aria-controls="globalActionsMenu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="sr-only">Quick actions</span></button>

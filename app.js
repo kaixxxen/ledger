@@ -459,19 +459,138 @@ function initModalAnimations() {
   });
 }
 
+// In-app notification center: local inbox, fed by card reminders and authorized shared-bill sync.
+// No background push, no new server tables, and no financial data mutations.
+const notificationScope = () => mode === 'cloud' && user ? user.id : 'local';
+const notificationKey = () => 'ledger.notifications.v1.' + notificationScope();
+const sharedSnapshotKey = () => 'ledger.sharedSnapshot.v1.' + notificationScope();
+function readNotifications() {
+  try { const value = JSON.parse(lsGet(notificationKey()) || '[]'); return Array.isArray(value) ? value.slice(0, 80) : []; }
+  catch { return []; }
+}
+function addNotification(kind, title, detail, dedupeId, billId = '') {
+  const entries = readNotifications();
+  if (entries.some(n => n.dedupe === dedupeId)) return;
+  entries.unshift({ id: uid(), kind, title, detail, dedupe: dedupeId, billId, at: Date.now(), read: false });
+  lsSet(notificationKey(), JSON.stringify(entries.slice(0, 80)));
+  renderNotifications();
+}
+function collectCardNotifications() {
+  if (mode === 'none') return;
+  const day = today();
+  (state.cards || []).filter(c => c.type !== 'debit').forEach(c => {
+    const status = computeCardStatus(c);
+    if (status.paid || status.currentDueSpent <= 0 || status.daysLeft > 7) return;
+    const message = status.daysLeft < 0 ? `${Math.abs(status.daysLeft)} days overdue` : status.daysLeft === 0 ? 'Due today' : `Due in ${status.daysLeft} days`;
+    addNotification('reminder', `${c.bank} card payment`, `${c.name} · ${message}`, `card:${day}:${c.id}:${status.cutoffStr}`);
+  });
+}
+function snapshotSharedBills(groups) {
+  const result = {};
+  groups.forEach(g => {
+    result[g.id] = { name:g.name, emoji:g.emoji, participants:JSON.stringify(g.participants.map(p => [p.key,p.code,p.name])),
+      expenses:Object.fromEntries(g.expenses.map(e=>[e.id,JSON.stringify([e.title,e.amount,e.paidBy,e.participants,e.date,e.tripData])])),
+      settlements:Object.fromEntries(g.settlements.map(s=>[s.id,JSON.stringify([s.from,s.to,s.amount,s.method,s.date])])) };
+  });
+  return result;
+}
+function compareSharedSnapshots(groups) {
+  if (!user) return;
+  const next = snapshotSharedBills(groups);
+  const key = sharedSnapshotKey();
+  const oldRaw = lsGet(key);
+  let old = {};
+  try { if (oldRaw) old = JSON.parse(oldRaw) || {}; } catch {}
+  // A first sync establishes baseline rather than flooding old bills as new notifications.
+  if (oldRaw) {
+    for (const [id, bill] of Object.entries(next)) {
+      const prior = old[id];
+      if (!prior) { addNotification('invite','Added to a shared bill',bill.name,`bill-invite:${id}`,id); continue; }
+      if (bill.name !== prior.name || bill.emoji !== prior.emoji || bill.participants !== prior.participants) {
+        addNotification('bill','Bill details changed',bill.name,`bill-details:${id}:${JSON.stringify([bill.name,bill.emoji,bill.participants])}`,id);
+      }
+      for (const [expenseId, signature] of Object.entries(bill.expenses)) {
+        if (prior.expenses?.[expenseId] === signature) continue;
+        addNotification('bill', prior.expenses?.[expenseId] ? 'Expense updated' : 'Expense added',bill.name,
+          `bill-expense:${id}:${expenseId}:${signature}`,id);
+      }
+      for (const [paymentId, signature] of Object.entries(bill.settlements)) {
+        if (prior.settlements?.[paymentId] === signature) continue;
+        addNotification('bill', prior.settlements?.[paymentId] ? 'Payment updated' : 'Payment recorded',bill.name,
+          `bill-payment:${id}:${paymentId}:${signature}`,id);
+      }
+    }
+  }
+  lsSet(key,JSON.stringify(next));
+  renderNotifications();
+}
+function renderNotifications() {
+  const box = $('notificationList'), dot = $('notificationDot');
+  if (!box) return;
+  const entries = readNotifications();
+  if (dot) dot.hidden = !entries.some(n => !n.read);
+  box.innerHTML = entries.length ? entries.map(n => `<button type="button" class="notification-entry ${n.read ? '' : 'unread'}" data-notify-id="${esc(n.id)}">
+    <span class="notification-entry-icon" aria-hidden="true">${n.kind === 'reminder' ? '◷' : n.kind === 'invite' ? '✦' : '↗'}</span>
+    <span class="notification-entry-body"><strong>${esc(n.title)}</strong><small>${esc(n.detail)}</small><time>${new Date(n.at).toLocaleDateString(undefined,{month:'short',day:'numeric'})}</time></span>
+  </button>`).join('') : '<p class="notification-empty">All caught up. New reminders and bill changes will appear here.</p>';
+}
+function closeNotifications() {
+  const p=$('notificationPanel'), d=$('notificationDismiss'), b=$('notificationToggle');
+  if (p) p.hidden=true;
+  if (d) d.hidden=true;
+  if (b) b.setAttribute('aria-expanded','false');
+}
+function initNotifications() {
+  const toggle=$('notificationToggle');
+  if (!toggle) return;
+  toggle.addEventListener('click',()=>{
+    const open=$('notificationPanel').hidden;
+    closeGlobalActions(true);
+    $('notificationPanel').hidden=!open; $('notificationDismiss').hidden=!open;
+    toggle.setAttribute('aria-expanded',String(open));
+    if (open) { const entries=readNotifications();entries.forEach(n=>n.read=true);lsSet(notificationKey(),JSON.stringify(entries));renderNotifications(); }
+  });
+  $('notificationClose').addEventListener('click',closeNotifications);
+  $('notificationDismiss').addEventListener('click',closeNotifications);
+  $('notificationClear').addEventListener('click',()=>{lsDel(notificationKey());renderNotifications();});
+  $('notificationList').addEventListener('click',e=>{
+    const target=e.target.closest('[data-notify-id]');if(!target)return;
+    const n=readNotifications().find(x=>x.id===target.dataset.notifyId);
+    closeNotifications();
+    if(n?.billId && state.billGroups.some(g=>g.id===n.billId)) {
+      location.hash='#split';
+      if(currentPage!=='split') route();
+      openBillDetail(n.billId);
+    } else if(n?.kind==='reminder') {location.hash='#home';route();}
+  });
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeNotifications();});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden){collectCardNotifications();renderNotifications();}});
+  renderNotifications();
+}
+
 // Floating creation menu. No duplicate business logic: delegate to the established modal handlers.
-function closeGlobalActions() {
+let globalActionsCloseTimer = null;
+function closeGlobalActions(immediate = false) {
   const menu = $('globalActionsMenu'), dismiss = $('globalActionsDismiss'), toggle = $('globalActionsToggle');
-  if (menu) menu.hidden = true;
+  clearTimeout(globalActionsCloseTimer);
+  if (!menu) return;
   if (dismiss) dismiss.hidden = true;
   if (toggle) { toggle.setAttribute('aria-expanded', 'false'); toggle.classList.remove('is-open'); }
+  menu.classList.remove('is-visible');
+  if (immediate || window.matchMedia('(prefers-reduced-motion: reduce)').matches) { menu.hidden = true; return; }
+  globalActionsCloseTimer = setTimeout(() => { menu.hidden = true; }, 260);
 }
 function setGlobalActionsOpen(open) {
   const menu = $('globalActionsMenu'), dismiss = $('globalActionsDismiss'), toggle = $('globalActionsToggle');
   if (!menu || !toggle) return;
+  clearTimeout(globalActionsCloseTimer);
   const inBill = currentPage === 'split' && !!selectedGroupId && !!$('splitDetailView') && !$('splitDetailView').hidden;
   if ($('globalAddToBill')) $('globalAddToBill').hidden = !inBill;
-  menu.hidden = !open;
+  if (open) {
+    closeNotifications();
+    menu.hidden = false;
+    requestAnimationFrame(() => menu.classList.add('is-visible'));
+  } else { closeGlobalActions(); }
   if (dismiss) dismiss.hidden = !open;
   toggle.setAttribute('aria-expanded', String(open));
   toggle.classList.toggle('is-open', open);
@@ -479,13 +598,13 @@ function setGlobalActionsOpen(open) {
 function initGlobalActions() {
   const toggle = $('globalActionsToggle'), menu = $('globalActionsMenu');
   if (!toggle || !menu) return;
-  toggle.addEventListener('click', () => setGlobalActionsOpen(menu.hidden));
+  toggle.addEventListener('click', () => setGlobalActionsOpen(!toggle.classList.contains('is-open')));
   $('globalActionsDismiss')?.addEventListener('click', closeGlobalActions);
   menu.addEventListener('click', e => {
     const btn = e.target.closest('button[data-create]'); if (!btn) return;
     const action = btn.dataset.create;
-    closeGlobalActions();
-    const targets = {expense:'btnAddExpenseBtn',bill:'btnAddPersonFabTop',detailed:'btnCreateTripSplit','in-bill':'btnOpenAddSplitExpense'};
+    closeGlobalActions(true);
+    const targets = {expense:'btnAddExpenseBtn',bill:'btnAddPersonFabTop','in-bill':'btnOpenAddSplitExpense'};
     const target = $(targets[action]);
     if (target) target.click();
   });
@@ -505,7 +624,8 @@ function route() {
   try { window.scrollTo(0, 0); } catch {}
   if (prev && prev !== name) slideIn($('page-' + name), PAGES.indexOf(name) > PAGES.indexOf(prev) ? 1 : -1);
   currentPage = name;
-  closeGlobalActions();
+  closeGlobalActions(true);
+  closeNotifications();
   renderAll();
 }
 
@@ -514,6 +634,7 @@ function showApp() {
   if ($('app')) $('app').hidden = false;
   if ($('dock')) $('dock').hidden = false;
   if ($('globalActions')) $('globalActions').hidden = false;
+  if ($('notificationCenter')) $('notificationCenter').hidden = false;
   ensureDockGradient();
   route();
 }
@@ -531,6 +652,7 @@ function showAuth() {
   if ($('dock')) $('dock').hidden = true;
   closeGlobalActions();
   if ($('globalActions')) $('globalActions').hidden = true;
+  if ($('notificationCenter')) $('notificationCenter').hidden = true;
   if ($('auth')) $('auth').hidden = false;
   authMsg('');
   // Without a cloud config there is nothing to sign in to, so hide the provider options.
@@ -751,6 +873,7 @@ function renderHome() {
   }
 
   renderCardReminders();
+  collectCardNotifications();
 
   if ($('homeEmpty')) $('homeEmpty').hidden = state.tx.length > 0;
   $$('.home-chart').forEach(el => { el.hidden = state.tx.length === 0; });
@@ -1286,7 +1409,7 @@ function initBillDrag() {
 function renderBillList() {
   const el=$('billsList');if(!el)return;
   const all=(state.billGroups||[]).filter(g=>!g.archived);
-  if(!all.length){el.innerHTML='<div class="empty-card card">No active bills yet. Add a Bill or Create Detailed Split.</div>';return;}
+  if(!all.length){el.innerHTML='<div class="empty-card card">No bills yet. Tap + to add one.</div>';return;}
   const pins=new Set(pinnedBillIds());
   const pinned=orderedBillSection(all.filter(g=>pins.has(String(g.id))));
   const others=orderedBillSection(all.filter(g=>!pins.has(String(g.id))));
@@ -1461,6 +1584,7 @@ async function loadSharedBills() {
       }))
     }));
 
+    compareSharedSnapshots(shared);
     state.billGroups = (state.billGroups || []).filter(g => !g.shared).concat(shared);
     cacheWrite();
     refreshSplitUi();
@@ -1521,6 +1645,8 @@ function openBillEditor(group) {
   if (!group) creatingTrip = !!creatingTrip;
   else creatingTrip = !!group.trip;
   $('groupModalTitle').textContent = group ? (group.trip ? 'Edit Detailed Split' : 'Edit Bill') : (creatingTrip ? 'Create Detailed Split' : 'Add a Bill');
+  if ($('billKindField')) $('billKindField').hidden = !!group;
+  if ($('billKind')) $('billKind').value = creatingTrip ? 'detailed' : 'standard';
   if ($('groupTripHint')) $('groupTripHint').hidden = !creatingTrip;
   $('editGroupId').value = group ? group.id : '';
   $('personNameInput').value = group ? group.name : '';
@@ -2724,6 +2850,10 @@ function bind() {
   on('tripMembersGrid','input',updateTripAmount);
   on('tripMembersGrid','change',updateTripAmount);
 
+  on('billKind','change',()=>{
+    creatingTrip = $('billKind').value === 'detailed';
+    if ($('groupTripHint')) $('groupTripHint').hidden = !creatingTrip;
+  });
   if ($('btnAddPersonFabTop')) $('btnAddPersonFabTop').onclick = () => { creatingTrip = false; openBillEditor(null); };
   if ($('btnCreateTripSplit')) $('btnCreateTripSplit').onclick = () => { creatingTrip = true; openBillEditor(null); };
 
@@ -2769,6 +2899,7 @@ function bind() {
     e.preventDefault();
     const name = $('personNameInput').value.trim();
     const editId = $('editGroupId').value;
+    if (!editId) creatingTrip = $('billKind').value === 'detailed';
     const finalEmoji = ($('customEmojiInput') ? $('customEmojiInput').value.trim() : '') || '🐶';
 
     if (!name || pendingParticipants.length === 0) {
@@ -3159,6 +3290,7 @@ function registerServiceWorker() {
 
 async function boot() {
   initGlobalActions();
+  initNotifications();
   try {
     registerServiceWorker();
     applyTheme(getTheme());

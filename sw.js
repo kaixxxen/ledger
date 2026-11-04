@@ -1,4 +1,4 @@
-const CACHE = 'ledger-v43-compact-avatar';
+const CACHE = 'ledger-v44-unified-notifications';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'

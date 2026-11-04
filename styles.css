@@ -1276,3 +1276,46 @@ main{padding-bottom:calc(174px + env(safe-area-inset-bottom))}
   .emoji-popover-header span{display:none}
   .emoji-grid-item{font-size:25px!important}
 }
+
+
+/* Ledger v44 — unified bill entry, in-app notifications, and polished action sheet. */
+.bill-kind-field{display:grid;gap:7px;margin-bottom:4px}
+.bill-kind-field .lbl{margin:0}
+.bill-kind-field #billKindHelp{margin:0;font-size:var(--fs-xs);line-height:1.55}
+#billKind{min-height:44px}
+#globalAddToBill:not([hidden]){background:color-mix(in srgb,#a8d7f5 17%,var(--card));border:1px solid color-mix(in srgb,#a8d7f5 45%,var(--line));color:var(--text)}
+#globalAddToBill:not([hidden]) svg{color:#a8d7f5}
+#globalAddToBill:not([hidden]) span{font-weight:750}
+.global-actions-menu{animation:none!important;opacity:0;transform:translate3d(0,13px,0) scale(.94);transform-origin:bottom right;filter:blur(5px);pointer-events:none;transition:opacity .26s cubic-bezier(.2,.8,.2,1),transform .32s cubic-bezier(.18,1,.3,1),filter .26s ease;will-change:transform,opacity}
+.global-actions-menu.is-visible{opacity:1;transform:translate3d(0,0,0) scale(1);filter:blur(0);pointer-events:auto}
+.global-actions-menu button{transition:background .16s ease,transform .2s ease}
+.global-actions-menu button:active{transform:scale(.975)}
+.global-actions-toggle{transition:transform .3s cubic-bezier(.18,1,.3,1),box-shadow .3s ease}
+.global-actions-toggle.is-open{box-shadow:0 12px 34px rgba(0,0,0,.35),0 0 0 5px rgba(171,211,240,.1)}
+.notification-center{position:fixed;right:clamp(16px,4vw,36px);top:calc(env(safe-area-inset-top) + 12px);z-index:60}
+.notification-toggle{width:42px;height:42px;display:grid;place-items:center;position:relative;border-radius:15px;background:color-mix(in srgb,var(--card) 92%,transparent);border:1px solid var(--line);box-shadow:var(--shadow-sm);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
+.notification-toggle svg{width:20px;height:20px}
+.notification-dot{position:absolute;right:8px;top:7px;width:8px;height:8px;border-radius:50%;background:#a8d7f5;box-shadow:0 0 0 2px var(--card)}
+.notification-dismiss{position:fixed;inset:0;z-index:-1}
+.notification-panel{position:absolute;right:0;top:calc(100% + 12px);width:min(360px,calc(100vw - 32px));max-height:min(520px,calc(100dvh - env(safe-area-inset-top) - 90px));display:flex;flex-direction:column;background:color-mix(in srgb,var(--card) 96%,transparent);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:0 22px 60px rgba(0,0,0,.38);-webkit-backdrop-filter:blur(28px);backdrop-filter:blur(28px);animation:notificationReveal .23s cubic-bezier(.2,.8,.2,1)}
+@keyframes notificationReveal{from{opacity:0;transform:translateY(-7px) scale(.975)}to{opacity:1;transform:translateY(0) scale(1)}}
+.notification-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 17px 13px;border-bottom:1px solid var(--line)}
+.notification-head strong{font-size:var(--fs-md)}
+.notification-head small{display:block;color:var(--muted);font-size:var(--fs-xs);margin-top:3px}
+.notification-head button{font-size:24px;color:var(--muted);min-width:32px;min-height:32px}
+.notification-list{overflow-y:auto;overscroll-behavior:contain;min-height:70px}
+.notification-entry{display:flex;gap:11px;align-items:flex-start;width:100%;text-align:left;padding:13px 16px;border-bottom:1px solid var(--line)}
+.notification-entry:hover{background:var(--bar)}
+.notification-entry.unread{background:color-mix(in srgb,#9fd0ef 9%,var(--card))}
+.notification-entry-icon{width:30px;height:30px;display:grid;place-items:center;flex:none;border-radius:10px;background:var(--bar);font-size:18px;color:var(--text)}
+.notification-entry-body{display:grid;gap:2px;min-width:0;flex:1}
+.notification-entry-body strong{font-size:var(--fs-base)}
+.notification-entry-body small{color:var(--muted);font-size:var(--fs-sm);overflow-wrap:anywhere}
+.notification-entry-body time{color:var(--muted);font-size:var(--fs-xs)}
+.notification-empty{padding:24px 18px;text-align:center;color:var(--muted);font-size:var(--fs-sm);line-height:1.6}
+.notification-footer{padding:10px 14px;border-top:1px solid var(--line);text-align:right}
+.notification-footer button{font-size:var(--fs-sm);color:var(--muted);padding:5px 8px}
+@media(min-width:900px){.notification-center{right:34px;top:18px}}
+@media(max-width:600px){.notification-center{top:calc(env(safe-area-inset-top) + 7px);right:16px}.notification-toggle{width:38px;height:38px;border-radius:13px}.notification-panel{max-height:min(440px,calc(100dvh - env(safe-area-inset-top) - 72px))}#page-home>.top,#page-expenses>.top,#page-settings>.top{padding-right:46px}#splitMainView>.top{padding-right:42px}}
+@media(prefers-reduced-motion:reduce){.global-actions-menu{transition:none;filter:none}.notification-panel{animation:none}}
+@media(max-width:600px){#splitDetailView>.top,#splitArchiveView>.top{padding-right:42px}}
