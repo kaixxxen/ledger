@@ -1,4 +1,4 @@
-const CACHE = 'ledger-v48-expenses-journal';
+const CACHE = 'ledger-v52-home-greeting';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'

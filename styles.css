@@ -1072,9 +1072,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   :root[data-theme="dark"] .dock button:active { transform:scale(.96); }
 }
 @media(min-width:900px) {
-  :root[data-theme="dark"] .dock {background:#131517!important;border-right:1px solid #2e3236;box-shadow:none;}
+  :root[data-theme="dark"] .dock {background:#0f1215!important;border-right:1px solid #242a30;box-shadow:none;border-radius:0!important;}
   :root[data-theme="dark"] .dock button.on {background:#242b31;color:#cce8fa;}
   :root[data-theme="dark"] .dock button.on svg {stroke:currentColor;}
+}
+
+/* v50: make the desktop sidebar a clean rail, not a giant rounded panel. */
+@media (min-width:900px){
+  .dock{border-radius:0 !important; padding:26px 14px 24px; background:var(--card) !important;}
+  .dock-brand{padding:2px 12px 18px;}
 }
 @media(prefers-reduced-motion:reduce){.dock button,.dock svg{transition:none!important}}
 /* Friendlier, denser list rhythm without shrinking touch targets. */
@@ -1526,3 +1532,91 @@ input,select,textarea,.seg,.receipt-scan,.receipt-scan-head,.bill-pin-btn,.bill-
   .bill-import-button span{font-size:var(--fs-xs)}
 }
 @media(prefers-reduced-motion:reduce){.expenses-search-panel{animation:none}.expense-icon-action,.expense-filter-details>summary svg{transition:none}}
+
+
+/* ========================================================================
+   Ledger v49 — icon geometry and optical-centering pass
+   Text glyphs are replaced with consistent viewBox-based SVGs. These
+   rules affect presentation only; IDs, clicks and application data stay put.
+   ======================================================================== */
+.ui-center-icon{display:block;width:18px;height:18px;flex:0 0 18px;stroke:currentColor;fill:none;pointer-events:none}
+/* Exact button centers across Safari, Chromium, desktop, and iOS. */
+.notification-head #notificationClose,
+#closeEmojiPickerBtn,
+#btnExpenseSearchClose,
+.mnav button.icon,
+#btnArchiveBack.icon,
+#btnSplitBack.icon,
+.del-fixed-btn,
+.del-settle-btn,
+.emoji-popover-close{
+  display:grid;place-items:center;align-content:center;justify-content:center;
+  padding:0;text-align:center;line-height:1;vertical-align:middle;
+}
+.notification-head #notificationClose{flex:0 0 34px;width:34px;height:34px;min-width:34px;min-height:34px}
+.notification-head #notificationClose .ui-center-icon{width:17px;height:17px;flex-basis:17px}
+#closeEmojiPickerBtn{flex:0 0 36px;width:36px;height:36px}
+#btnExpenseSearchClose{display:grid;place-items:center;width:36px;height:36px;top:4px;right:5px}
+.mnav button.icon{width:30px;height:30px;flex:0 0 30px}
+#btnArchiveBack.icon,#btnSplitBack.icon{min-width:32px;min-height:32px;flex:none}
+.mnav .ui-center-icon,#btnArchiveBack .ui-center-icon,#btnSplitBack .ui-center-icon{width:17px;height:17px;flex-basis:17px}
+/* Apply a single centering model to other existing icon-only controls. */
+.archive-icon-button,.bill-detail-icon-button:not(.bill-import-button),
+.notification-toggle,.expense-icon-action,.bill-pin-btn,
+#billsList .bill-drag-handle,.emoji-grid-item,.settings-fold-icon,
+.notification-entry-icon,.settings-fold-chevron,.global-actions-toggle{
+  align-items:center;justify-content:center;place-items:center;
+}
+.archive-icon-button svg,.bill-detail-icon-button svg,
+.notification-toggle svg,.expense-icon-action svg,
+.global-actions-toggle svg,.settings-fold-icon svg,
+.settings-fold-chevron svg{display:block;flex-shrink:0}
+/* Center glyphs in utility controls while keeping sensible tap areas. */
+.emoji-popover-close:hover,.notification-head #notificationClose:hover,
+#btnExpenseSearchClose:hover{color:var(--text)}
+@media(prefers-reduced-motion:reduce){.notification-head #notificationClose,.emoji-popover-close{transition:none}}
+
+
+/* v51 — notification bell belongs to the scrolling header (not the viewport).
+   Same control geometry as Archives / Edit and Import buttons. */
+.notification-center{
+  position:relative !important;top:auto !important;right:auto !important;
+  inset:auto !important;transform:none !important;flex:0 0 auto;z-index:900;
+  margin:0;
+}
+.top:has(> .notification-center),
+.top:has(.top-actions > .notification-center),
+.top:has(.split-header-actions > .notification-center){
+  position:relative;z-index:45;overflow:visible;
+}
+.notification-toggle{
+  width:42px;height:42px;min-width:42px;min-height:42px;
+  padding:0;display:grid;place-items:center;line-height:1;
+}
+.notification-toggle svg{display:block;width:20px;height:20px;margin:auto}
+@media(max-width:600px){
+  .notification-toggle{width:38px;height:38px;min-width:38px;min-height:38px}
+  .notification-toggle svg{width:19px;height:19px}
+  #page-home>.top,#page-expenses>.top,#page-settings>.top,
+  #splitMainView>.top{padding-right:0 !important}
+  #page-home>.top>h1,#page-expenses>.top>h1,#page-settings>.top>h1{
+    flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+  }
+  #page-home>.top,#page-expenses>.top{gap:7px}
+  #page-home .mnav .monthLabel,#page-expenses .mnav .monthLabel{min-width:86px}
+}
+
+
+/* v52 — keep personalized Home greetings on one line on every screen size. */
+#page-home > .top > #homeGreeting {
+  flex:1 1 0;
+  min-width:0;
+  max-width:100%;
+  overflow:hidden;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+}
+#page-home > .top > .mnav,
+#page-home > .top > .top-actions {
+  flex-shrink:0;
+}

@@ -540,6 +540,28 @@ function closeNotifications() {
   if (d) d.hidden=true;
   if (b) b.setAttribute('aria-expanded','false');
 }
+// Keep the notification bell in the active page header instead of pinning it
+// to the viewport. The existing button and inbox are moved, never recreated,
+// so their event handlers and unread state are preserved.
+function placeNotificationInHeader() {
+  const center = $('notificationCenter');
+  if (!center) return;
+  const splitVisible = currentPage === 'split';
+  let target;
+  if (splitVisible && $('splitDetailView') && !$('splitDetailView').hidden) {
+    target = document.querySelector('#splitDetailView .split-header-actions');
+  } else if (splitVisible && $('splitArchiveView') && !$('splitArchiveView').hidden) {
+    target = document.querySelector('#splitArchiveView > .top > div:last-child');
+  } else if (splitVisible) {
+    target = document.querySelector('#splitMainView > .top .top-actions');
+  } else {
+    target = document.querySelector('#page-' + (currentPage || 'home') + ' > .top');
+  }
+  if (target && center.parentElement !== target) {
+    closeNotifications();
+    target.appendChild(center);
+  }
+}
 function initNotifications() {
   const toggle=$('notificationToggle');
   if (!toggle) return;
@@ -563,6 +585,14 @@ function initNotifications() {
       openBillDetail(n.billId);
     } else if(n?.kind==='reminder') {location.hash='#home';route();}
   });
+  // Page routing and Split subviews switch by toggling their hidden attribute.
+  // Watch only those view boundaries; don't watch inner UI changes.
+  const views = ['page-home','page-expenses','page-split','page-settings',
+                 'splitMainView','splitArchiveView','splitDetailView'];
+  const headerObserver = new MutationObserver(placeNotificationInHeader);
+  views.forEach(id => { const el = $(id); if(el) headerObserver.observe(el,
+    {attributes:true,attributeFilter:['hidden']}); });
+  placeNotificationInHeader();
   document.addEventListener('keydown',e=>{if(e.key==='Escape')closeNotifications();});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){collectCardNotifications();renderNotifications();}});
   renderNotifications();
@@ -624,6 +654,7 @@ function route() {
   try { window.scrollTo(0, 0); } catch {}
   if (prev && prev !== name) slideIn($('page-' + name), PAGES.indexOf(name) > PAGES.indexOf(prev) ? 1 : -1);
   currentPage = name;
+  placeNotificationInHeader();
   closeGlobalActions(true);
   closeNotifications();
   renderAll();
@@ -696,12 +727,11 @@ function renderAll() {
   });
 
   if ($('homeGreeting')) {
-    let nameStr = state.nickname;
-    if (!nameStr && user && user.email) {
-      nameStr = user.email.split('@')[0];
-      nameStr = nameStr.charAt(0).toUpperCase() + nameStr.slice(1);
-    }
-    $('homeGreeting').textContent = nameStr ? `Hi ${nameStr}!` : 'Hi there!';
+    // Only a nickname sets the personal greeting; never substitute an email address.
+    const nickname = String(state.nickname || '').trim();
+    const greeting = nickname ? `Hi ${nickname}!` : 'Hi there!';
+    $('homeGreeting').textContent = greeting;
+    $('homeGreeting').title = greeting;
   }
 
   populateCardDropdowns();

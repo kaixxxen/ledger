@@ -89,11 +89,11 @@
   <!-- HOME PAGE -->
   <section class="page" id="page-home" hidden>
     <header class="top">
-      <h1 id="homeGreeting">Hi!</h1>
+      <h1 id="homeGreeting">Hi there!</h1>
       <div class="mnav">
-        <button class="icon" data-m="-1" aria-label="Previous month">‹</button>
+        <button class="icon" data-m="-1" aria-label="Previous month"><svg class="ui-center-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
         <span class="monthLabel"></span>
-        <button class="icon" data-m="1" aria-label="Next month">›</button>
+        <button class="icon" data-m="1" aria-label="Next month"><svg class="ui-center-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
       </div>
     </header>
 
@@ -150,9 +150,9 @@
     <header class="top">
       <h1>Expenses</h1>
       <div class="mnav">
-        <button class="icon" data-m="-1" aria-label="Previous month">‹</button>
+        <button class="icon" data-m="-1" aria-label="Previous month"><svg class="ui-center-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
         <span class="monthLabel"></span>
-        <button class="icon" data-m="1" aria-label="Next month">›</button>
+        <button class="icon" data-m="1" aria-label="Next month"><svg class="ui-center-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
       </div>
     </header>
 
@@ -172,7 +172,7 @@
       </div>
       <div class="expenses-search-panel" id="expenseSearchPanel" hidden>
         <input type="search" id="txSearch" class="tx-search" placeholder="Search transactions…" aria-label="Search transactions" autocomplete="off" enterkeyhint="search">
-        <button type="button" class="expense-search-clear" id="btnExpenseSearchClose" aria-label="Close search">×</button>
+        <button type="button" class="expense-search-clear" id="btnExpenseSearchClose" aria-label="Close search"><svg class="ui-center-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
       </div>
       <div class="expenses-tabs seg" id="txViewSeg">
         <button type="button" data-v="expenses" class="on">Transactions</button>
@@ -223,7 +223,7 @@
     <div id="splitArchiveView" hidden>
       <header class="top">
         <div class="archive-head">
-          <button type="button" class="icon back-btn" id="btnArchiveBack" aria-label="Back">‹</button>
+          <button type="button" class="icon back-btn" id="btnArchiveBack" aria-label="Back"><svg class="ui-center-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
           <h1 class="title-sm">Archived Groups</h1>
         </div>
         <div></div>
@@ -236,7 +236,7 @@
     <div id="splitDetailView" hidden>
       <header class="top top-split-header">
         <div class="split-header-left">
-          <button type="button" class="icon back-btn" id="btnSplitBack" aria-label="Back">‹</button>
+          <button type="button" class="icon back-btn" id="btnSplitBack" aria-label="Back"><svg class="ui-center-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
           <span id="splitPersonAvatar" class="split-header-emoji">🐶</span>
           <h1 id="splitPersonName">Group Name</h1>
         </div>
@@ -518,7 +518,7 @@
               <div class="emoji-picker-panel">
                 <div class="emoji-popover-header">
                   <div><strong id="emojiPickerTitle">Choose an avatar</strong><span>Pick an animal or use your own emoji.</span></div>
-                  <button type="button" id="closeEmojiPickerBtn" class="emoji-popover-close" aria-label="Close avatar picker">&times;</button>
+                  <button type="button" id="closeEmojiPickerBtn" class="emoji-popover-close" aria-label="Close avatar picker"><svg class="ui-center-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
                 </div>
                 <div class="emoji-grid" id="emojiGrid" aria-label="Animal avatar choices"></div>
                 <div class="emoji-popover-footer">
@@ -847,7 +847,7 @@
   </button>
   <div id="notificationDismiss" class="notification-dismiss" hidden></div>
   <section id="notificationPanel" class="notification-panel" aria-label="Notifications" hidden>
-    <header class="notification-head"><div><strong>Notifications</strong><small>Reminders &amp; shared bill activity</small></div><button type="button" id="notificationClose" aria-label="Close notifications">×</button></header>
+    <header class="notification-head"><div><strong>Notifications</strong><small>Reminders &amp; shared bill activity</small></div><button type="button" id="notificationClose" aria-label="Close notifications"><svg class="ui-center-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></header>
     <div id="notificationList" class="notification-list"></div>
     <footer class="notification-footer"><button type="button" id="notificationClear">Clear all</button></footer>
   </section>
