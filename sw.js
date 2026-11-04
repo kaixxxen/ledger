@@ -1,4 +1,4 @@
-const CACHE = 'ledger-v49-control-alignment';
+const CACHE = 'ledger-v48-expenses-journal';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'
