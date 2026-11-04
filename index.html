@@ -15,11 +15,9 @@
 <meta name="theme-color" content="#0c1220" media="(prefers-color-scheme: dark)">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
 <script>
-  /* Apply saved appearance before first paint. iOS retains its native UI font. */
+  /* Apply saved appearance and native Apple typography before the first paint. */
   (function () {
     var d = document.documentElement;
     try {
@@ -30,10 +28,25 @@
       var s = localStorage.getItem('ledger.fontScale');
       if (['1', '1.1', '1.2', '1.35'].indexOf(s) > -1) d.style.setProperty('--fs-scale', s);
     } catch (e) {}
+    // Safari, Chrome, Firefox, and installed PWAs on Apple hardware should
+    // use the platform's native San Francisco system font, not web-loaded Inter.
     var ua = navigator.userAgent || '';
-    var ios = /iP(hone|ad|od)/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    if (ios) {
-      d.setAttribute('data-os', 'ios');
+    var platform = navigator.platform || '';
+    var ios = /iPhone|iPad|iPod/i.test(ua) || (/^Mac/i.test(platform) && navigator.maxTouchPoints > 1);
+    var apple = ios || /Macintosh|Mac OS X/i.test(ua) || /^Mac/i.test(platform);
+    if (ios) d.setAttribute('data-os', 'ios');
+    if (apple) {
+      d.setAttribute('data-apple-font', 'true');
+    } else {
+      // Load Inter only on non-Apple platforms; avoid an unnecessary font fetch on Apple.
+      var preconnect = document.createElement('link');
+      preconnect.rel = 'preconnect';
+      preconnect.href = 'https://fonts.googleapis.com';
+      document.head.appendChild(preconnect);
+      var fontLink = document.createElement('link');
+      fontLink.rel = 'stylesheet';
+      fontLink.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap';
+      document.head.appendChild(fontLink);
     }
   })();
 </script>
@@ -143,25 +156,39 @@
       </div>
     </header>
 
-    <div class="minis" id="minis"></div>
+    <div class="minis" id="minis" aria-label="Spending by payment method"></div>
 
-    <div class="card">
-      <div class="seg stack-gap" id="txViewSeg">
-        <button type="button" data-v="expenses" class="on">Expenses / Income</button>
-        <button type="button" data-v="recurring">Recurring Expenses</button>
+    <section class="card expenses-ledger-card" aria-label="Transaction history">
+      <div class="expenses-section-header">
+        <div class="expenses-section-heading">
+          <h2>Activity</h2>
+          <span class="expenses-count" id="expensesCount" aria-live="polite"></span>
+        </div>
+        <div class="expenses-section-actions">
+          <button type="button" id="btnExpenseSearch" class="expense-icon-action" aria-label="Search transactions" aria-controls="expenseSearchPanel" aria-expanded="false" title="Search transactions">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.5"/><path d="m16 16 4.3 4.3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="expenses-search-panel" id="expenseSearchPanel" hidden>
+        <input type="search" id="txSearch" class="tx-search" placeholder="Search transactions…" aria-label="Search transactions" autocomplete="off" enterkeyhint="search">
+        <button type="button" class="expense-search-clear" id="btnExpenseSearchClose" aria-label="Close search">×</button>
+      </div>
+      <div class="expenses-tabs seg" id="txViewSeg">
+        <button type="button" data-v="expenses" class="on">Transactions</button>
+        <button type="button" data-v="recurring">Recurring</button>
       </div>
 
       <div id="tabExpensesView">
-        <input type="search" id="txSearch" class="tx-search" placeholder="Search notes, categories, amounts…" autocomplete="off" enterkeyhint="search">
-        <div class="filters">
-          <div class="chips" id="methodChips">
+        <details class="expense-filter-details" id="expenseFilterDetails">
+          <summary><span>Payment method</span><span id="expenseFilterLabel">All methods</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></summary>
+          <div class="chips" id="methodChips" aria-label="Filter by payment method">
             <button type="button" class="chip on" data-v="all">All</button>
             <button type="button" class="chip" data-v="cash">Cash</button>
-            <button type="button" class="chip" data-v="debit">Debit Card</button>
-            <button type="button" class="chip" data-v="card">Credit Card</button>
+            <button type="button" class="chip" data-v="debit">Debit</button>
+            <button type="button" class="chip" data-v="card">Credit</button>
           </div>
-        </div>
-
+        </details>
         <ul id="list"></ul>
         <div class="empty" id="empty">Nothing here yet.</div>
         <button type="button" class="see-all-btn" data-key="tx" id="btnSeeMoreExpenses" hidden>See all</button>
@@ -170,7 +197,7 @@
       <div id="tabRecurringView" hidden>
         <div id="fixedExpensesList"></div>
       </div>
-    </div>
+    </section>
   </section>
 
   <!-- BILL SPLITTER PAGE -->
@@ -214,8 +241,8 @@
           <h1 id="splitPersonName">Group Name</h1>
         </div>
         <div class="split-header-actions">
-          <button type="button" class="bill-detail-icon-button" id="btnImportSplitwise" aria-label="Import expenses from CSV" title="Import CSV">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 15V3m0 12-4-4m4 4 4-4"/><path d="M4 16.5V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2.5"/></svg>
+          <button type="button" class="bill-detail-icon-button bill-import-button" id="btnImportSplitwise" aria-label="Import expenses into this bill from a Splitwise CSV" title="Import expenses from Splitwise CSV">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 15V3m0 12-4-4m4 4 4-4"/><path d="M4 16.5V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2.5"/></svg><span>Import</span>
           </button>
           <input id="splitwiseCsvInput" type="file" accept=".csv,text/csv" hidden>
           <button type="button" class="bill-detail-icon-button" id="btnEditGroupTitle" aria-label="Edit bill details" title="Edit bill">
@@ -607,7 +634,7 @@
       </div>
 
       <div id="tripExpenseFields" class="trip-expense-fields" hidden>
-        <div class="row2"><div><label class="lbl" for="tripCategory">Expense type</label><select id="tripCategory"><option value="general">Group</option><option value="food">Individual</option><option value="delivery">Food Delivery</option></select></div><div id="tripAllocationWrap"><label class="lbl" for="tripAllocation">Split method</label><select id="tripAllocation"><option value="equal">Equal split</option></select></div><div id="tripServiceWrap" hidden><label class="lbl" for="tripServiceCharge">Service charge</label><input id="tripServiceCharge" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></div></div>
+        <div class="row2"><div><label class="lbl" for="tripCategory">Expense type</label><select id="tripCategory"><option value="general">Group</option><option value="food">Individual</option><option value="delivery">Food Delivery</option></select></div><div id="tripAllocationWrap" hidden><label class="lbl" for="tripAllocation">Split method</label><select id="tripAllocation"><option value="equal">Equal split</option></select></div><div id="tripServiceWrap" hidden><label class="lbl" for="tripServiceCharge">Service charge</label><input id="tripServiceCharge" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></div></div>
         <div id="deliveryExtras" class="delivery-extras" hidden>
           <div class="delivery-heading"><strong>Delivery bill adjustments</strong><span class="fine">Amounts for the whole order</span></div>
           <div class="row2">

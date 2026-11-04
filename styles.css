@@ -1,8 +1,8 @@
 /* =====================================================================
    Ledger · design system
    - One set of tokens (colour, type, radius, spacing, shadow) used everywhere
-   - Fonts: Inter (web / Android / desktop), system San Francisco on iOS,
-            JetBrains Mono for figures
+   - Fonts: native Apple system font on macOS/iPadOS/iOS; Inter elsewhere.
+            Financial figures use tabular numerals on both.
    - Text size: every font size is multiplied by --fs-scale (Settings → Text size).
                 The original sizes are the minimum (scale 1).
    - Responsive: bottom dock on phones/tablets, sidebar + grid layouts on desktop
@@ -64,9 +64,10 @@
 }
 :root[data-theme="light"]{ color-scheme:light; }
 
-/* iOS shows its own system font (San Francisco). data-os is set in index.html. */
-:root[data-os="ios"]{
-  --font-ui:-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", ui-sans-serif, system-ui, sans-serif;
+/* Use the native platform font across macOS, iPadOS, and iOS. */
+:root[data-apple-font="true"]{
+  --font-ui:-apple-system, BlinkMacSystemFont, system-ui, "Helvetica Neue", sans-serif;
+  --font-num:-apple-system, BlinkMacSystemFont, system-ui, "Helvetica Neue", sans-serif;
 }
 
 @media (prefers-color-scheme: dark){
@@ -100,7 +101,7 @@ body{
   font-feature-settings:"cv11","ss01"; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
   min-height:100vh; min-height:-webkit-fill-available; min-height:100dvh;
 }
-:root[data-os="ios"] body{ font-feature-settings:normal; }
+:root[data-apple-font="true"] body{ font-feature-settings:normal; }
 button,input,select,textarea{ font-family:inherit; }
 button{ font:inherit; color:inherit; background:none; border:0; padding:0; cursor:pointer; }
 button:active{ transform:none; }
@@ -1462,3 +1463,66 @@ input,select,textarea,.seg,.receipt-scan,.receipt-scan-head,.bill-pin-btn,.bill-
   .archive-icon-button,.bill-detail-icon-button,.notification-toggle{transition:none}
   .notification-dismiss{animation:none}
 }
+
+
+/* ====================================================================
+   Ledger v48 — Transaction journal and contextual import controls.
+   Presentation-only changes: existing element IDs and handlers retained.
+   ==================================================================== */
+#page-expenses .top{margin-bottom:14px}
+#page-expenses .minis{gap:0;overflow:hidden;margin-bottom:14px;padding:2px 0;border:1px solid var(--line);border-radius:18px;background:var(--card);box-shadow:var(--shadow-sm)}
+#page-expenses .mini{padding:13px 10px;box-shadow:none;border:0;border-radius:0;text-align:center;background:transparent;min-width:0}
+#page-expenses .mini+.mini{border-left:1px solid var(--line)}
+#page-expenses .mini small{font-weight:500;letter-spacing:.015em;margin-bottom:5px}
+#page-expenses .mini b{font-size:var(--fs-md);font-weight:650;line-height:1.25;letter-spacing:-.035em}
+#page-expenses .expenses-ledger-card{padding:17px;margin-bottom:var(--gap);border-radius:22px}
+.expenses-section-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:15px}
+.expenses-section-heading{display:flex;align-items:baseline;gap:10px;min-width:0}
+.expenses-section-heading h2{font-size:var(--fs-md);font-weight:680;color:var(--text);margin:0;text-transform:none;letter-spacing:-.025em}
+.expenses-count{font-size:var(--fs-xs);color:var(--muted);white-space:nowrap}
+.expenses-section-actions{display:flex;align-items:center;gap:8px}
+.expense-icon-action{width:40px;height:40px;display:grid;place-items:center;background:var(--card-2);border:1px solid var(--line);border-radius:13px;color:var(--text);transition:background .18s,border-color .18s,transform .18s}
+.expense-icon-action svg{width:19px;height:19px;display:block}
+.expense-icon-action:hover,.expense-icon-action.is-active{background:color-mix(in srgb,var(--gold) 11%,var(--card-2));border-color:color-mix(in srgb,var(--gold) 35%,var(--line))}
+.expense-icon-action:active{transform:scale(.95)}
+.expenses-search-panel{position:relative;margin:-3px 0 13px;animation:ledgerExpenseReveal .2s ease-out}
+.expenses-search-panel .tx-search{margin:0;padding:12px 42px 12px 15px;border-radius:13px;background:var(--card-2);width:100%;height:44px}
+.expense-search-clear{position:absolute;right:5px;top:4px;width:36px;height:36px;border-radius:10px;color:var(--muted);font-size:22px;line-height:1}
+.expense-search-clear:hover{background:var(--bar);color:var(--text)}
+#page-expenses .expenses-tabs{margin:0 0 13px;background:var(--card-2);border:1px solid var(--line);padding:3px;border-radius:13px}
+#page-expenses .expenses-tabs button{min-height:34px;border-radius:10px;font-size:var(--fs-base)}
+#page-expenses .expense-filter-details{border-bottom:1px solid var(--line);margin:0 0 2px;padding:0 0 11px}
+#page-expenses .expense-filter-details>summary{display:flex;gap:10px;align-items:center;min-height:34px;list-style:none;cursor:pointer;color:var(--muted);font-size:var(--fs-sm);font-weight:500}
+#page-expenses .expense-filter-details>summary::-webkit-details-marker{display:none}
+#page-expenses .expense-filter-details>summary span:nth-child(2){margin-left:auto;color:var(--text);font-weight:600}
+#page-expenses .expense-filter-details>summary svg{width:16px;height:16px;transition:transform .18s;color:var(--muted)}
+#page-expenses .expense-filter-details[open]>summary svg{transform:rotate(180deg)}
+#page-expenses .expense-filter-details .chips{padding:9px 0 3px;gap:7px}
+#page-expenses .expense-filter-details .chip{font-size:var(--fs-xs);padding:7px 13px;border-radius:12px}
+#page-expenses #list li.tx{padding:13px 8px;margin:0 -8px;gap:12px;border-radius:12px}
+#page-expenses #list li.tx .cat-dot{width:9px;height:9px}
+#page-expenses #list li.tx .meta div{font-size:var(--fs-base);font-weight:620}
+#page-expenses #list li.tx .meta small{margin-top:4px;gap:6px}
+#page-expenses #list li.tx .tag{background:var(--card-2);border:1px solid var(--line);padding:1px 7px}
+#page-expenses #list li.tx .amt{font-size:var(--fs-base);font-weight:650;white-space:nowrap}
+#page-expenses .see-all-btn{background:var(--card-2);border:1px solid var(--line);font-size:var(--fs-sm)}
+.bill-import-button{width:auto!important;min-width:0!important;height:42px!important;display:inline-flex!important;align-items:center;justify-content:center;gap:7px;padding:0 12px!important;font-size:var(--fs-sm);font-weight:650;white-space:nowrap}
+.bill-import-button svg{width:18px;height:18px;flex:none}
+@keyframes ledgerExpenseReveal{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+@media(min-width:900px){
+  #page-expenses{grid-template-columns:240px minmax(0,1fr);grid-template-rows:auto auto 1fr;column-gap:20px;row-gap:14px;align-items:start}
+  #page-expenses>.top{grid-column:1/-1;grid-row:1}
+  #page-expenses>.minis{grid-column:1;grid-row:2;display:flex;flex-direction:column;align-items:stretch;margin:0}
+  #page-expenses>.minis .mini{text-align:left;padding:15px 18px}
+  #page-expenses>.minis .mini+.mini{border-left:0;border-top:1px solid var(--line)}
+  #page-expenses>.expenses-ledger-card{grid-column:2;grid-row:2/span 2;margin:0}
+}
+@media(max-width:450px){
+  #page-expenses .mini{padding:12px 5px}
+  #page-expenses .mini b{font-size:var(--fs-base)}
+  #page-expenses .expenses-ledger-card{padding:14px}
+  #page-expenses .expenses-tabs button{font-size:var(--fs-sm)}
+  .bill-import-button{height:38px!important;padding:0 9px!important;gap:5px}
+  .bill-import-button span{font-size:var(--fs-xs)}
+}
+@media(prefers-reduced-motion:reduce){.expenses-search-panel{animation:none}.expense-icon-action,.expense-filter-details>summary svg{transition:none}}

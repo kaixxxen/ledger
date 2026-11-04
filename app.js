@@ -1168,8 +1168,8 @@ function renderExpenses() {
   if ($('minis')) {
     $('minis').innerHTML = `
       <div class="mini"><small>Cash</small><b>${money(spentCash)}</b></div>
-      <div class="mini"><small>Debit card</small><b>${money(spentDebit)}</b></div>
-      <div class="mini"><small>Credit card</small><b>${money(spentCard)}</b></div>`;
+      <div class="mini"><small>Debit</small><b>${money(spentDebit)}</b></div>
+      <div class="mini"><small>Credit</small><b>${money(spentCard)}</b></div>`;
   }
 
   let txs = all;
@@ -1184,6 +1184,7 @@ function renderExpenses() {
     $('empty').textContent = all.length ? 'No entries match your filters.' : 'Nothing logged this month.';
   }
 
+  if ($('expensesCount')) $('expensesCount').textContent = `${txs.length} ${txs.length === 1 ? 'entry' : 'entries'}`;
   const visibleTxs = limited('tx', txs);
   if ($('btnSeeMoreExpenses')) {
     $('btnSeeMoreExpenses').hidden = txs.length <= LIMIT;
@@ -2481,7 +2482,7 @@ function updateTripAmount() {
 function updateTripFormMode() {
   const cat=$('tripCategory').value, food=cat==='food', delivery=cat==='delivery';
   const auto=tripIsAutoAmount();
-  $('tripAllocationWrap').hidden=food||delivery;
+  $('tripAllocationWrap').hidden=true; // Group is always equal; Individual and Food Delivery use dedicated calculations.
   $('tripServiceWrap').hidden=!food;
   $('deliveryExtras').hidden=!delivery;
   $$('#tripMembersGrid [data-trip-amount]').forEach(i=>i.hidden=!auto);
@@ -2601,6 +2602,25 @@ function bind() {
   });
   on('paidCancel', 'click', closePaidModal);
 
+  const toggleExpenseSearch = (open) => {
+    const panel = $('expenseSearchPanel');
+    const button = $('btnExpenseSearch');
+    if (!panel || !button) return;
+    panel.hidden = !open;
+    button.setAttribute('aria-expanded', String(open));
+    button.classList.toggle('is-active', open);
+    if (open) $('txSearch')?.focus();
+    else if ($('txSearch')) {
+      $('txSearch').value = '';
+      txSearch = '';
+      expanded.tx = false;
+      renderExpenses();
+      button.focus();
+    }
+  };
+  on('btnExpenseSearch', 'click', () => toggleExpenseSearch($('expenseSearchPanel').hidden));
+  on('btnExpenseSearchClose', 'click', () => toggleExpenseSearch(false));
+  on('txSearch', 'keydown', e => { if (e.key === 'Escape') { e.preventDefault(); toggleExpenseSearch(false); } });
   on('txSearch', 'input', () => { txSearch = $('txSearch').value.trim().toLowerCase(); expanded.tx = false; renderExpenses(); });
 
   on('splitHistoryList', 'click', async e => {
@@ -2948,7 +2968,11 @@ function bind() {
     };
   }
 
-  if ($('btnImportSplitwise')) $('btnImportSplitwise').onclick = () => $('splitwiseCsvInput').click();
+  if ($('btnImportSplitwise')) $('btnImportSplitwise').onclick = () => {
+    showActionSheet('Import expenses to this bill',
+      'Choose a Splitwise-style CSV export. Imported transactions are added to this bill and shared equally across its current members. Review the CSV first; existing entries are not replaced.',
+      [{text:'Choose CSV file', action:()=>$('splitwiseCsvInput')?.click()}]);
+  };
   on('splitwiseCsvInput', 'change', e => {
     importSplitwiseCsv(e.target.files[0]); e.target.value = '';
   });
@@ -3170,6 +3194,8 @@ function bind() {
   on('methodChips', 'click', e => {
     const b = e.target.closest('.chip'); if (!b) return;
     fMethod = b.dataset.v; expanded.tx = false;
+    if ($('expenseFilterLabel')) $('expenseFilterLabel').textContent = ({all:'All methods',cash:'Cash',debit:'Debit',card:'Credit'})[fMethod] || 'All methods';
+    if ($('expenseFilterDetails')) $('expenseFilterDetails').open = false;
     $$('#methodChips .chip').forEach(c => c.classList.toggle('on', c === b));
     renderExpenses();
   });
