@@ -1620,3 +1620,54 @@ input,select,textarea,.seg,.receipt-scan,.receipt-scan-head,.bill-pin-btn,.bill-
 #page-home > .top > .top-actions {
   flex-shrink:0;
 }
+
+
+/* Ledger v53: bill-header stacking and viewport-contained inbox. */
+/* The bell scrolls with its header; its inbox and backdrop are portaled to body. */
+body > .notification-dismiss{
+  position:fixed !important; inset:0 !important;
+  width:100vw;height:100dvh;
+  z-index:990 !important;
+}
+body > .notification-panel{
+  position:fixed !important;
+  top:calc(env(safe-area-inset-top) + 84px) !important;
+  left:12px !important;right:12px !important;
+  width:min(420px,calc(100vw - 24px)) !important;
+  max-width:calc(100vw - 24px) !important;
+  max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 108px) !important;
+  margin-inline:auto !important;
+  z-index:991 !important;
+  box-sizing:border-box;
+  overflow:hidden;
+}
+body > .notification-panel .notification-head > div{flex:1;min-width:0}
+body > .notification-panel .notification-head strong,
+body > .notification-panel .notification-head small{overflow-wrap:anywhere}
+body > .notification-panel .notification-list{min-height:0;overflow-y:auto}
+@media(max-width:600px){
+  #splitDetailView .top-split-header{
+    display:grid;grid-template-columns:minmax(0,1fr);
+    align-items:center;row-gap:10px;
+  }
+  #splitDetailView .top-split-header .split-header-left{
+    grid-column:1;display:flex;width:100%;min-width:0;gap:9px;
+  }
+  #splitDetailView .top-split-header .split-header-left h1{
+    flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap;font-size:var(--fs-xl);
+  }
+  #splitDetailView .top-split-header .split-header-actions{
+    grid-column:1;display:flex;justify-content:flex-end;gap:8px;
+    width:100%;min-width:0;
+  }
+  #splitDetailView .split-header-actions .bill-import-button{margin-right:auto}
+  #splitDetailView .split-header-actions .notification-center{margin-left:0}
+  body > .notification-panel{
+    top:calc(env(safe-area-inset-top) + 70px) !important;
+    max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 86px) !important;
+  }
+}
+@media(max-width:360px){
+  #splitDetailView .top-split-header .split-header-actions{gap:6px}
+}

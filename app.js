@@ -565,6 +565,12 @@ function placeNotificationInHeader() {
 function initNotifications() {
   const toggle=$('notificationToggle');
   if (!toggle) return;
+  // The bell follows page headers, but the inbox and its backdrop belong at
+  // document level. Otherwise a narrow header can clip or offset the inbox.
+  const inbox = $('notificationPanel');
+  const backdrop = $('notificationDismiss');
+  if (inbox && inbox.parentElement !== document.body) document.body.appendChild(inbox);
+  if (backdrop && backdrop.parentElement !== document.body) document.body.appendChild(backdrop);
   toggle.addEventListener('click',()=>{
     const open=$('notificationPanel').hidden;
     closeGlobalActions(true);
@@ -679,6 +685,7 @@ function ensureDockGradient() {
 }
 
 function showAuth() {
+  closeNotifications();
   if ($('app')) $('app').hidden = true;
   if ($('dock')) $('dock').hidden = true;
   closeGlobalActions();
