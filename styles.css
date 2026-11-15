@@ -1795,3 +1795,26 @@ body > .notification-panel .notification-list{min-height:0;overflow-y:auto}
   }
   #splitDetailView .split-header-actions > .bill-import-button span { font-size:var(--fs-xs); }
 }
+
+
+/* Ledger v58 — contextual payments, consistent with Midnight cards. */
+#splitBalancesList .settlement-action {
+  appearance:none; -webkit-appearance:none; display:flex; width:calc(100% + 16px);
+  text-align:left; cursor:pointer; font:inherit; color:var(--text);
+  align-items:center; justify-content:space-between; min-height:76px;
+}
+#splitBalancesList .settlement-action:focus-visible {outline:2px solid var(--gold);outline-offset:-3px;}
+#splitBalancesList .settlement-amount {flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:3px;}
+#splitBalancesList .settlement-amount strong{font-family:var(--font-num);font-variant-numeric:tabular-nums;}
+#splitBalancesList .settlement-copy{min-width:0;display:block;font-size:var(--fs-base);}
+#splitBalancesList .settlement-status{display:block;font-size:var(--fs-xs);margin-top:5px;line-height:1.4;}
+#splitBalancesList .settlement-hint{color:var(--gold);font-size:var(--fs-xs);font-weight:600;}
+#splitBalancesList .settlement-complete{cursor:default;min-height:76px;}
+#splitBalancesList .settlement-complete::before{background:transparent!important;}
+#splitBalancesList .settlement-complete .user-avatar-circle{color:var(--good);}
+#splitBalancesList .settlement-paid{color:var(--good);font-size:var(--fs-xs);font-weight:700;}
+@media(max-width:420px){
+  #splitBalancesList .settlement-action,#splitBalancesList .settlement-complete{gap:8px;}
+  #splitBalancesList .settlement-copy{font-size:var(--fs-sm);}
+  #splitBalancesList .settlement-hint{font-size:var(--fs-xs);}
+}

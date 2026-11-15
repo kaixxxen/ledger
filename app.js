@@ -1965,19 +1965,59 @@ function renderBillBalancesTab(group) {
     list.innerHTML = `<div class="card" role="alert"><strong>Check expense shares</strong><p class="fine">Some saved expenses do not add up to their total. Edit these expenses to correct their shares before settlements can be suggested.</p>${issues.map(issue => `<p class="fine">${esc(issue)}</p>`).join('')}</div>`;
     return;
   }
-  if (settlements.length === 0) {
-    list.innerHTML = `<div class="empty" style="padding: 16px;">All group balances are settled!</div>`;
-    return;
+  // Show outstanding pairwise debts and recently completed pairwise payments.
+  // Status belongs to a payer/recipient settlement, not to the original bill
+  // expense (an expense can involve several people who pay at different times).
+  const original = calculateGroupBalance({ ...group, settlements: [] });
+  const remaining = new Map(settlements.map(s =>
+    [JSON.stringify([s.from, s.to]), Math.round(s.amount * 100)]));
+  const completed = [];
+  const paidProgress = new Map();
+  for (const s of original.settlements) {
+    const key = JSON.stringify([s.from, s.to]);
+    const payments = (group.settlements || []).filter(p => p.from === s.from && p.to === s.to)
+      .reduce((v, p) => v + Math.round(Number(p.amount || 0) * 100), 0);
+    if (payments <= 0) continue;
+    const originalCents = Math.round(s.amount * 100);
+    const remainingCents = remaining.get(key) || 0;
+    const paidCents = Math.min(originalCents, Math.max(0, originalCents - remainingCents));
+    if (paidCents <= 0) continue;
+    paidProgress.set(key, paidCents);
+    if (remainingCents === 0) completed.push({ ...s, paidAmount: paidCents / 100 });
   }
 
-  list.innerHTML = limited('balances', settlements).map(s => `
-    <div class="srow settle-row" data-from="${esc(s.from)}" data-to="${esc(s.to)}" data-amount="${s.amount}" title="Tap to record this payment">
-      <div class="user-item">
-        <div class="user-avatar-circle" style="background: var(--bar); color: var(--text);">💸</div>
-        <div><strong>${esc(shortFor(group, s.from))}</strong> owes <strong>${esc(shortFor(group, s.to))}</strong></div>
-      </div>
-      <span class="bold">${money(s.amount)}</span>
-    </div>`).join('') + moreBtn('balances', settlements.length);
+  const pendingHtml = settlements.map(s => {
+    const key = JSON.stringify([s.from, s.to]);
+    const paidCents = paidProgress.get(key) || 0;
+    return `<button type="button" class="srow settle-row settlement-action" data-from="${esc(s.from)}" data-to="${esc(s.to)}" data-amount="${s.amount}" aria-label="Record payment: ${esc(shortFor(group, s.from))} owes ${esc(shortFor(group, s.to))} ${esc(money(s.amount))}">
+      <span class="user-item">
+        <span class="user-avatar-circle" aria-hidden="true">↗</span>
+        <span class="settlement-copy"><strong>${esc(shortFor(group, s.from))}</strong> owes <strong>${esc(shortFor(group, s.to))}</strong>
+          <small class="muted settlement-status">${paidCents ? `${money(paidCents / 100)} paid · ` : ''}Tap to record payment</small>
+        </span>
+      </span>
+      <span class="settlement-amount"><strong>${money(s.amount)}</strong><small class="settlement-hint">Record payment ›</small></span>
+    </button>`;
+  }).join('');
+
+  const completedHtml = completed.map(s => `<div class="srow settle-row settlement-complete">
+    <span class="user-item">
+      <span class="user-avatar-circle" aria-hidden="true">✓</span>
+      <span class="settlement-copy"><strong>${esc(shortFor(group, s.from))}</strong> paid <strong>${esc(shortFor(group, s.to))}</strong>
+        <small class="muted settlement-status">Payment recorded in Audit Log</small>
+      </span>
+    </span>
+    <span class="settlement-amount"><strong>${money(s.paidAmount)}</strong><small class="settlement-paid">✓ Paid</small></span>
+  </div>`).join('');
+
+  if (!pendingHtml && !completedHtml) {
+    list.innerHTML = '<div class="empty" style="padding:16px;">No outstanding payments.</div>';
+    return;
+  }
+  // Paid rows remain visible after full payment instead of disappearing.
+  const allRows = [pendingHtml, completedHtml].filter(Boolean).join('');
+  list.innerHTML = allRows;
+
 }
 
 function renderBillHistoryTab(group) {
@@ -1994,7 +2034,7 @@ function renderBillHistoryTab(group) {
     <div class="history-item">
       <div>
         <strong>${esc(shortFor(group, s.from))}</strong> paid <strong>${esc(shortFor(group, s.to))}</strong>
-        <small class="muted" style="display: block;">${esc(s.method || 'GCash')} · ${s.date || today()} ${s.note ? '· ' + esc(s.note) : ''}</small>
+        <small class="muted" style="display:block;">✓ Payment recorded · ${esc(s.method || 'GCash')} · ${esc(s.date || today())}${s.note ? ' · ' + esc(s.note) : ''}</small>
       </div>
       <div style="display:flex;align-items:center;gap:10px;"><b class="pos-text">+${money(s.amount)}</b><button type="button" class="del-settle-btn" data-id="${esc(s.id)}" aria-label="Delete payment">✕</button></div>
     </div>
@@ -3164,33 +3204,24 @@ function bind() {
     };
   }
 
-  if ($('btnSettleUp')) {
-    const openSettle = pre => {
-      const group = state.billGroups.find(g => g.id === selectedGroupId);
-      if (!group) return;
-
-      const opts = paidByOptions(group);
-      if ($('settlePayer')) $('settlePayer').innerHTML = opts;
-      if ($('settleReceiver')) $('settleReceiver').innerHTML = opts;
-      const me = myKeyFor(group);
-      if ($('settlePayer') && group.participants.some(p => p.key === me)) $('settlePayer').value = me;
-      const other = group.participants.find(p => p.key !== $('settlePayer').value);
-      if ($('settleReceiver') && other) $('settleReceiver').value = other.key;
-      if ($('settleAmount')) $('settleAmount').value = '';
-      if ($('settleNote')) $('settleNote').value = '';
-      if (pre) {
-        if (pre.from) $('settlePayer').value = pre.from;
-        if (pre.to) $('settleReceiver').value = pre.to;
-        if (pre.amount) $('settleAmount').value = pre.amount;
-      }
-      if ($('settleModal')) $('settleModal').hidden = false;
-    };
-    $('btnSettleUp').onclick = () => openSettle();
-    on('splitBalancesList', 'click', e => {
-      const r = e.target.closest('.settle-row'); if (!r) return;
-      openSettle({ from: r.dataset.from, to: r.dataset.to, amount: Number(r.dataset.amount).toFixed(2) });
-    });
-  }
+  // Settlement rows are the sole entry point for recording a payment.
+  const openSettle = pre => {
+    const group = state.billGroups.find(g => g.id === selectedGroupId);
+    if (!group) return;
+    const opts = paidByOptions(group);
+    if ($('settlePayer')) $('settlePayer').innerHTML = opts;
+    if ($('settleReceiver')) $('settleReceiver').innerHTML = opts;
+    if ($('settlePayer')) $('settlePayer').value = pre.from;
+    if ($('settleReceiver')) $('settleReceiver').value = pre.to;
+    if ($('settleAmount')) $('settleAmount').value = Number(pre.amount).toFixed(2);
+    if ($('settleNote')) $('settleNote').value = '';
+    if ($('settleModal')) $('settleModal').hidden = false;
+  };
+  on('splitBalancesList', 'click', e => {
+    const r = e.target.closest('.settlement-action');
+    if (!r) return;
+    openSettle({ from: r.dataset.from, to: r.dataset.to, amount: Number(r.dataset.amount) });
+  });
 
   if ($('settleCancel')) $('settleCancel').onclick = () => { if ($('settleModal')) $('settleModal').hidden = true; };
 
@@ -3207,6 +3238,11 @@ function bind() {
 
     if (from === to) { toast('Payer and receiver cannot be the same person.'); return; }
     if (!(amount > 0)) return;
+    const outstanding = calculateGroupBalance(group).settlements.find(s => s.from === from && s.to === to);
+    if (!outstanding) { toast('This payment is no longer outstanding. Refresh and try again.'); return; }
+    if (Math.round(amount * 100) > Math.round(outstanding.amount * 100)) {
+      toast('Payment cannot exceed the remaining amount owed.'); return;
+    }
 
     const s = { id: uid(), from, to, amount, method, note, date: today() };
     if (group.shared) {
@@ -3218,27 +3254,8 @@ function bind() {
     if (!group.settlements) group.settlements = [];
     group.settlements.push(s);
     persistGroup(group);
-    $('settleModal').hidden = true; renderBillDetail(); toast(`Recorded payment of ${money(amount)}!`);
+    $('settleModal').hidden = true; renderBillDetail(); if (activeSplitTab !== 'history') renderBillHistoryTab(group); toast(`Recorded ${money(amount)}. Balances updated.`);
   });
-
-  if ($('btnLogShareToMainExpenses')) {
-    $('btnLogShareToMainExpenses').onclick = () => {
-      const group = state.billGroups.find(g => g.id === selectedGroupId);
-      if (!group) return;
-      const { myNet } = calculateGroupBalance(group);
-      if (Math.abs(myNet) < 0.01) { toast('Fully settled up. No net share to log.'); return; }
-
-      const shareAmount = Math.abs(myNet);
-      const isExpense = myNet < 0;
-
-      addTx({
-        type: isExpense ? 'expense' : 'income', amount: shareAmount, category: 'Bills', method: 'cash',
-        cardId: '', note: `Net share for ${group.name}`, date: today()
-      });
-      toast(`Logged ${money(shareAmount)} as ${isExpense ? 'expense' : 'income'} to Main Expenses!`);
-      location.hash = '#expenses';
-    };
-  }
 
   on('methodChips', 'click', e => {
     const b = e.target.closest('.chip'); if (!b) return;
