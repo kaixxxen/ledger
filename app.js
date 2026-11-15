@@ -622,6 +622,7 @@ function setGlobalActionsOpen(open) {
   clearTimeout(globalActionsCloseTimer);
   const inBill = currentPage === 'split' && !!selectedGroupId && !!$('splitDetailView') && !$('splitDetailView').hidden;
   if ($('globalAddToBill')) $('globalAddToBill').hidden = !inBill;
+  if ($('globalRecordPayment')) $('globalRecordPayment').hidden = !inBill;
   if (open) {
     closeNotifications();
     menu.hidden = false;
@@ -640,6 +641,7 @@ function initGlobalActions() {
     const btn = e.target.closest('button[data-create]'); if (!btn) return;
     const action = btn.dataset.create;
     closeGlobalActions(true);
+    if (action === 'payment') { openBillPayment(); return; }
     const targets = {expense:'btnAddExpenseBtn',bill:'btnAddPersonFabTop','in-bill':'btnOpenAddSplitExpense'};
     const target = $(targets[action]);
     if (target) target.click();
@@ -1835,6 +1837,32 @@ function calculateGroupBalance(group) {
     totalExpenses: totalCents / 100, myNet: (balancesCents[me] || 0) / 100, issues };
 }
 
+function openBillPayment(preselected = null) {
+  const group = (state.billGroups || []).find(g => g.id === selectedGroupId);
+  if (!group) return;
+  const outstanding = calculateGroupBalance(group).settlements;
+  if (!outstanding.length) { toast('No outstanding balances to record a payment for.'); return; }
+  const opts = paidByOptions(group);
+  $('settlePayer').innerHTML = opts;
+  $('settleReceiver').innerHTML = opts;
+  const preferred = preselected && outstanding.find(x => x.from === preselected.from && x.to === preselected.to);
+  const selected = preferred || outstanding[0];
+  $('settlePayer').value = selected.from;
+  $('settleReceiver').value = selected.to;
+  $('settleAmount').value = selected.amount.toFixed(2);
+  $('settleAmount').max = selected.amount.toFixed(2);
+  $('settleNote').value = '';
+  $('settleModal').hidden = false;
+}
+function syncPaymentAmountToPair() {
+  const group = (state.billGroups || []).find(g => g.id === selectedGroupId);
+  if (!group || $('settleModal')?.hidden) return;
+  const outstanding = calculateGroupBalance(group).settlements.find(s => s.from === $('settlePayer').value && s.to === $('settleReceiver').value);
+  if (!outstanding) { $('settleAmount').value = ''; $('settleAmount').removeAttribute('max'); return; }
+  $('settleAmount').value = outstanding.amount.toFixed(2);
+  $('settleAmount').max = outstanding.amount.toFixed(2);
+}
+
 function renderBillDetail() {
   const group = (state.billGroups || []).find(g => g.id === selectedGroupId);
   if (!group) { closeBillDetail(); return; }
@@ -1871,68 +1899,41 @@ function renderBillExpensesList(group) {
   const el = $('splitExpensesGroupedList');
   const seeAllBtn = $('btnSeeAllGroupExpenses');
   if (!el) return;
-
-  if (!group.expenses || group.expenses.length === 0) {
-    el.innerHTML = '<div class="empty card" style="padding: 20px 16px;">No expenses logged in <b>' + esc(group.name) + '</b>. Tap <b>+ Add Expense to Bill</b> above to start logging.</div>';
+  const events = [
+    ...(group.expenses || []).map(exp => ({kind:'expense',id:exp.id,date:exp.date || today(),exp})),
+    ...(group.settlements || []).map(payment => ({kind:'payment',id:payment.id,date:payment.date || today(),payment}))
+  ];
+  if (!events.length) {
+    el.innerHTML = '<div class="empty card">Nothing recorded yet. Use + to add an expense or payment.</div>';
     if (seeAllBtn) seeAllBtn.hidden = true;
     return;
   }
-
-  const totalCount = group.expenses.length;
-  let allSortedExps = group.expenses.slice().sort((a, b) => b.date.localeCompare(a.date) || String(b.id).localeCompare(String(a.id)));
-
-  allSortedExps = limited('groupExp', allSortedExps);
-
-  if (seeAllBtn) {
-    seeAllBtn.hidden = totalCount <= LIMIT;
-    seeAllBtn.textContent = expanded.groupExp ? 'Show less' : `See all (${totalCount})`;
-  }
-
-  const groups = {};
-  allSortedExps.forEach(e => {
-    const dateStr = e.date || today();
-    if (!groups[dateStr]) groups[dateStr] = [];
-    groups[dateStr].push(e);
-  });
-
-  const sortedDates = Object.keys(groups).sort((a, b) => b.localeCompare(a));
-
-  el.innerHTML = sortedDates.map(dateKey => {
-    const d = new Date(dateKey + 'T00:00');
-    const dateLabel = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-    const items = groups[dateKey].map(exp => {
-      const beneficiaries = (Array.isArray(exp.participants) && exp.participants.length > 0)
-        ? exp.participants
-        : (group.participants || []).map(p => p.key);
-
-      const chipsHtml = beneficiaries.map(k => `
-        <span class="share-avatar-chip">👤 ${esc(shortFor(group, k))}</span>
-      `).join('');
-
-      return `
-        <div class="bill-expense-card edit-split-exp-btn" data-id="${esc(exp.id)}">
-          <div class="exp-left">
-            <div>
-              <div class="exp-title">
-                <b>${esc(exp.title)}</b>
-              </div>
-              <div class="exp-sub">Paid by <b>${esc(shortFor(group, exp.paidBy))}</b></div>
-              ${group.trip && exp.tripData ? `<div class="fine trip-expense-type">${exp.tripData.category === 'delivery' ? '🛵 Food Delivery' : exp.tripData.category === 'food' ? '👤 Individual' : '👥 Group'}${exp.tripData.mode === 'custom' ? ' · Custom amounts' : ''}${exp.tripData.category === 'delivery' ? ` · Fees ${money(Number(exp.tripData.serviceCharge||0))}${Number(exp.tripData.discount||0) ? ' · Discount −'+money(exp.tripData.discount) : ''}` : exp.tripData.serviceCharge ? ' · Fee ' + money(exp.tripData.serviceCharge) : ''}</div><div class="trip-share-breakdown">${Object.entries(exp.tripData.shares || {}).map(([k,v]) => `<span>${esc(shortFor(group,k))}: <b>${money(v)}</b></span>`).join('')}</div>` : `<div class="shares-chips-row">${chipsHtml}</div>`}
-            </div>
-          </div>
-          <div class="exp-amount-wrap">
-            <span class="exp-amount">${money(exp.amount)}</span>
-            <small class="muted text-link exp-edit">Edit</small>
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    return `
-      <div class="date-group">
-        <div class="date-header">${esc(dateLabel)}</div>
-        ${items}
+  events.sort((a,b) => b.date.localeCompare(a.date) || String(b.id).localeCompare(String(a.id)));
+  const selected = limited('groupExp',events);
+  if (seeAllBtn) { seeAllBtn.hidden=events.length<=LIMIT; seeAllBtn.textContent=expanded.groupExp?'Show less':`See all (${events.length})`; }
+  const dated = new Map();
+  selected.forEach(row => { if (!dated.has(row.date)) dated.set(row.date,[]); dated.get(row.date).push(row); });
+  el.innerHTML = [...dated.entries()].map(([date,rows]) => {
+    const parsed = new Date(date+'T00:00');
+    const heading = Number.isNaN(parsed.getTime()) ? date : parsed.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+    return `<div class="date-group"><div class="date-header">${esc(heading)}</div>${rows.map(row => {
+      if (row.kind === 'payment') {
+        const pay=row.payment;
+        return `<div class="bill-expense-card bill-activity-row bill-payment-row" aria-label="Payment by ${esc(shortFor(group,pay.from))} to ${esc(shortFor(group,pay.to))}">
+          <span class="activity-glyph payment-glyph" aria-hidden="true">✓</span>
+          <div class="activity-copy"><strong>Payment</strong><small>${esc(shortFor(group,pay.from))} → ${esc(shortFor(group,pay.to))} · ${esc(pay.method||'Payment')}</small></div>
+          <span class="activity-amount is-payment">+${money(pay.amount)}</span>
+        </div>`;
+      }
+      const exp=row.exp;
+      const detail=(group.trip && exp.tripData) ? exp.tripData : null;
+      const type=detail ? (detail.category==='delivery'?'Food delivery':detail.category==='food'?'Individual':'Group') : 'Shared';
+      return `<div class="bill-expense-card edit-split-exp-btn bill-activity-row" data-id="${esc(exp.id)}" role="button" tabindex="0" aria-label="Edit ${esc(exp.title)}">
+        <span class="activity-glyph expense-glyph" aria-hidden="true">−</span>
+        <div class="activity-copy"><strong>${esc(exp.title)}</strong><small>${esc(type)} · Paid by ${esc(shortFor(group,exp.paidBy))}</small></div>
+        <span class="activity-amount is-expense">−${money(exp.amount)}</span>
       </div>`;
+    }).join('')}</div>`;
   }).join('');
 }
 
@@ -2004,7 +2005,7 @@ function renderBillBalancesTab(group) {
     <span class="user-item">
       <span class="user-avatar-circle" aria-hidden="true">✓</span>
       <span class="settlement-copy"><strong>${esc(shortFor(group, s.from))}</strong> paid <strong>${esc(shortFor(group, s.to))}</strong>
-        <small class="muted settlement-status">Payment recorded in Audit Log</small>
+        <small class="muted settlement-status">Settled</small>
       </span>
     </span>
     <span class="settlement-amount"><strong>${money(s.paidAmount)}</strong><small class="settlement-paid">✓ Paid</small></span>
@@ -2034,7 +2035,7 @@ function renderBillHistoryTab(group) {
     <div class="history-item">
       <div>
         <strong>${esc(shortFor(group, s.from))}</strong> paid <strong>${esc(shortFor(group, s.to))}</strong>
-        <small class="muted" style="display:block;">✓ Payment recorded · ${esc(s.method || 'GCash')} · ${esc(s.date || today())}${s.note ? ' · ' + esc(s.note) : ''}</small>
+        <small class="muted" style="display:block;">${esc(s.method || 'GCash')} · ${esc(s.date || today())}${s.note ? ' · ' + esc(s.note) : ''}</small>
       </div>
       <div style="display:flex;align-items:center;gap:10px;"><b class="pos-text">+${money(s.amount)}</b><button type="button" class="del-settle-btn" data-id="${esc(s.id)}" aria-label="Delete payment">✕</button></div>
     </div>
@@ -2195,6 +2196,7 @@ function renderSettings() {
   if ($('noCloudRow')) $('noCloudRow').hidden = CLOUD;
   const th = getTheme();
   $$('#themeSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === th));
+  $$('#accentPicker button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.accentChoice === getAccent())));
   const fs = getFontScale();
   $$('#fontSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === fs));
   if ($('setNickname') && document.activeElement !== $('setNickname')) $('setNickname').value = state.nickname || '';
@@ -2204,6 +2206,9 @@ function renderSettings() {
 
 const THEMES = ['system', 'light', 'dark'];
 function getTheme() { const t = lsGet('ledger.theme'); return THEMES.includes(t) ? t : 'dark'; }
+const ACCENTS = ['graphite','lavender','sage','rose','peach','mist'];
+function getAccent(){const v=lsGet('ledger.accent');return ACCENTS.includes(v)?v:'graphite';}
+function applyAccent(value){const v=ACCENTS.includes(value)?value:'graphite';document.documentElement.setAttribute('data-accent',v);$$('#accentPicker button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.accentChoice===v)));}
 const FONT_SCALES = ['1', '1.1', '1.2', '1.35'];   // 1 = the original (smallest) sizes
 function getFontScale() { const v = lsGet('ledger.fontScale'); return FONT_SCALES.includes(v) ? v : '1'; }
 function applyFontScale(v) {
@@ -2212,8 +2217,9 @@ function applyFontScale(v) {
   $$('#fontSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
 }
 function applyTheme(t) {
-  if (t === 'system') document.documentElement.removeAttribute('data-theme');
-  else document.documentElement.setAttribute('data-theme', t);
+  const activeTheme = t === 'system'
+    ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : t;
+  document.documentElement.setAttribute('data-theme', activeTheme);
   $$('#themeSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === t));
 }
 
@@ -3204,25 +3210,15 @@ function bind() {
     };
   }
 
-  // Settlement rows are the sole entry point for recording a payment.
-  const openSettle = pre => {
-    const group = state.billGroups.find(g => g.id === selectedGroupId);
-    if (!group) return;
-    const opts = paidByOptions(group);
-    if ($('settlePayer')) $('settlePayer').innerHTML = opts;
-    if ($('settleReceiver')) $('settleReceiver').innerHTML = opts;
-    if ($('settlePayer')) $('settlePayer').value = pre.from;
-    if ($('settleReceiver')) $('settleReceiver').value = pre.to;
-    if ($('settleAmount')) $('settleAmount').value = Number(pre.amount).toFixed(2);
-    if ($('settleNote')) $('settleNote').value = '';
-    if ($('settleModal')) $('settleModal').hidden = false;
-  };
+  // Balances and the contextual floating menu share the same payment dialog.
   on('splitBalancesList', 'click', e => {
     const r = e.target.closest('.settlement-action');
     if (!r) return;
-    openSettle({ from: r.dataset.from, to: r.dataset.to, amount: Number(r.dataset.amount) });
+    openBillPayment({ from: r.dataset.from, to: r.dataset.to });
   });
 
+  on('settlePayer', 'change', syncPaymentAmountToPair);
+  on('settleReceiver', 'change', syncPaymentAmountToPair);
   if ($('settleCancel')) $('settleCancel').onclick = () => { if ($('settleModal')) $('settleModal').hidden = true; };
 
   on('settleForm', 'submit', async e => {
@@ -3301,6 +3297,8 @@ function bind() {
     const delBtn = e.target.closest('.del-card-btn');
     if (delBtn) deleteCard(delBtn.dataset.id);
   });
+
+  on('accentPicker', 'click', e => { const btn=e.target.closest('button[data-accent-choice]'); if (!btn) return; const v=btn.dataset.accentChoice; lsSet('ledger.accent',v); applyAccent(v); });
 
   on('fontSeg', 'click', e => {
     const b = e.target.closest('button'); if (!b) return;
