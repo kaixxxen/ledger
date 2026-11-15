@@ -3843,6 +3843,15 @@ function openStopForm(stop=null){
   $('routeEditorOverlay').hidden=false;$('stopEditor').hidden=false;
   $('stopTitle').focus();
 }
+// Date-only strings must not be interpreted in the device's time zone.
+function routeCardDate(iso){
+  const match=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso||''));
+  if(!match)return '';
+  const year=Number(match[1]), month=Number(match[2]), day=Number(match[3]);
+  const date=new Date(Date.UTC(year,month-1,day));
+  if(date.getUTCFullYear()!==year||date.getUTCMonth()!==month-1||date.getUTCDate()!==day)return '';
+  return `${String(day).padStart(2,'0')} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][month-1]} ${year}`;
+}
 function renderJourneys(){
   const list=$('journeyList'),detail=$('journeyDetail');if(!list||!detail)return;
   const journeys=journeysAll();
@@ -3862,10 +3871,9 @@ function renderJourneys(){
     const ordered=[...routeOrdered(visible.filter(j=>pins.has(String(j.id)))),...routeOrdered(visible.filter(j=>!pins.has(String(j.id))))];
     $('routeSortSelect').value=routeSortMode();
     list.innerHTML=ordered.length?ordered.map(j=>{
-      const total=(j.stops||[]).reduce((n,p)=>n+(Number(p.cost)||0),0),pin=pins.has(String(j.id));
-      const count=(j.travelers||[]).length;
-      const meta=[j.destination,j.startDate,count?`${count} ${count===1?'traveler':'travelers'}`:''].filter(Boolean).join(' · ');
-      return `<div class="bill-card journey-tile ${pin?'is-pinned':''}" data-journey-open="${esc(j.id)}" tabindex="0" role="button" aria-label="Open ${esc(j.title)}"><div class="bill-card-left"><span class="bill-emoji journey-tile-icon">${esc(j.emoji||'🧭')}</span><div class="bill-card-info journey-tile-info"><div class="bill-name-row"><span class="bill-name">${esc(j.title)}</span></div><div class="bill-card-meta">${j.shared?'<span class="tag shared-tag">Shared</span>':''}<small class="muted fine">${esc(meta||'Plan your next trip')}</small></div></div></div><span class="journey-tile-cost">${money(total)}<small>estimate</small></span><button type="button" class="bill-pin-btn ${pin?'on':''}" aria-label="${pin?'Unpin':'Pin'} ${esc(j.title)}" aria-pressed="${pin}" title="${pin?'Unpin':'Pin route'}">📌</button><button type="button" class="bill-drag-handle" aria-label="Reorder ${esc(j.title)}" title="Drag to reorder"><svg class="bill-grip-icon" viewBox="0 0 20 24" aria-hidden="true" focusable="false" fill="currentColor"><circle cx="6" cy="5" r="1.6"/><circle cx="14" cy="5" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="14" cy="12" r="1.6"/><circle cx="6" cy="19" r="1.6"/><circle cx="14" cy="19" r="1.6"/></svg></button><span class="bill-chevron" aria-hidden="true">›</span></div>`;
+      const pin=pins.has(String(j.id));
+      const displayDate=routeCardDate(j.startDate);
+      return `<div class="bill-card journey-tile ${pin?'is-pinned':''}" data-journey-open="${esc(j.id)}" tabindex="0" role="button" aria-label="Open ${esc(j.title)}"><div class="bill-card-left"><span class="bill-emoji journey-tile-icon">${esc(j.emoji||'🧭')}</span><div class="bill-card-info journey-tile-info"><div class="bill-name-row"><span class="bill-name">${esc(j.title)}</span></div><div class="route-card-address muted fine" title="${esc(j.destination||'')}">${esc(j.destination||'No address added')}</div><div class="bill-card-meta route-card-bottom">${j.shared?'<span class="tag shared-tag">Shared</span>':''}${displayDate?`<small class="muted fine">${esc(displayDate)}</small>`:''}</div></div></div><button type="button" class="bill-pin-btn ${pin?'on':''}" aria-label="${pin?'Unpin':'Pin'} ${esc(j.title)}" aria-pressed="${pin}" title="${pin?'Unpin':'Pin route'}">📌</button><button type="button" class="bill-drag-handle" aria-label="Reorder ${esc(j.title)}" title="Drag to reorder"><svg class="bill-grip-icon" viewBox="0 0 20 24" aria-hidden="true" focusable="false" fill="currentColor"><circle cx="6" cy="5" r="1.6"/><circle cx="14" cy="5" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="14" cy="12" r="1.6"/><circle cx="6" cy="19" r="1.6"/><circle cx="14" cy="19" r="1.6"/></svg></button><span class="bill-chevron" aria-hidden="true">›</span></div>`;
     }).join(''):'<div class="empty-card card">No routes yet. Tap + to plan one.</div>';
     list.querySelectorAll('.journey-tile').forEach(card=>{
       const j=journeyById(card.dataset.journeyOpen);if(!j)return;

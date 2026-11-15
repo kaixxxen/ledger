@@ -2288,3 +2288,73 @@ button:active{opacity:.86}
 }
 
 #page-journeys .routes-top[hidden],#page-journeys .route-archive-head[hidden]{display:none!important;}
+
+
+/* v67: Routes uses the same header rhythm and archive → notification order as Split. */
+#page-journeys > .routes-top {
+  display:flex!important;
+  align-items:center!important;
+  flex-wrap:nowrap!important;
+  justify-content:space-between!important;
+  padding:0!important;
+  margin:0 0 var(--gap)!important;
+  min-height:44px!important;
+  height:auto!important;
+  gap:12px!important;
+}
+#page-journeys > .routes-top h1 {
+  font-size:var(--fs-xl)!important;
+  line-height:1.2!important;
+  font-weight:700!important;
+  letter-spacing:-.02em!important;
+  margin:0!important;
+  min-width:0!important;
+  flex:1 1 auto!important;
+}
+#page-journeys > .routes-top .route-top-actions {
+  display:flex!important;
+  flex:0 0 auto!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  width:auto!important;
+  min-width:0!important;
+  gap:10px!important;
+  margin-left:auto!important;
+  order:1;
+}
+#page-journeys > .routes-top #notificationCenter {
+  position:relative!important;
+  display:flex!important;
+  flex:0 0 auto!important;
+  align-items:center!important;
+  width:auto!important;
+  margin:0!important;
+  order:2;
+}
+#page-journeys > .routes-top .archive-icon-button,
+#page-journeys > .routes-top .notification-toggle {
+  width:42px;height:42px;min-width:42px;min-height:42px;
+  padding:0;border-radius:14px;
+}
+#page-journeys .route-home-subtitle {
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  line-height:1.35!important;
+  margin:0 0 14px!important;
+}
+#page-journeys .journey-tile .route-card-address {
+  display:block;max-width:100%;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:var(--fs-xs);line-height:1.35;
+}
+#page-journeys .journey-tile .route-card-bottom {min-width:0;display:flex;align-items:center;gap:7px;}
+#page-journeys .journey-tile .route-card-bottom .shared-tag {flex:none;}
+#page-journeys .journey-tile .route-card-bottom small {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#page-journeys .journey-tile .journey-tile-info{display:flex;flex-direction:column;gap:4px;min-width:0;}
+@media(max-width:600px){
+ #page-journeys > .routes-top{gap:8px!important;}
+ #page-journeys > .routes-top .route-top-actions{gap:8px!important;}
+ #page-journeys > .routes-top .archive-icon-button,
+ #page-journeys > .routes-top .notification-toggle{width:38px;height:38px;min-width:38px;min-height:38px;}
+}
