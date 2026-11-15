@@ -3675,7 +3675,7 @@ async function shareJourney(j){
   let invited=true;
   if(shared&&j.inviteCodes?.length){shared.inviteCodes=j.inviteCodes;invited=await sendRouteInvitations(shared);}
   if(shared&&invited)await syncRouteTravelersToLinkedBill(shared);
-  toast('Route shared. You can add travelers by Ledger ID.');
+  if(shared&&invited)toast('Route shared with invited travelers.');
   return !!shared&&invited;
 }
 
@@ -4048,25 +4048,59 @@ function initJourneys(){
   $('journeyManageTravelers')?.addEventListener('click',()=>{$('routeCollabOverlay').hidden=false;});
   $('routeCollabClose')?.addEventListener('click',closeRouteOverlays);
   $('routeCollabOverlay')?.addEventListener('click',e=>{if(e.target.id==='routeCollabOverlay')closeRouteOverlays();});
+  // A new Route uses the SAME verified Ledger-ID invitation RPC as Travelers & Files.
+  // Do not close the sheet before the route and its members have been saved.
+  let routeSaveInProgress=false;
   $('journeyForm')?.addEventListener('submit',async e=>{
-    e.preventDefault();const title=$('journeyTitle').value.trim();if(!title)return;
-    const old=journeyById($('journeyId').value);
-    const newCodes=routeTravelerDraft.map(p=>p.code).filter(Boolean);
-    const alreadyInvited=new Set((old?.travelers||[]).map(p=>p.code).filter(Boolean));
-    const freshCodes=newCodes.filter(code=>!alreadyInvited.has(code));
-    const j={id:old?.id||uid(),title,destination:$('journeyDestination').value.trim(),startDate:$('journeyStartDate').value,notes:old?.notes||'',emoji:$('journeyEmoji').value||'🧭',linkedBillId:$('journeyLinkedBillSelect').value,
-      travelers:routeTravelerDraft.map(p=>({...p})),inviteCodes:[...new Set([...(old?.inviteCodes||[]),...freshCodes])],archived:!!old?.archived,createdAt:old?.createdAt||new Date().toISOString(),stops:old?.stops||[],...(old?.shared?{shared:true,ownerId:old.ownerId}:{})};
-    if(old)Object.assign(old,j);else state.journeys.push(j);
-    activeJourneyId=j.id;
-    if(j.shared){if(!await persistJourney(j))return;}else save();
-    closeRouteOverlays();renderJourneys();toast('Route saved');
-    if(j.shared){
-      const invited= j.inviteCodes?.length ? await sendRouteInvitations(j) : true;
-      if(invited)await syncRouteTravelersToLinkedBill(j);
-    } else if(mode==='cloud'&&sb&&user&&(j.inviteCodes?.length||j.linkedBillId)){
-      await shareJourney(j);
-    } else if(j.linkedBillId){
-      toast('Route saved locally. Sign in and share the Route to sync its linked Bill.');
+    e.preventDefault();
+    if(routeSaveInProgress)return;
+    const title=$('journeyTitle').value.trim();if(!title)return;
+    // Mobile users often type a final Ledger ID and press Save without tapping Add.
+    // Resolve that input first; never silently omit it from the shared Route.
+    const pending=$('routeParticipantInput')?.value.trim();
+    if(pending){
+      await addRouteTraveler();
+      if($('routeParticipantInput').value.trim())return; // lookup failed: keep sheet open
+    }
+    const saveButton=$('journeyForm').querySelector('button[type="submit"]');
+    routeSaveInProgress=true;if(saveButton){saveButton.disabled=true;saveButton.textContent='Saving…';}
+    try{
+      const old=journeyById($('journeyId').value);
+      const newCodes=routeTravelerDraft.map(p=>p.code).filter(Boolean);
+      // Retry unconfirmed codes even if they were present when the form was last saved.
+      const pendingCodes=old?.inviteCodes||[];
+      const confirmed=new Set((old?.shared?journeyMembers:[]).map(m=>parseLedgerId(m.ledger_code||'')).filter(Boolean));
+      const toInvite=newCodes.filter(code=>!confirmed.has(code));
+      const j={id:old?.id||uid(),title,destination:$('journeyDestination').value.trim(),startDate:$('journeyStartDate').value,notes:old?.notes||'',emoji:$('journeyEmoji').value||'🧭',linkedBillId:$('journeyLinkedBillSelect').value,
+        travelers:routeTravelerDraft.map(p=>({...p})),inviteCodes:[...new Set([...pendingCodes,...toInvite])],archived:!!old?.archived,createdAt:old?.createdAt||new Date().toISOString(),stops:old?.stops||[],...(old?.shared?{shared:true,ownerId:old.ownerId}:{})};
+      if(old)Object.assign(old,j);else state.journeys.push(j);
+      // Keep this ID in the sheet so retrying cannot accidentally create a duplicate.
+      $('journeyId').value=j.id;
+      activeJourneyId=j.id;
+      if(j.shared){
+        if(!await persistJourney(j))return;
+        if(j.inviteCodes?.length && !await sendRouteInvitations(j)){
+          toast('Route saved, but some invitations failed. Fix the Ledger IDs and save again.');
+          return;
+        }
+        if(j.linkedBillId)await syncRouteTravelersToLinkedBill(j);
+      } else {
+        save();
+        // Creating a Route with travelers automatically shares it with Ledger-ID accounts.
+        // Name-only travelers are saved as participants, not granted cloud access.
+        if(mode==='cloud'&&sb&&user&&(j.travelers.length||j.linkedBillId)){
+          if(!await shareJourney(j)){
+            toast('Route saved, but sharing is incomplete. Retry from this sheet.');
+            return;
+          }
+        }else if(newCodes.length){
+          toast('Route saved locally. Sign in to invite Ledger users.');
+        }
+      }
+      closeRouteOverlays();renderJourneys();toast('Route saved');
+    }finally{
+      routeSaveInProgress=false;
+      if(saveButton){saveButton.disabled=false;saveButton.textContent='Save Route';}
     }
   });
   $('journeyList')?.addEventListener('click',async e=>{const b=e.target.closest('[data-journey-open]');if(!b||e.target.closest('.bill-pin-btn,.bill-drag-handle'))return;if(b._lpFired){b._lpFired=false;return;}routeArchiveView=false;activeJourneyId=b.dataset.journeyOpen;renderJourneys();const openedRoute=journeyById(activeJourneyId);await loadJourneyExtras(openedRoute);if(openedRoute?.shared&&openedRoute.linkedBillId&&journeyOwner(openedRoute))await syncRouteTravelersToLinkedBill(openedRoute,{quiet:true});renderJourneys();});

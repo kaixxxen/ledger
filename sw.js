@@ -1,4 +1,4 @@
-const CACHE = 'ledger-v73-route-bill-sync';
+const CACHE = 'ledger-v75-invite-on-create';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'
