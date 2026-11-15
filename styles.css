@@ -2583,3 +2583,22 @@ button:active{opacity:.86}
 @media(max-width:360px){#routeEditorOverlay #journeyEditor .route-fields-row{gap:7px}#routeEditorOverlay #journeyEditor .route-fields-row select{font-size:12px!important}}
 /* Avatar chooser must appear above the Routes modal, as it does above Edit Bill. */
 body > #emojiPickerPopover{z-index:2500!important}
+
+/* v76: Top-edge fade occupies only the iOS safe area, ABOVE all page headers.
+   Moving this scrim upward prevents a backdrop blur from washing out headings,
+   notification bells, and other header actions as the document scrolls. */
+#topEdgeFade {
+  position: fixed;
+  z-index: 3;
+  inset: 0 0 auto 0;
+  height: max(12px, env(safe-area-inset-top));
+  pointer-events: none;
+  background: linear-gradient(to bottom, var(--bg) 0%,
+    color-mix(in srgb, var(--bg) 94%, transparent) 52%, transparent 100%);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 45%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 45%, transparent 100%);
+}
+#topEdgeFade[hidden] { display: none !important; }
+@media (min-width: 900px) { #topEdgeFade { display: none !important; } }

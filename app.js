@@ -707,6 +707,7 @@ function showApp() {
   if ($('globalActions')) $('globalActions').hidden = false;
   if ($('notificationCenter')) $('notificationCenter').hidden = false;
   ensureDockGradient();
+  ensureTopEdgeFade();
   route();
 }
 
@@ -718,7 +719,21 @@ function ensureDockGradient() {
   document.body.appendChild(gradientDiv);
 }
 
+// A narrow iOS safe-area scrim, ending before page headings and action icons.
+// Do not blur the headers themselves: only content passing under the top screen edge.
+function ensureTopEdgeFade() {
+  let el = document.getElementById('topEdgeFade');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'topEdgeFade';
+    el.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(el);
+  }
+  el.hidden = false;
+}
+
 function showAuth() {
+  if (document.getElementById('topEdgeFade')) document.getElementById('topEdgeFade').hidden = true;
   closeNotifications();
   if ($('app')) $('app').hidden = true;
   if ($('dock')) $('dock').hidden = true;
