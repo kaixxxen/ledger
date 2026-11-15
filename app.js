@@ -1860,6 +1860,11 @@ function renderBillDetail() {
   if (activeSplitTab === 'expenses') renderBillExpensesList(group);
   else if (activeSplitTab === 'balances') renderBillBalancesTab(group);
   else if (activeSplitTab === 'history') renderBillHistoryTab(group);
+
+  // Keep the balance banner and settlement rows current even when the user
+  // deletes/edits an expense from the Expenses tab. The next Balances visit
+  // must never display the old suggested transfers.
+  if (activeSplitTab !== 'balances') renderBillBalancesTab(group);
 }
 
 function renderBillExpensesList(group) {
@@ -3128,13 +3133,34 @@ function bind() {
       const expId = $('splitExpId').value;
       const group = state.billGroups.find(g => g.id === selectedGroupId);
       if (!group || !expId || !confirm('Delete this bill expense?')) return;
+      if (!group.expenses.some(x => String(x.id) === expId)) {
+        toast('Expense no longer exists. Refreshing bill.');
+        renderBillDetail();
+        return;
+      }
       if (group.shared) {
-        const r = await rpcOk(sb.from('bill_expenses').delete().eq('id', expId), "Couldn't delete the expense.");
+        // Supabase can return no error when row-level security filters out a
+        // deletion. Verify one row was actually removed before changing the UI.
+        const r = await rpcOk(
+          sb.from('bill_expenses').delete().eq('bill_id', group.id).eq('id', expId).select('id'),
+          "Couldn't delete the expense."
+        );
         if (!r) return;
+        if (!Array.isArray(r.data) || !r.data.some(row => String(row.id) === expId)) {
+          toast('Expense was not deleted in the cloud. Check access and retry.');
+          scheduleSharedReload(0);
+          return;
+        }
       }
       group.expenses = group.expenses.filter(x => String(x.id) !== expId);
       persistGroup(group);
-      $('addSplitExpenseModal').hidden = true; renderBillDetail(); toast('Expense deleted');
+      $('splitExpId').value = '';
+      $('addSplitExpenseModal').hidden = true;
+      // renderBillDetail recalculates totals, the balance banner, and all
+      // payer-to-person settlement suggestions from the remaining expenses.
+      renderBillDetail();
+      renderBillList();
+      toast('Expense deleted. Balances updated.');
     };
   }
 
