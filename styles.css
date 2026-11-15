@@ -2090,3 +2090,94 @@ button:active{opacity:.86}
 }
 
 @media(prefers-reduced-motion:reduce){:root[data-theme="light"] .hero::after,:root[data-theme="dark"] .hero::after{animation:none}}
+
+/* v64 Routes: consistent with Ledger Split and iOS floating sheets */
+#page-journeys .routes-top{display:flex;align-items:center;gap:12px;justify-content:space-between;margin-bottom:18px}
+#page-journeys .routes-top>div{flex:1;min-width:0}
+#page-journeys .routes-top h1{font-size:clamp(22px,5vw,28px);letter-spacing:-.035em;line-height:1.15}
+#page-journeys .routes-top .fine{font-size:12px;margin-top:6px;white-space:normal}
+#page-journeys .route-new-compact{flex:none;border-radius:14px;font-size:13px;max-width:126px;white-space:nowrap;padding:11px 12px;background:var(--bar);border:1px solid var(--line)}
+#page-journeys .journey-list{display:grid;gap:12px}
+#page-journeys .journey-tile{padding:16px;border-radius:20px;min-height:84px;gap:12px;text-align:left;box-shadow:none}
+#page-journeys .journey-tile-icon{width:46px;height:46px;border-radius:15px;font-size:25px;background:var(--bar);flex:none}
+#page-journeys .journey-tile-info strong{font-size:15px;letter-spacing:-.015em}
+#page-journeys .journey-tile-cost{font-size:14px}
+#page-journeys .journey-detail-head{display:flex!important;align-items:center;gap:9px;margin-bottom:18px}
+#page-journeys .journey-detail-head #journeyBack{flex:0 0 30px;min-width:30px;max-width:30px;margin:0;padding:0}
+#page-journeys .journey-detail-avatar{display:grid;place-items:center;width:39px;height:39px;flex:0 0 39px;border-radius:12px;background:var(--bar);font-size:24px}
+#page-journeys .journey-detail-name{flex:1;min-width:0;overflow:hidden}
+#page-journeys .journey-detail-name h2{font-size:17px!important;text-transform:none!important;letter-spacing:-.02em!important;font-weight:700;line-height:1.3;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#page-journeys .journey-detail-name small{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#page-journeys .route-icon-btn{flex:0 0 37px;width:37px;height:37px;padding:0!important;border-radius:12px!important;border:1px solid var(--line);background:var(--bar);color:var(--text);font-size:21px;display:grid;place-items:center;line-height:1}
+#page-journeys #journeyDelete[hidden]{display:none!important}
+#page-journeys .journey-summary{padding:17px 18px;border-radius:20px;gap:12px;margin-bottom:15px}
+#page-journeys .journey-summary strong{font-size:19px;white-space:normal;overflow-wrap:anywhere}
+#page-journeys .journey-content-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:22px 0 12px}
+#page-journeys .journey-content-head h3{flex:1;min-width:0;margin:0;font-size:17px;letter-spacing:-.025em}
+#page-journeys #journeyAddStop{flex:none;width:auto!important;min-width:100px;max-width:125px;font-size:13px;padding:10px 12px;border-radius:12px;background:var(--bar)}
+#page-journeys .journey-day-label{text-transform:none;letter-spacing:normal;font-size:12px;font-weight:650}
+#page-journeys .journey-stop{border-radius:18px;padding:14px;gap:11px;align-items:start}
+#page-journeys .journey-stop-main strong{font-size:14px;line-height:1.4}
+#page-journeys .journey-collab{padding:17px;border-radius:20px;margin:14px 0}
+#page-journeys .route-section-title{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+#page-journeys .route-section-title h3{font-size:16px;letter-spacing:-.02em}
+#page-journeys .route-section-title button{flex:none;max-width:100%;white-space:normal}
+#page-journeys .route-member,#page-journeys .route-file-row{min-width:0;overflow-wrap:anywhere}
+#page-journeys .route-inline{display:flex;flex-wrap:wrap;gap:8px}
+#page-journeys .route-inline input{flex:1;min-width:160px}
+#page-journeys .route-inline button{width:auto;flex:none}
+#page-journeys .route-linked-bill{border:1px solid var(--line);border-radius:16px;background:var(--card);padding:12px 14px;display:flex;align-items:center;gap:10px;margin-bottom:14px;min-width:0}
+#page-journeys .route-linked-bill[hidden]{display:none!important}
+#page-journeys .route-linked-bill span{font-size:11px;color:var(--muted);flex:none}
+#page-journeys .route-linked-bill strong{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+#page-journeys .route-linked-bill button{flex:none;background:var(--bar);border:1px solid var(--line);border-radius:10px;padding:8px;font-size:12px;color:var(--text)}
+.route-modal-overlay{position:fixed!important;inset:0!important;z-index:1400!important;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:calc(env(safe-area-inset-top) + 12px) 12px calc(env(safe-area-inset-bottom) + 12px)!important;background:rgba(8,9,10,.64)!important;backdrop-filter:blur(13px)!important;-webkit-backdrop-filter:blur(13px)!important}
+.route-modal-overlay[hidden]{display:none!important}
+.route-modal-card{box-sizing:border-box;display:block;width:min(100%,480px);max-height:min(88dvh,780px);overflow-y:auto;overscroll-behavior:contain;padding:22px 20px!important;border:1px solid var(--line);border-radius:26px!important;background:var(--card);box-shadow:0 24px 90px rgba(0,0,0,.25);-webkit-overflow-scrolling:touch}
+.route-modal-card[hidden]{display:none!important}
+.route-modal-card h2,.route-modal-card h3{font-size:20px;letter-spacing:-.025em;margin:0 0 12px}
+.route-modal-card form{display:grid;gap:10px}
+.route-modal-card label,.route-field-heading{font-size:12px;color:var(--text);font-weight:650}
+.route-modal-card input,.route-modal-card select,.route-modal-card textarea{box-sizing:border-box;width:100%;min-width:0;min-height:43px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:11px 12px;color:var(--text);font:inherit}
+.route-modal-card textarea{resize:vertical}
+.route-modal-card .route-form-hint{font-size:11px;line-height:1.5;margin:0;color:var(--muted)}
+.route-avatar-group{display:grid;gap:9px}
+.route-avatar-picker{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px;padding:4px;overflow:visible}
+.route-avatar-option{aspect-ratio:1;min-width:0;display:grid;place-items:center;font-size:21px;line-height:1;border:2px solid transparent;border-radius:13px;background:var(--bar);padding:4px;outline:none}
+.route-avatar-option.selected{border-color:var(--text);box-shadow:0 0 0 2px var(--card),0 0 0 3px var(--line)}
+.route-avatar-option:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.route-options-card{max-width:420px}
+.route-option{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:50px;padding:13px 12px;border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent;color:var(--text);text-align:left;font:inherit;font-size:14px;font-weight:550}
+.route-option span{color:var(--muted);font-size:22px}
+.route-option-danger{color:var(--bad)}
+.route-options-cancel{width:100%;border-radius:13px;margin-top:12px;min-height:44px}
+@media(max-width:480px){
+#page-journeys .routes-top{align-items:center!important}
+#page-journeys .journey-detail-head{display:flex!important;grid-template-columns:none!important}
+#page-journeys .journey-detail-head #journeyEdit,#page-journeys .journey-detail-head #journeyRefresh{grid-column:auto!important;grid-row:auto!important;justify-self:auto!important}
+#page-journeys .journey-tile{padding:13px 12px;gap:9px}
+#page-journeys .journey-tile-cost{max-width:30%;font-size:12px}
+#page-journeys .journey-content-head{flex-wrap:nowrap!important}
+#page-journeys .route-inline button{width:auto}
+.route-modal-card{max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);padding:18px 16px!important}
+.route-avatar-picker{grid-template-columns:repeat(8,minmax(0,1fr));gap:4px}
+.route-avatar-option{font-size:19px}
+}
+
+/* v64 shared route tools appear in floating sheet, not an oversized in-page card */
+#page-journeys .route-manage-button{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:49px;padding:13px 15px;border-radius:16px;background:var(--card);border:1px solid var(--line);color:var(--text);text-align:left;font:inherit;font-size:14px;font-weight:600;margin:8px 0 20px}
+#page-journeys .route-manage-button span:last-child{font-size:22px;color:var(--muted)}
+#routeCollabOverlay .journey-collab{width:min(100%,480px);max-height:min(88dvh,780px);display:grid;gap:12px;margin:0!important;border-radius:26px!important;padding:20px!important}
+#routeCollabOverlay .journey-collab[hidden]{display:none!important}
+#routeCollabOverlay .route-collab-header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#routeCollabOverlay .route-collab-header h2{margin:0;font-size:19px;letter-spacing:-.02em}
+#routeCollabOverlay .route-icon-btn{width:35px;height:35px;min-width:35px;display:grid;place-items:center;background:var(--bar);border:1px solid var(--line);border-radius:11px;color:var(--text);font-size:22px}
+#routeCollabOverlay .route-section-title{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0}
+#routeCollabOverlay .route-inline{display:flex;flex-wrap:wrap;gap:8px}
+#routeCollabOverlay .route-inline input{min-width:150px;flex:1}
+#routeCollabOverlay .route-inline button{width:auto;flex:none}
+#routeCollabOverlay input,#routeCollabOverlay select{max-width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:12px;min-height:41px;background:var(--bg);color:var(--text);padding:10px}
+#routeCollabOverlay .route-upload,#routeCollabOverlay form{min-width:0}
+#routeCollabOverlay .route-file-row,#routeCollabOverlay .route-member{max-width:100%;min-width:0;overflow-wrap:anywhere}
+#routeCollabOverlay .route-file-name{min-width:0}
+@media(max-width:480px){#routeCollabOverlay .journey-collab{padding:16px!important;max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px)}}

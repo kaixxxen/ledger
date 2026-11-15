@@ -1,4 +1,4 @@
-const CACHE = 'ledger-v63-route-sharing-rpc';
+const CACHE = 'ledger-v64-routes-redesign';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'

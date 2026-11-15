@@ -279,6 +279,9 @@ function normalize(raw) {
     destination: String(j.destination || '').slice(0,160),
     startDate: isIsoDate(j.startDate) ? j.startDate : '',
     notes: String(j.notes || '').slice(0,1500),
+    emoji: String(j.emoji || '🧭').slice(0,8),
+    linkedBillId: String(j.linkedBillId || ''),
+    inviteCodes: Array.isArray(j.inviteCodes)?j.inviteCodes.map(x=>String(x)).slice(0,20):[],
     stops: (Array.isArray(j.stops) ? j.stops : []).filter(Boolean).map(p => ({
       id: String(p.id || uid()), type: ['place','transport','activity','stay','food'].includes(p.type) ? p.type : 'place',
       title: String(p.title || 'Stop').slice(0,120),
@@ -3513,7 +3516,7 @@ async function loadJourneyExtras(j){
 async function persistJourney(j){
   if(!j.shared){save();return true;}
   if(!sb||!user){toast('Sign in to edit shared routes');return false;}
-  const data={title:j.title,destination:j.destination,startDate:j.startDate,notes:j.notes,stops:j.stops,links:j.links||[]};
+  const data={title:j.title,destination:j.destination,startDate:j.startDate,notes:j.notes,stops:j.stops,links:j.links||[],emoji:j.emoji||"🧭",linkedBillId:j.linkedBillId||""};
   const {error}=await sb.from('ledger_routes').update({data,updated_at:new Date().toISOString()}).eq('id',j.id);
   if(error){toast('Could not save shared route: '+error.message);await loadSharedJourneys();return false;}
   return true;
@@ -3595,7 +3598,7 @@ async function uploadJourneyFile(){
 }
 async function shareJourney(j){
   if(mode!=='cloud'||!sb||!user){toast('Sign in first to share a route');return;}
-  const data={title:j.title,destination:j.destination,startDate:j.startDate,notes:j.notes,stops:j.stops,links:j.links||[]};
+  const data={title:j.title,destination:j.destination,startDate:j.startDate,notes:j.notes,stops:j.stops,links:j.links||[],emoji:j.emoji||"🧭",linkedBillId:j.linkedBillId||""};
   // The RPC derives the route owner from the verified JWT, not local cached account state.
   // It also avoids requiring a SELECT of the newly inserted row in the same browser request.
   const {data:authData,error:authError}=await sb.auth.getUser();
@@ -3610,12 +3613,45 @@ async function shareJourney(j){
     return;
   }
   state.journeys=state.journeys.filter(x=>x.id!==j.id);save();
-  await loadSharedJourneys();await loadJourneyExtras(journeyById(j.id));toast('Route is ready to share. Add travelers by Ledger ID.');
+  await loadSharedJourneys();await loadJourneyExtras(journeyById(j.id));
+  const shared=journeyById(j.id);if(shared&&j.inviteCodes?.length){shared.inviteCodes=j.inviteCodes;await sendRouteInvitations(shared);}
+  toast('Route shared. You can add travelers by Ledger ID.');
 }
 
+const ROUTE_EMOJIS = ['🧭','🏕️','✈️','🏖️','🏔️','🌸','🚗','🚆','⛵','🌆','🎒','🌴','🌅','🗺️','🏛️','🎡'];
 const JTYPE = {place:'Place',transport:'Transport',activity:'Activity',stay:'Stay',food:'Food'};
 function journeyById(id){return journeysAll().find(j=>j.id===id);}
-function showJourneyEditor(open){const el=$('journeyEditor');if(el)el.hidden=!open;}
+function closeRouteOverlays(){
+  $('routeEditorOverlay').hidden=true;$('journeyEditor').hidden=true;$('stopEditor').hidden=true;
+  $('routeOptionsOverlay').hidden=true;
+  $('routeCollabOverlay').hidden=true;
+}
+function showJourneyEditor(open){
+  const el=$('journeyEditor');if(!el)return;
+  $('routeOptionsOverlay').hidden=true;
+  $('stopEditor').hidden=true;
+  el.hidden=!open;$('routeEditorOverlay').hidden=!open;
+}
+function routeEmojiPicker(value='🧭'){
+  $('journeyEmoji').value=value;
+  $('journeyAvatarPicker').innerHTML=ROUTE_EMOJIS.map(emoji=>`<button type="button" class="route-avatar-option ${emoji===value?'selected':''}" data-route-emoji="${emoji}" aria-label="${emoji} avatar" aria-pressed="${emoji===value}">${emoji}</button>`).join('');
+}
+function routeAvailableBills(selected=''){
+  $('journeyLinkedBillSelect').innerHTML='<option value="">No linked bill</option>'+(state.billGroups||[]).filter(g=>!g.archived).map(g=>`<option value="${esc(g.id)}" ${String(g.id)===selected?'selected':''}>${esc(g.name)}</option>`).join('');
+}
+async function sendRouteInvitations(j){
+  if(!j?.shared||!journeyOwner(j)||!sb)return;
+  const codes=[...new Set((j.inviteCodes||[]).map(parseLedgerId).filter(Boolean))];
+  if(!codes.length)return;
+  const failed=[];
+  for(const code of codes){const r=await sb.rpc('ledger_route_invite',{p_route_id:j.id,p_ledger_code:code});if(r.error)failed.push(code);}
+  j.inviteCodes=failed;
+  // Stage failed invites locally for retry, but keep the route itself available.
+  if(failed.length)toast(`Could not invite ${failed.length} traveler(s). Check their Ledger IDs.`);
+  else toast('Travelers added');
+  await loadJourneyExtras(j);
+}
+
 function openJourneyForm(j=null){
   location.hash='#journeys';
   if(currentPage!=='journeys')route();
@@ -3624,6 +3660,9 @@ function openJourneyForm(j=null){
   $('journeyDestination').value=j?.destination||'';
   $('journeyStartDate').value=j?.startDate||'';
   $('journeyNotes').value=j?.notes||'';
+  $('journeyModalTitle').textContent=j?'Edit route':'Plan a route';
+  routeEmojiPicker(j?.emoji||'🧭');routeAvailableBills(j?.linkedBillId||'');
+  $('journeyInviteCodes').value=(j?.inviteCodes||[]).join(', ');
   showJourneyEditor(true);
   $('journeyTitle').focus();
 }
@@ -3646,7 +3685,8 @@ function openStopForm(stop=null){
   $('stopForm').querySelectorAll('input,textarea,select').forEach(el=>{if(!['stopId','stopPhotoUrl'].includes(el.id))el.disabled=!journeyOwner(j);});
   $('stopSave').hidden=!journeyOwner(j);$('stopDelete').hidden=!journeyOwner(j);
   renderJourneyExtras();
-  $('stopEditor').hidden=false;
+  $('journeyEditor').hidden=true;$('routeOptionsOverlay').hidden=true;
+  $('routeEditorOverlay').hidden=false;$('stopEditor').hidden=false;
   $('stopTitle').focus();
 }
 function renderJourneys(){
@@ -3659,18 +3699,22 @@ function renderJourneys(){
   if(!activeJourneyId){
     list.innerHTML=journeys.length?journeys.map(j=>{
       const total=j.stops.reduce((n,p)=>n+p.cost,0);
-      return `<button type="button" class="journey-tile" data-journey-open="${esc(j.id)}"><span class="journey-tile-icon" aria-hidden="true">⌁</span><span class="journey-tile-info"><strong>${esc(j.title)}</strong><small>${esc([j.destination,j.startDate].filter(Boolean).join(' · ')||'Plan your next route')} · ${j.stops.length} ${j.stops.length===1?'stop':'stops'} ${j.shared?'· Shared':''}</small></span><span class="journey-tile-cost">${money(total)}<small>estimate</small></span><span aria-hidden="true">›</span></button>`;
+      return `<button type="button" class="journey-tile" data-journey-open="${esc(j.id)}"><span class="journey-tile-icon" aria-hidden="true">${esc(j.emoji||'🧭')}</span><span class="journey-tile-info"><strong>${esc(j.title)}</strong><small>${esc([j.destination,j.startDate].filter(Boolean).join(' · ')||'Plan your next route')} · ${j.stops.length} ${j.stops.length===1?'stop':'stops'} ${j.shared?'· Shared':''}</small></span><span class="journey-tile-cost">${money(total)}<small>estimate</small></span><span aria-hidden="true">›</span></button>`;
     }).join(''):'<div class="journey-empty"><strong>Your next journey starts here.</strong><p>Add places, transport, dates, and estimated costs—all in one plan.</p></div>';
     return;
   }
   const j=journeyById(activeJourneyId), total=j.stops.reduce((n,p)=>n+p.cost,0);
   $('journeyDetailTitle').textContent=j.title;
+  $('journeyDetailAvatar').textContent=j.emoji||'🧭';
+  const linked=(state.billGroups||[]).find(g=>String(g.id)===String(j.linkedBillId||''));
+  const linkedPanel=$('journeyLinkedBill');linkedPanel.hidden=!linked;
+  if(linked)linkedPanel.innerHTML=`<span>Linked bill</span><strong>${esc(linked.emoji||'🧾')} ${esc(linked.name)}</strong><button type="button" id="routeOpenLinkedBill">Open bill →</button>`;
   $('journeyDetailSubtitle').textContent=[j.destination,j.startDate].filter(Boolean).join(' · ')||'Plan the details of your journey';
   $('journeyTotal').textContent=money(total);
   $('journeyStopsCount').textContent=`${j.stops.length} ${j.stops.length===1?'stop':'stops'}`;
   $('journeyDetailNotes').textContent=j.notes||'';
   $('journeyDetailNotes').hidden=!j.notes;
-  $('journeyEdit').hidden=!journeyOwner(j);$('journeyDelete').textContent=journeyOwner(j)?'Delete':'Leave';
+  $('journeyEdit').hidden=false;$('journeyDelete').hidden=true;
   $('journeyAddStop').hidden=!journeyOwner(j);
   renderJourneyExtras();
   const ordered=j.stops.slice().sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999')||(a.time||'99').localeCompare(b.time||'99'));
@@ -3683,19 +3727,34 @@ function renderJourneys(){
 }
 function initJourneys(){
   $('journeyNewButton')?.addEventListener('click',()=>openJourneyForm());
-  $('journeyCancel')?.addEventListener('click',()=>showJourneyEditor(false));
+  $('journeyCancel')?.addEventListener('click',closeRouteOverlays);
+  $('journeyAvatarPicker')?.addEventListener('click',e=>{const btn=e.target.closest('[data-route-emoji]');if(btn)routeEmojiPicker(btn.dataset.routeEmoji);});
+  $('routeEditorOverlay')?.addEventListener('click',e=>{if(e.target.id==='routeEditorOverlay')closeRouteOverlays();});
+  $('routeOptionsOverlay')?.addEventListener('click',e=>{if(e.target.id==='routeOptionsOverlay')closeRouteOverlays();});
+  $('routeOptionClose')?.addEventListener('click',closeRouteOverlays);
+  $('routeOptionEdit')?.addEventListener('click',()=>openJourneyForm(journeyById(activeJourneyId)));
+  $('routeOptionRefresh')?.addEventListener('click',()=>{$('routeOptionsOverlay').hidden=true;$('journeyRefresh').click();});
+  $('routeOptionDelete')?.addEventListener('click',()=>{$('routeOptionsOverlay').hidden=true;$('journeyDelete').click();});
+  $('routeOptionShare')?.addEventListener('click',()=>{$('routeOptionsOverlay').hidden=true;$('routeCollabOverlay').hidden=false;});
+  $('journeyManageTravelers')?.addEventListener('click',()=>{$('routeCollabOverlay').hidden=false;});
+  $('routeCollabClose')?.addEventListener('click',closeRouteOverlays);
+  $('routeCollabOverlay')?.addEventListener('click',e=>{if(e.target.id==='routeCollabOverlay')closeRouteOverlays();});
   $('journeyForm')?.addEventListener('submit',async e=>{
     e.preventDefault();const title=$('journeyTitle').value.trim();if(!title)return;
     const old=journeyById($('journeyId').value);
-    const j={id:old?.id||uid(),title,destination:$('journeyDestination').value.trim(),startDate:$('journeyStartDate').value,notes:$('journeyNotes').value.trim(),stops:old?.stops||[],...(old?.shared?{shared:true,ownerId:old.ownerId}:{})};
+    const rawCodes=$('journeyInviteCodes').value.split(/[\s,;]+/).map(s=>s.trim()).filter(Boolean);
+    const j={id:old?.id||uid(),title,destination:$('journeyDestination').value.trim(),startDate:$('journeyStartDate').value,notes:$('journeyNotes').value.trim(),emoji:$('journeyEmoji').value||'🧭',linkedBillId:$('journeyLinkedBillSelect').value,inviteCodes:[...new Set([...(old?.inviteCodes||[]),...rawCodes])],stops:old?.stops||[],...(old?.shared?{shared:true,ownerId:old.ownerId}:{})};
     if(old)Object.assign(old,j);else state.journeys.push(j);
     activeJourneyId=j.id;
     if(j.shared){if(!await persistJourney(j))return;}else save();
-    showJourneyEditor(false);renderJourneys();toast('Journey saved');
+    closeRouteOverlays();renderJourneys();toast('Route saved');
+    if(j.shared&&j.inviteCodes?.length)await sendRouteInvitations(j);
+    else if(!j.shared&&j.inviteCodes?.length&&mode==='cloud'&&sb&&user)await shareJourney(j);
   });
   $('journeyList')?.addEventListener('click',async e=>{const b=e.target.closest('[data-journey-open]');if(!b)return;activeJourneyId=b.dataset.journeyOpen;renderJourneys();await loadJourneyExtras(journeyById(activeJourneyId));renderJourneys();});
   $('journeyBack')?.addEventListener('click',()=>{activeJourneyId=null;$('stopEditor').hidden=true;renderJourneys();});
-  $('journeyEdit')?.addEventListener('click',()=>openJourneyForm(journeyById(activeJourneyId)));
+  $('journeyEdit')?.addEventListener('click',()=>{$('routeOptionsOverlay').hidden=false;});
+  $('journeyLinkedBill')?.addEventListener('click',e=>{if(!e.target.closest('#routeOpenLinkedBill'))return;const j=journeyById(activeJourneyId);if(!j?.linkedBillId)return;location.hash='#split';route();openBillDetail(j.linkedBillId);});
   $('journeyDelete')?.addEventListener('click',async()=>{
     const j=journeyById(activeJourneyId);if(!j)return;
     if(!confirm(j.shared&&!journeyOwner(j)?`Leave route “${j.title}”?`:`Delete route “${j.title}” and its stops?`))return;
@@ -3712,7 +3771,7 @@ function initJourneys(){
     activeJourneyId=null;renderJourneys();toast('Route updated');
   });
   $('journeyAddStop')?.addEventListener('click',()=>openStopForm());
-  $('stopCancel')?.addEventListener('click',()=>{$('stopEditor').hidden=true;});
+  $('stopCancel')?.addEventListener('click',closeRouteOverlays);
   $('stopForm')?.addEventListener('submit',async e=>{
     e.preventDefault();const j=journeyById(activeJourneyId);if(!j)return;
     const title=$('stopTitle').value.trim();if(!title)return;
@@ -3726,10 +3785,10 @@ function initJourneys(){
     if(url&&!p.photoUrls.includes(url))p.photoUrls.push(url);
     if(old)Object.assign(old,p);else j.stops.push(p);
     if(!await persistJourney(j))return;
-    $('stopEditor').hidden=true;renderJourneys();toast('Stop saved');
+    closeRouteOverlays();renderJourneys();toast('Stop saved');
   });
   $('journeyStops')?.addEventListener('click',e=>{const b=e.target.closest('[data-stop-id]');if(!b)return;const j=journeyById(activeJourneyId);const p=j?.stops.find(x=>x.id===b.dataset.stopId);if(p)openStopForm(p);});
-  $('stopDelete')?.addEventListener('click',async()=>{const j=journeyById(activeJourneyId),id=$('stopId').value;if(!j||!id)return;if(!confirm('Delete this stop?'))return;j.stops=j.stops.filter(p=>p.id!==id);await persistJourney(j);$('stopEditor').hidden=true;renderJourneys();toast('Stop deleted');});
+  $('stopDelete')?.addEventListener('click',async()=>{const j=journeyById(activeJourneyId),id=$('stopId').value;if(!j||!id)return;if(!confirm('Delete this stop?'))return;j.stops=j.stops.filter(p=>p.id!==id);await persistJourney(j);closeRouteOverlays();renderJourneys();toast('Stop deleted');});
   $('journeyShareBtn')?.addEventListener('click',()=>{const j=journeyById(activeJourneyId);if(j)shareJourney(j);});
   $('journeyInviteForm')?.addEventListener('submit',async e=>{
     e.preventDefault();const j=journeyById(activeJourneyId),code=parseLedgerId($('journeyInviteId').value);
@@ -3756,7 +3815,7 @@ function initJourneys(){
     if(!await persistJourney(j)){j.links.pop();return;}
     $('journeyLinkForm').reset();renderJourneyExtras();toast('Link added');
   });
-  document.getElementById('page-journeys')?.addEventListener('click',async e=>{
+  document.addEventListener('click',async e=>{
     const open=e.target.closest('[data-route-file-open]');if(open){await signedFileOpen(open.dataset.routeFileOpen);return;}
     const rm=e.target.closest('[data-route-file-remove]');if(rm){
       const f=journeyFiles.find(x=>x.id===rm.dataset.routeFileRemove);if(!f||!confirm('Remove this attachment?'))return;
