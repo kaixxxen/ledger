@@ -1741,8 +1741,9 @@ function calculateGroupBalance(group) {
   keys.forEach(ensure);
   let totalCents = 0;
   const issues = [];
-  // Detailed Split follows the workbook: settle each pair separately, rather than
-  // using global debt simplification (which may redirect who pays whom).
+  // Preserve the actual payer/participant relationship for EVERY bill type.
+  // Global creditor/debtor netting can redirect a debt through an unrelated member.
+  // Net only reciprocal obligations between the same pair of people.
   const pairOwed = new Map();
   function addPairDebt(from, to, amount) {
     if (!from || !to || from === to || !amount) return;
@@ -1788,7 +1789,7 @@ function calculateGroupBalance(group) {
     balancesCents[payer] += amount;
     shares.forEach(([key, amountCents]) => {
       balancesCents[key] -= amountCents;
-      if (group.trip) addPairDebt(key, payer, amountCents);
+      addPairDebt(key, payer, amountCents);
     });
   });
 
@@ -1798,51 +1799,36 @@ function calculateGroupBalance(group) {
     ensure(payment.from); ensure(payment.to);
     balancesCents[payment.from] += amount;
     balancesCents[payment.to] -= amount;
-    if (group.trip) addPairDebt(payment.from, payment.to, -amount);
+    addPairDebt(payment.from, payment.to, -amount);
   });
 
   // A balanced ledger must sum to precisely zero cents.
   const check = Object.values(balancesCents).reduce((sum, value) => sum + value, 0);
   if (check !== 0) issues.push(`Ledger is out of balance by ${(check / 100).toFixed(2)}`);
 
-  const debtors = Object.entries(balancesCents).filter(([, v]) => v < 0)
-    .map(([person, v]) => ({person, remaining: -v})).sort((a,b) => b.remaining-a.remaining || a.person.localeCompare(b.person));
-  const creditors = Object.entries(balancesCents).filter(([, v]) => v > 0)
-    .map(([person, v]) => ({person, remaining: v})).sort((a,b) => b.remaining-a.remaining || a.person.localeCompare(b.person));
+  // Direct settlement suggestions: each expense creates a debt from its
+  // participants to its payer. Only offset opposing debts for the SAME pair;
+  // never move A's debt to B merely because B paid C for a different expense.
   const settlements = [];
   if (!issues.length) {
-    let i = 0, j = 0;
-    while (i < debtors.length && j < creditors.length) {
-      const value = Math.min(debtors[i].remaining, creditors[j].remaining);
-      if (value > 0) settlements.push({from: debtors[i].person, to: creditors[j].person, amount: value / 100});
-      debtors[i].remaining -= value;
-      creditors[j].remaining -= value;
-      if (debtors[i].remaining === 0) i++;
-      if (creditors[j].remaining === 0) j++;
-    }
-    if (i < debtors.length || j < creditors.length) issues.push('Unable to reconcile all settlements');
-  }
-  if (group.trip && !issues.length) {
-    // Cancel cross-expense obligations between the same two members. Eg Eric
-    // owes Rob 1375 but Rob owes Eric 716 => Eric pays Rob 659.
-    settlements.length = 0;
     for (const [pairKey, net] of pairOwed) {
-      if (!net) continue;
+      if (net === 0) continue;
       const [first, second] = JSON.parse(pairKey);
-      settlements.push({from: net > 0 ? first : second,
-        to: net > 0 ? second : first, amount: Math.abs(net) / 100});
+      settlements.push({
+        from: net > 0 ? first : second,
+        to: net > 0 ? second : first,
+        amount: Math.abs(net) / 100
+      });
     }
-    // The resulting obligations must reproduce each person's outstanding net.
+    // Verify the suggested pairwise transfers exactly explain every balance.
     const expected = Object.fromEntries(Object.keys(balancesCents).map(k => [k, 0]));
-    settlements.forEach(row => {
+    for (const row of settlements) {
       expected[row.from] = (expected[row.from] || 0) - cents(row.amount);
       expected[row.to] = (expected[row.to] || 0) + cents(row.amount);
-    });
-    if (Object.keys(balancesCents).some(key => expected[key] !== balancesCents[key])) {
-      issues.push('Trip obligations do not reconcile with member balances');
     }
-    // Retain the workbook-style payer ordering by expense rather than
-    // sorting by total debt size. No extra consolidation across different payees.
+    if (Object.keys(balancesCents).some(key => expected[key] !== balancesCents[key])) {
+      issues.push('Direct obligations do not reconcile with member balances');
+    }
   }
   const balances = Object.fromEntries(Object.entries(balancesCents).map(([key, value]) => [key, value / 100]));
   return { balances, settlements: issues.length ? [] : settlements,
