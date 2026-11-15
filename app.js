@@ -670,7 +670,7 @@ function initGlobalActions() {
     const action = btn.dataset.create;
     closeGlobalActions(true);
     if (action === 'payment') { openBillPayment(); return; }
-    if (action === 'journey') { location.hash='#journeys'; route(); openJourneyForm(); return; }
+    if (action === 'journey') { if (currentPage !== 'journeys') { location.hash='#journeys'; route(); } openJourneyForm(); return; }
     const targets = {expense:'btnAddExpenseBtn',bill:'btnAddPersonFabTop','in-bill':'btnOpenAddSplitExpense'};
     const target = $(targets[action]);
     if (target) target.click();
@@ -1867,20 +1867,28 @@ function calculateGroupBalance(group) {
     totalExpenses: totalCents / 100, myNet: (balancesCents[me] || 0) / 100, issues };
 }
 
-function openBillPayment(preselected = null) {
+function openBillPayment(preselected = null, editPaymentId = null) {
   const group = (state.billGroups || []).find(g => g.id === selectedGroupId);
   if (!group) return;
   const opts = paidByOptions(group);
   if ((group.participants || []).length < 2) { toast('Add two members to record a payment.'); return; }
+  const existing = editPaymentId ? (group.settlements || []).find(p => String(p.id) === String(editPaymentId)) : null;
+  if (editPaymentId && !existing) { toast('Payment not found. Refresh this bill.'); return; }
+  $('settleEditId').value = existing?.id || '';
+  $('settleModalTitle').textContent = existing ? 'Edit payment' : 'Record payment';
+  $('settleDelete').hidden = !existing;
   $('settlePayer').innerHTML = opts;
   $('settleReceiver').innerHTML = opts;
   const outstanding = calculateGroupBalance(group).settlements;
   const selected = (preselected && outstanding.find(s => s.from === preselected.from && s.to === preselected.to)) || outstanding[0];
-  $('settlePayer').value = selected?.from || group.participants[0].key;
-  $('settleReceiver').value = selected?.to || group.participants.find(p => p.key !== $('settlePayer').value)?.key || '';
-  $('settleNote').value = '';
+  $('settlePayer').value = existing?.from || selected?.from || group.participants[0].key;
+  $('settleReceiver').value = existing?.to || selected?.to || group.participants.find(p => p.key !== $('settlePayer').value)?.key || '';
+  $('settleNote').value = existing?.note || '';
+  $('settleMethod').value = existing?.method || 'Bank Transfer';
+  if ($('settleModal').parentElement !== document.body) document.body.appendChild($('settleModal'));
   $('settleModal').hidden = false;
-  syncPaymentAmountToPair();
+  if (existing) $('settleAmount').value = Number(existing.amount).toFixed(2);
+  else syncPaymentAmountToPair();
 }
 function syncPaymentAmountToPair() {
   const group = (state.billGroups || []).find(g => g.id === selectedGroupId);
@@ -1923,7 +1931,7 @@ function dueRecurringExpenses(group, now = today()) {
       const year = dt.getUTCFullYear(), month = dt.getUTCMonth();
       const day = Math.min(Number(config.day)||1, new Date(Date.UTC(year,month+1,0)).getUTCDate());
       const date = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-      if (date>now) continue;
+      if (date > now || (config.endDate && date > config.endDate)) continue;
       const id = recurringUuid(e.id, date.slice(0,7));
       if (seen.has(id)) continue;
       seen.add(id);
@@ -2006,10 +2014,10 @@ function renderBillExpensesList(group) {
     return `<div class="date-group"><div class="date-header">${esc(heading)}</div>${rows.map(row => {
       if (row.kind === 'payment') {
         const pay=row.payment;
-        return `<div class="bill-expense-card bill-activity-row bill-payment-row" aria-label="Payment by ${esc(shortFor(group,pay.from))} to ${esc(shortFor(group,pay.to))}">
+        return `<div class="bill-expense-card bill-activity-row bill-payment-row edit-payment-row" data-id="${esc(pay.id)}" role="button" tabindex="0" aria-label="Edit payment by ${esc(shortFor(group,pay.from))} to ${esc(shortFor(group,pay.to))}">
           <span class="activity-glyph payment-glyph" aria-hidden="true">✓</span>
           <div class="activity-copy"><strong>Payment</strong><small>${esc(shortFor(group,pay.from))} → ${esc(shortFor(group,pay.to))} · ${esc(pay.method||'Payment')}</small></div>
-          <span class="activity-amount is-payment">+${money(pay.amount)}</span><button type="button" class="del-settle-btn payment-row-remove" data-id="${esc(pay.id)}" aria-label="Delete recorded payment" title="Delete payment">×</button>
+          <span class="activity-amount is-payment">+${money(pay.amount)}</span><svg class="activity-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
         </div>`;
       }
       const exp=row.exp;
@@ -2788,17 +2796,15 @@ function bind() {
   on('txSearch', 'keydown', e => { if (e.key === 'Escape') { e.preventDefault(); toggleExpenseSearch(false); } });
   on('txSearch', 'input', () => { txSearch = $('txSearch').value.trim().toLowerCase(); expanded.tx = false; renderExpenses(); });
 
-  on('splitExpensesGroupedList', 'click', async e => {
-    const b = e.target.closest('.del-settle-btn'); if (!b) return;
-    const group = state.billGroups.find(g => g.id === selectedGroupId);
-    if (!group || !confirm('Delete this recorded payment?')) return;
-    if (group.shared) {
-      const r = await rpcOk(sb.from('bill_settlements').delete().eq('id', b.dataset.id).select('id'), "Couldn't delete the payment.");
-      if (!r) return;
-      if (!(r.data || []).length) { toast("Couldn't delete that payment (no permission)."); return; }
+  // A payment opens the same floating editor as a bill expense, never an inline X.
+  on('splitExpensesGroupedList', 'click', e => {
+    const paymentRow = e.target.closest('.edit-payment-row');
+    if (paymentRow) openBillPayment(null, paymentRow.dataset.id);
+  });
+  on('splitExpensesGroupedList', 'keydown', e => {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('.edit-payment-row')) {
+      e.preventDefault();openBillPayment(null,e.target.closest('.edit-payment-row').dataset.id);
     }
-    group.settlements = (group.settlements || []).filter(x => String(x.id) !== b.dataset.id);
-    persistGroup(group); renderBillDetail(); toast('Payment deleted');
   });
 
   // tap outside a sheet / press Escape to close it
@@ -3193,6 +3199,9 @@ function bind() {
       if (group.trip) updateTripFormMode();
       $('splitExpDate').value = today();
       if ($('splitExpRepeat')) $('splitExpRepeat').checked = false;
+      if ($('splitRepeatStart')) $('splitRepeatStart').value = today();
+      if ($('splitRepeatEnd')) $('splitRepeatEnd').value = '';
+      if ($('splitRepeatDates')) $('splitRepeatDates').hidden = true;
 
       $('splitExpPaidBy').innerHTML = paidByOptions(group);
       const me = myKeyFor(group);
@@ -3208,6 +3217,8 @@ function bind() {
   }
 
   if ($('addSplitExpenseCancel')) $('addSplitExpenseCancel').onclick = () => { $('addSplitExpenseModal').hidden = true; };
+
+  on('splitExpRepeat', 'change', () => { $('splitRepeatDates').hidden = !$('splitExpRepeat').checked; if (!$('splitRepeatStart').value) $('splitRepeatStart').value = $('splitExpDate').value || today(); });
 
   on('addSplitExpenseForm', 'submit', async e => {
     e.preventDefault();
@@ -3228,11 +3239,15 @@ function bind() {
     }
     if (!group.trip && !selectedSplitParticipants.length) { toast('Select at least one person.'); return; }
     const repeats = !!$('splitExpRepeat')?.checked;
-    const recurring = repeats ? { frequency: 'monthly', startDate: dateVal, day: Number(dateVal.slice(-2)) } : null;
+    const repeatStart = $('splitRepeatStart')?.value || dateVal;
+    const repeatEnd = $('splitRepeatEnd')?.value || null;
+    if (repeats && !/^\d{4}-\d{2}-\d{2}$/.test(repeatStart)) { toast('Choose a start date for the recurring expense.'); return; }
+    if (repeats && repeatEnd && repeatEnd < repeatStart) { toast('End date must be on or after the start date.'); return; }
+    const recurring = repeats ? { frequency:'monthly', startDate:repeatStart, endDate:repeatEnd, day:Number(repeatStart.slice(-2)) } : null;
     // The existing trip_data JSON column holds recurrence metadata for both
     // Standard and Detailed bills; no table or migration is required.
     tripData = { ...(tripData || {}), ...(recurring ? { recurring } : {}) };
-    const exp = { id: existing ? existing.id : uid(), title, amount, paidBy, participants: group.trip ? Object.keys(tripData.shares) : [...selectedSplitParticipants], date: dateVal, tripData };
+    const exp = { id: existing ? existing.id : uid(), title, amount, paidBy, participants: group.trip ? Object.keys(tripData.shares) : [...selectedSplitParticipants], date: repeats ? repeatStart : dateVal, tripData };
 
     if (group.shared) {
       const r = await rpcOk(sb.from('bill_expenses').upsert(expenseRow(group.id, exp)), "Couldn't save the expense. Check your connection and try again.");
@@ -3259,6 +3274,9 @@ function bind() {
       if (group.trip) updateTripFormMode();
       $('splitExpDate').value = exp.date;
       if ($('splitExpRepeat')) $('splitExpRepeat').checked = !!exp.tripData?.recurring;
+      if ($('splitRepeatStart')) $('splitRepeatStart').value = exp.tripData?.recurring?.startDate || exp.date;
+      if ($('splitRepeatEnd')) $('splitRepeatEnd').value = exp.tripData?.recurring?.endDate || '';
+      if ($('splitRepeatDates')) $('splitRepeatDates').hidden = !exp.tripData?.recurring;
 
       $('splitExpPaidBy').innerHTML = paidByOptions(group);
       $('splitExpPaidBy').value = exp.paidBy;
@@ -3318,6 +3336,18 @@ function bind() {
   on('settlePayer', 'change', syncPaymentAmountToPair);
   on('settleReceiver', 'change', syncPaymentAmountToPair);
   if ($('settleCancel')) $('settleCancel').onclick = () => { if ($('settleModal')) $('settleModal').hidden = true; };
+  on('settleDelete', 'click', async () => {
+    const group = state.billGroups.find(g => g.id === selectedGroupId);
+    const paymentId = $('settleEditId').value;
+    if (!group || !paymentId || !confirm('Delete this payment?')) return;
+    if (group.shared) {
+      const r = await rpcOk(sb.from('bill_settlements').delete().eq('id',paymentId).eq('bill_id',group.id).select('id'),"Couldn't delete the payment.");
+      if (!r) return;
+      if (!Array.isArray(r.data) || !r.data.length) { toast('Payment could not be deleted.'); return; }
+    }
+    group.settlements = (group.settlements || []).filter(p=>String(p.id)!==paymentId);
+    persistGroup(group); $('settleModal').hidden=true; renderBillDetail(); toast('Payment deleted');
+  });
 
   on('settleForm', 'submit', async e => {
     e.preventDefault();
@@ -3336,17 +3366,23 @@ function bind() {
     // Overpayments become an opposite-direction balance, never vanish.
     if (!group.participants.some(p => p.key === from) || !group.participants.some(p => p.key === to)) { toast('Choose valid members.'); return; }
 
-    const s = { id: uid(), from, to, amount, method, note, date: today() };
+    const editId = $('settleEditId').value;
+    const previous = editId ? (group.settlements || []).find(p => String(p.id) === editId) : null;
+    if (editId && !previous) { toast('Original payment no longer exists. Refresh and retry.'); return; }
+    const s = { id: previous?.id || uid(), from, to, amount, method, note, date: previous?.date || today() };
     if (group.shared) {
-      const r = await rpcOk(sb.from('bill_settlements').insert({
-        id: s.id, bill_id: group.id, from_key: from, to_key: to, amount, method, note, date: s.date
-      }), "Couldn't record the payment. Check your connection and try again.");
+      const row = {from_key:from,to_key:to,amount,method,note};
+      const query = previous
+        ? sb.from('bill_settlements').update(row).eq('id',s.id).eq('bill_id',group.id).select('id')
+        : sb.from('bill_settlements').insert({id:s.id,bill_id:group.id,...row,date:s.date}).select('id');
+      const r = await rpcOk(query, "Couldn't save the payment. Check your connection and permissions.");
       if (!r) return;
+      if (!Array.isArray(r.data) || !r.data.length) { toast('Payment was not saved. Check permissions.'); return; }
     }
     if (!group.settlements) group.settlements = [];
-    group.settlements.push(s);
+    if (previous) Object.assign(previous,s); else group.settlements.push(s);
     persistGroup(group);
-    $('settleModal').hidden = true; renderBillDetail();  toast(`Recorded ${money(amount)}. Balances updated.`);
+    $('settleModal').hidden = true; renderBillDetail(); toast(previous ? 'Payment updated' : 'Payment recorded');
   });
 
   on('methodChips', 'click', e => {
@@ -3693,7 +3729,7 @@ function renderJourneys(){
   const list=$('journeyList'),detail=$('journeyDetail');if(!list||!detail)return;
   const journeys=journeysAll();
   if(activeJourneyId&&!journeyById(activeJourneyId))activeJourneyId=null;
-  $('journeyNewButton').hidden=!!activeJourneyId;
+  if ($('journeyNewButton')) $('journeyNewButton').hidden=!!activeJourneyId;
   $('journeyOverview').hidden=!!activeJourneyId;
   detail.hidden=!activeJourneyId;
   if(!activeJourneyId){
@@ -3726,7 +3762,10 @@ function renderJourneys(){
   }).join(''):'<div class="journey-empty">No stops yet. Add your first place or transport.</div>';
 }
 function initJourneys(){
-  $('journeyNewButton')?.addEventListener('click',()=>openJourneyForm());
+  // Fixed dialogs must not be descendants of the animated/scrolled app root on iOS Safari.
+  ['routeEditorOverlay','routeCollabOverlay','routeOptionsOverlay'].forEach(id => {
+    const dialog = $(id); if (dialog && dialog.parentElement !== document.body) document.body.appendChild(dialog);
+  });
   $('journeyCancel')?.addEventListener('click',closeRouteOverlays);
   $('journeyAvatarPicker')?.addEventListener('click',e=>{const btn=e.target.closest('[data-route-emoji]');if(btn)routeEmojiPicker(btn.dataset.routeEmoji);});
   $('routeEditorOverlay')?.addEventListener('click',e=>{if(e.target.id==='routeEditorOverlay')closeRouteOverlays();});

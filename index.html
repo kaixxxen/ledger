@@ -299,7 +299,7 @@
 
   <!-- ROUTES — independent itinerary planner. Estimated costs do not post to ledger. -->
   <section class="page" id="page-journeys" hidden>
-    <header class="top routes-top"><div><h1>Routes</h1><p class="fine">Trips, places and shared plans</p></div><button type="button" class="secondary route-new-compact" id="journeyNewButton">+ New route</button></header>
+    <header class="top routes-top"><div class="routes-heading"><h1>Routes</h1><p class="fine">Trips, places and shared plans</p></div></header>
     <div id="journeyOverview"><div id="journeyList" class="journey-list"></div></div>
     <section id="journeyDetail" hidden>
       <div class="journey-detail-head"><button id="journeyBack" type="button" class="icon" aria-label="Back to routes">‹</button><div class="journey-detail-avatar" id="journeyDetailAvatar" aria-hidden="true">🧭</div><div class="journey-detail-name"><h2 id="journeyDetailTitle"></h2><small id="journeyDetailSubtitle"></small></div><button id="journeyRefresh" type="button" class="route-icon-btn" title="Refresh shared routes" aria-label="Refresh routes">↻</button><button id="journeyEdit" type="button" class="route-icon-btn" aria-label="Route options" title="Route options">⋯</button><button id="journeyDelete" type="button" class="journey-danger" aria-label="Delete route" hidden>Delete</button></div>
@@ -607,8 +607,9 @@
 <!-- RECORD REIMBURSEMENT / SETTLE UP MODAL -->
 <div class="modal-backdrop" id="settleModal" hidden>
   <div class="modal-card">
-    <h3>Record payment</h3>
+    <h3 id="settleModalTitle">Record payment</h3>
     <form id="settleForm">
+      <input type="hidden" id="settleEditId">
       <p class="fine">Choose who paid whom. Enter any payment, including advance or partial payments. Balances update to the centavo.</p>
       <div class="row2">
         <div>
@@ -642,6 +643,7 @@
       </div>
       <div class="btnrow modal-actions">
         <button type="submit" class="primary">Record Payment</button>
+        <button type="button" class="secondary danger" id="settleDelete" hidden>Delete payment</button>
         <button type="button" class="secondary" id="settleCancel">Cancel</button>
       </div>
     </form>
@@ -711,7 +713,12 @@
         <div class="receipt-scan-result" role="status" aria-live="polite" hidden></div>
         
       </div></details>
-      <label class="bill-repeat-row" for="splitExpRepeat"><input type="checkbox" id="splitExpRepeat"><span><strong>Repeat monthly</strong><small>Automatically add this shared expense on the same day each month</small></span></label>
+      <label class="bill-repeat-row" for="splitExpRepeat"><input type="checkbox" id="splitExpRepeat"><span><strong>Repeat monthly</strong><small>Choose the first and last charge dates</small></span></label>
+      <div id="splitRepeatDates" class="bill-repeat-dates" hidden>
+        <div><label for="splitRepeatStart">Starts on</label><input type="date" id="splitRepeatStart"></div>
+        <div><label for="splitRepeatEnd">Ends on (optional)</label><input type="date" id="splitRepeatEnd"></div>
+        <small>Monthly charges repeat on the start day. Leave the end blank to repeat indefinitely.</small>
+      </div>
       <div class="btnrow modal-actions">
         <button type="submit" class="primary">Save Expense</button>
         <button type="button" class="secondary danger" id="btnDeleteSplitExpense" hidden>Delete Expense</button>
@@ -930,24 +937,24 @@
 <!-- NAVIGATION: floating dock on phones, sidebar on desktop -->
 <nav class="dock" id="dock" aria-label="Main" hidden>
   <div class="dock-brand"><img src="icon-192.png" alt="" width="30" height="30"><span>Ledger</span></div>
-  <button type="button" data-go="home">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v9a2 2 0 0 1-2 2h-4.5v-7h-5v7H5a2 2 0 0 1-2-2z"/></svg>
+  <button type="button" data-go="home" aria-label="Home" title="Home">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 10 12 3l8.5 7v9a2 2 0 0 1-2 2H5.5a2 2 0 0 1-2-2z"/><path d="M9 21v-7h6v7"/></svg>
     <span>Home</span>
   </button>
-  <button type="button" data-go="expenses">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+  <button type="button" data-go="expenses" aria-label="Expenses" title="Expenses">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2.75" width="14" height="18.5" rx="2.5"/><path d="M8.5 8h7M8.5 12h7M8.5 16h4"/></svg>
     <span>Expenses</span>
   </button>
-  <button type="button" data-go="split">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M17.5 5.5a3 3 0 0 1 0 5.5M17 14a5 5 0 0 1 4 5v1"/></svg>
+  <button type="button" data-go="split" aria-label="Split bills" title="Split bills">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8.25" r="3"/><path d="M2.75 20v-1.5A5.25 5.25 0 0 1 8 13.25h.75A5.25 5.25 0 0 1 14 18.5V20"/><path d="M16.5 5.7a3 3 0 0 1 0 5.8M16.5 14.1a4.6 4.6 0 0 1 4.75 4.5V20"/></svg>
     <span>Split</span>
   </button>
-  <button type="button" data-go="journeys">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5 9 3l6 3 6-3v14.5l-6 3-6-3-6 3zM9 3v14.5M15 6v14.5"/></svg>
+  <button type="button" data-go="journeys" aria-label="Routes" title="Routes">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg>
     <span>Routes</span>
   </button>
-  <button type="button" data-go="settings">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2.5" fill="var(--card)"/><circle cx="15" cy="17" r="2.5" fill="var(--card)"/></svg>
+  <button type="button" data-go="settings" aria-label="Settings" title="Settings">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2.6"/><circle cx="15.5" cy="17" r="2.6"/></svg>
     <span>Settings</span>
   </button>
 </nav>

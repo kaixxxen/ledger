@@ -2181,3 +2181,35 @@ button:active{opacity:.86}
 #routeCollabOverlay .route-file-row,#routeCollabOverlay .route-member{max-width:100%;min-width:0;overflow-wrap:anywhere}
 #routeCollabOverlay .route-file-name{min-width:0}
 @media(max-width:480px){#routeCollabOverlay .journey-collab{padding:16px!important;max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px)}}
+
+/* v65 — deliberate iOS-style payment and Routes polish */
+.bill-payment-row{cursor:pointer;min-width:0;}
+.bill-payment-row .activity-copy{min-width:0;}
+.bill-payment-row .activity-chevron{flex:none;color:var(--muted);margin-left:2px;}
+.bill-payment-row:active,.bill-payment-row:focus-visible{background:var(--bar);}
+.bill-repeat-dates{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:12px;background:var(--bar);border-radius:16px;border:1px solid var(--line);}
+.bill-repeat-dates[hidden]{display:none!important;}
+.bill-repeat-dates>div{min-width:0;display:grid;gap:6px;}
+.bill-repeat-dates label{font-size:var(--fs-xs);font-weight:600;}
+.bill-repeat-dates input{min-width:0;width:100%;max-width:100%;box-sizing:border-box;color:var(--text);border-radius:10px;}
+.bill-repeat-dates small{grid-column:1/-1;font-size:var(--fs-xs);color:var(--muted);line-height:1.35;}
+#settleModal{z-index:2200!important;}
+#settleModal[hidden]{display:none!important;}
+/* The floating actions are already the app's universal creation surface. */
+.routes-top{display:block!important;min-width:0;}
+.routes-heading{min-width:0;display:block!important;}
+.routes-top h1{margin:0 0 4px;}
+.routes-top .fine{display:block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.35;margin:0;}
+.route-new-compact{display:none!important;}
+.route-modal-overlay{z-index:2300!important;isolation:isolate;}
+.route-modal-card{position:relative;min-width:0;}
+.route-modal-card input,.route-modal-card textarea,.route-modal-card select{max-width:100%;}
+.route-modal-card form>*{min-width:0;}
+@media(max-width:899px){
+  .dock{justify-content:space-around;gap:5px;padding-inline:8px;height:62px;}
+  .dock button{height:48px;flex-direction:row;padding:0;gap:0;min-width:0;}
+  .dock button span{display:none!important;}
+  .dock svg{width:24px;height:24px;stroke-width:1.85;}
+  .dock button.on{background:color-mix(in srgb,var(--user-accent) 16%,var(--card));}
+}
+@media(max-width:380px){.bill-repeat-dates{grid-template-columns:1fr;}}
