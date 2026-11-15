@@ -3672,8 +3672,11 @@ async function shareJourney(j){
   state.journeys=state.journeys.filter(x=>x.id!==j.id);save();
   await loadSharedJourneys();await loadJourneyExtras(journeyById(j.id));
   const shared=journeyById(j.id);
-  if(shared&&j.inviteCodes?.length){shared.inviteCodes=j.inviteCodes;await sendRouteInvitations(shared);}
+  let invited=true;
+  if(shared&&j.inviteCodes?.length){shared.inviteCodes=j.inviteCodes;invited=await sendRouteInvitations(shared);}
+  if(shared&&invited)await syncRouteTravelersToLinkedBill(shared);
   toast('Route shared. You can add travelers by Ledger ID.');
+  return !!shared&&invited;
 }
 
 let routeArchiveView=false;
@@ -3699,6 +3702,76 @@ function routeEmojiPicker(value='🧭'){
 function routeAvailableBills(selected=''){
   $('journeyLinkedBillSelect').innerHTML='<option value="">No linked bill</option>'+(state.billGroups||[]).filter(g=>!g.archived).map(g=>`<option value="${esc(g.id)}" ${String(g.id)===selected?'selected':''}>${esc(g.name)}</option>`).join('');
 }
+// v73 — Route -> linked Bill membership (additive, owner-authorized).
+// A name-only traveler is a bill participant, but not an account with cloud access.
+// Account sharing occurs only after a Ledger ID is a confirmed Route member.
+async function syncRouteTravelersToLinkedBill(j, {quiet=false}={}) {
+  if(!j?.linkedBillId)return true;
+  if(!j.shared||!sb||!user||mode!=='cloud'){
+    if(!quiet)toast('Share this Route first to sync travelers with its linked Bill.');
+    return false;
+  }
+  if(!journeyOwner(j))return false;
+  try {
+    // Re-read both source and target from Supabase: never grant Bill access on
+    // the strength of a locally typed (possibly failed) invitation alone.
+    const [routeResponse,billResponse,membersResponse]=await Promise.all([
+      sb.from('ledger_routes').select('id,owner_id,data').eq('id',j.id).single(),
+      sb.from('bills').select('id,name,emoji,participants,created_by').eq('id',j.linkedBillId).single(),
+      sb.from('ledger_route_members').select('user_id,ledger_code,display_name').eq('route_id',j.id)
+    ]);
+    for(const result of [routeResponse,billResponse,membersResponse])if(result.error)throw result.error;
+    const routeRow=routeResponse.data,bill=billResponse.data;
+    if(routeRow.owner_id!==user.id || String(routeRow.data?.linkedBillId||'')!==String(bill.id)){
+      throw Error('Save the Route link as its owner before syncing members.');
+    }
+    if(bill.created_by!==user.id){
+      throw Error('Only the linked Bill owner can automatically share it. Ask the Bill owner to link a Bill they own.');
+    }
+    const parts=(Array.isArray(bill.participants)?bill.participants:[]).map(p=>({...p}));
+    const knownCodes=new Set(parts.map(p=>String(p.code||'').toUpperCase()).filter(Boolean));
+    const knownNames=new Set(parts.filter(p=>!p.code).map(p=>String(p.name||'').trim().toLocaleLowerCase()).filter(Boolean));
+    let added=0;
+    // Names are shown as Bill participants; without a Ledger ID there is no
+    // account to authorize and no cloud invitation to issue.
+    for(const t of (Array.isArray(routeRow.data?.travelers)?routeRow.data.travelers:[])){
+      if(t.code)continue;
+      const name=String(t.name||'').trim().slice(0,80);
+      if(!name||knownNames.has(name.toLocaleLowerCase()))continue;
+      parts.push({key:name,name,code:null});knownNames.add(name.toLocaleLowerCase());added++;
+    }
+    // Only verified Route members, not unconfirmed typed IDs, can access Bill.
+    for(const m of (membersResponse.data||[])){
+      const code=parseLedgerId(m.ledger_code||'');
+      if(!code||knownCodes.has(code))continue;
+      const name=String(m.display_name||'Ledger user').trim().slice(0,80)||'Ledger user';
+      parts.push({key:code,name,code});knownCodes.add(code);added++;
+    }
+    if(!added)return true;
+    const result=await sb.rpc('upsert_bill',{
+      p_id:bill.id,p_name:bill.name,p_emoji:bill.emoji,
+      p_participants:partsPayload(parts)
+    });
+    if(result.error)throw result.error;
+    // Verify members are actually persisted; only then update the local view.
+    const checked=await sb.from('bills').select('participants').eq('id',bill.id).single();
+    if(checked.error)throw checked.error;
+    const stored=checked.data?.participants||[];
+    if(parts.some(p=>!stored.some(x=>String(x.key)===String(p.key)))){
+      throw Error('The Bill update could not be verified. Please refresh and retry.');
+    }
+    const localBill=(state.billGroups||[]).find(g=>String(g.id)===String(bill.id));
+    if(localBill){localBill.participants=stored.map(p=>({...p}));cacheWrite();}
+    scheduleSharedReload(0);
+    if(!quiet)toast(`${added} traveler${added===1?'':'s'} added to linked Bill.`);
+    return true;
+  } catch(error){
+    console.error('Route -> Bill membership sync failed:',error);
+    toast('Linked Bill not synced: '+String(error.message||error).slice(0,170));
+    return false;
+  }
+}
+
 async function sendRouteInvitations(j){
   if(!j?.shared||!journeyOwner(j)||!sb)return false;
   const codes=[...new Set((j.inviteCodes||[]).map(parseLedgerId).filter(Boolean))];
@@ -3987,10 +4060,16 @@ function initJourneys(){
     activeJourneyId=j.id;
     if(j.shared){if(!await persistJourney(j))return;}else save();
     closeRouteOverlays();renderJourneys();toast('Route saved');
-    if(j.shared&&j.inviteCodes?.length)await sendRouteInvitations(j);
-    else if(!j.shared&&j.inviteCodes?.length&&mode==='cloud'&&sb&&user)await shareJourney(j);
+    if(j.shared){
+      const invited= j.inviteCodes?.length ? await sendRouteInvitations(j) : true;
+      if(invited)await syncRouteTravelersToLinkedBill(j);
+    } else if(mode==='cloud'&&sb&&user&&(j.inviteCodes?.length||j.linkedBillId)){
+      await shareJourney(j);
+    } else if(j.linkedBillId){
+      toast('Route saved locally. Sign in and share the Route to sync its linked Bill.');
+    }
   });
-  $('journeyList')?.addEventListener('click',async e=>{const b=e.target.closest('[data-journey-open]');if(!b||e.target.closest('.bill-pin-btn,.bill-drag-handle'))return;if(b._lpFired){b._lpFired=false;return;}routeArchiveView=false;activeJourneyId=b.dataset.journeyOpen;renderJourneys();await loadJourneyExtras(journeyById(activeJourneyId));renderJourneys();});
+  $('journeyList')?.addEventListener('click',async e=>{const b=e.target.closest('[data-journey-open]');if(!b||e.target.closest('.bill-pin-btn,.bill-drag-handle'))return;if(b._lpFired){b._lpFired=false;return;}routeArchiveView=false;activeJourneyId=b.dataset.journeyOpen;renderJourneys();const openedRoute=journeyById(activeJourneyId);await loadJourneyExtras(openedRoute);if(openedRoute?.shared&&openedRoute.linkedBillId&&journeyOwner(openedRoute))await syncRouteTravelersToLinkedBill(openedRoute,{quiet:true});renderJourneys();});
   $('journeyList')?.addEventListener('keydown',e=>{if(e.target.closest('.bill-pin-btn,.bill-drag-handle')||!['Enter',' '].includes(e.key))return;const b=e.target.closest('[data-journey-open]');if(!b)return;e.preventDefault();b.click();});
   $('journeyBack')?.addEventListener('click',()=>{activeJourneyId=null;$('stopEditor').hidden=true;renderJourneys();});
   $('journeyEdit')?.addEventListener('click',()=>{$('routeOptionsOverlay').hidden=false;});
@@ -4026,7 +4105,10 @@ function initJourneys(){
     await loadJourneyExtras(j);
     if(!journeyMembers.some(m=>String(m.ledger_code||'').toUpperCase()===code)){
       toast('Invitation submitted, but membership is not visible yet. Refresh Routes.');
-    }else toast('Traveler added. The Route should now appear in their Routes page.');
+    }else{
+      toast('Traveler added. The Route should now appear in their Routes page.');
+      await syncRouteTravelersToLinkedBill(j);
+    }
   });
   $('journeyMemberList')?.addEventListener('click',async e=>{
     const b=e.target.closest('[data-route-remove-member]');if(!b)return;
@@ -4034,6 +4116,7 @@ function initJourneys(){
     if(!confirm('Remove this traveler? They will lose access to this route and their private files.'))return;
     const {error}=await sb.from('ledger_route_members').delete().eq('route_id',j.id).eq('user_id',b.dataset.routeRemoveMember);
     if(error){toast(error.message);return;}await loadJourneyExtras(j);
+    if(j.linkedBillId)toast('Traveler removed from Route. Review the linked Bill separately: past expenses and Bill membership were not deleted.');
   });
   $('journeyUploadBtn')?.addEventListener('click',uploadJourneyFile);
   $('journeyLinkForm')?.addEventListener('submit',async e=>{
@@ -4067,7 +4150,7 @@ function initJourneys(){
       await persistJourney(j);renderJourneyExtras();renderJourneys();
     }
   });
-  $('journeyRefresh')?.addEventListener('click',async()=>{await loadSharedJourneys();const j=journeyById(activeJourneyId);if(j)await loadJourneyExtras(j);renderJourneys();toast('Routes refreshed');});
+  $('journeyRefresh')?.addEventListener('click',async()=>{await loadSharedJourneys();const j=journeyById(activeJourneyId);if(j){await loadJourneyExtras(j);if(j.shared&&j.linkedBillId&&journeyOwner(j))await syncRouteTravelersToLinkedBill(j,{quiet:true});}renderJourneys();toast('Routes refreshed');});
 
 }
 
