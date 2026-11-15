@@ -1,4 +1,4 @@
-const CACHE = 'ledger-v71-route-form-parity';
+const CACHE = 'ledger-v72-route-visibility-fix';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'

@@ -3549,7 +3549,12 @@ function stopPhotoUrls(p){return Array.isArray(p.photoUrls)?p.photoUrls.filter(B
 async function loadSharedJourneys(){
   if(mode!=='cloud'||!sb||!user)return;
   const {data,error}=await sb.from('ledger_routes').select('id,owner_id,data,updated_at').order('updated_at',{ascending:false});
-  if(error){console.warn('Routes sharing is not set up:',error.message);journeySharedReady=false;return;}
+  if(error){
+    console.error('Shared Routes could not load:',error);
+    journeySharedReady=false;
+    if(currentPage==='journeys')toast('Could not load shared Routes: '+error.message);
+    return;
+  }
   sharedJourneys=(data||[]).map(row=>({...(row.data||{}),id:row.id,ownerId:row.owner_id,shared:true}));
   journeySharedReady=true;
   if(activeJourneyId&&!journeyById(activeJourneyId))activeJourneyId=null;
@@ -3666,7 +3671,8 @@ async function shareJourney(j){
   }
   state.journeys=state.journeys.filter(x=>x.id!==j.id);save();
   await loadSharedJourneys();await loadJourneyExtras(journeyById(j.id));
-  const shared=journeyById(j.id);if(shared&&j.inviteCodes?.length){shared.inviteCodes=j.inviteCodes;await sendRouteInvitations(shared);}
+  const shared=journeyById(j.id);
+  if(shared&&j.inviteCodes?.length){shared.inviteCodes=j.inviteCodes;await sendRouteInvitations(shared);}
   toast('Route shared. You can add travelers by Ledger ID.');
 }
 
@@ -3694,16 +3700,41 @@ function routeAvailableBills(selected=''){
   $('journeyLinkedBillSelect').innerHTML='<option value="">No linked bill</option>'+(state.billGroups||[]).filter(g=>!g.archived).map(g=>`<option value="${esc(g.id)}" ${String(g.id)===selected?'selected':''}>${esc(g.name)}</option>`).join('');
 }
 async function sendRouteInvitations(j){
-  if(!j?.shared||!journeyOwner(j)||!sb)return;
+  if(!j?.shared||!journeyOwner(j)||!sb)return false;
   const codes=[...new Set((j.inviteCodes||[]).map(parseLedgerId).filter(Boolean))];
-  if(!codes.length)return;
+  if(!codes.length)return true;
   const failed=[];
-  for(const code of codes){const r=await sb.rpc('ledger_route_invite',{p_route_id:j.id,p_ledger_code:code});if(r.error)failed.push(code);}
+  const reasons=[];
+  for(const code of codes){
+    const {error}=await sb.rpc('ledger_route_invite',{p_route_id:j.id,p_ledger_code:code});
+    if(error){
+      console.error('Route invitation failed',code,error);
+      failed.push(code);
+      reasons.push(`#${code}: ${error.message}`);
+    }
+  }
   j.inviteCodes=failed;
-  // Stage failed invites locally for retry, but keep the route itself available.
-  if(failed.length)toast(`Could not invite ${failed.length} traveler(s). Check their Ledger IDs.`);
-  else toast('Travelers added');
+  // Store retry state on the owner's local account; never report an invitation
+  // as successful when Supabase rejected the member insert.
+  if(failed.length){
+    const key='ledger.route.pending.'+(user?.id||'local')+'.'+j.id;
+    lsSet(key,JSON.stringify(failed));
+    toast('Route invite failed: '+reasons.join(' | ').slice(0,250));
+  }else{
+    lsDel('ledger.route.pending.'+(user?.id||'local')+'.'+j.id);
+    toast('Travelers invited. The Route will appear on their Routes page.');
+  }
   await loadJourneyExtras(j);
+  if(!failed.length){
+    const visible=new Set(journeyMembers.map(m=>String(m.ledger_code||'').toUpperCase()));
+    const missing=codes.filter(code=>!visible.has(code));
+    if(missing.length){
+      console.warn('Route invitations not visible after save:',missing);
+      toast('Could not verify membership for: '+missing.map(c=>'#'+c).join(', '));
+      return false;
+    }
+  }
+  return failed.length===0;
 }
 
 // Route list preferences use the same account-specific, device-local model as Bill Splitter.
@@ -3827,6 +3858,11 @@ function openJourneyForm(j=null){
   $('journeyModalTitle').textContent=j?'Edit Route':'Plan a Route';
   routeEmojiPicker(j?.emoji||'🧭');routeAvailableBills(j?.linkedBillId||'');
   routeTravelerDraft=Array.isArray(j?.travelers)?j.travelers.map(p=>({name:p.name||p.code||'Traveler',code:p.code||null})):(j?.inviteCodes||[]).map(code=>({name:'Ledger user',code}));
+  // Preserve the visible traveler list; retry an unsuccessful cloud invite on Save.
+  if(j?.shared && user){
+    try{j.inviteCodes=[...new Set([...(j.inviteCodes||[]),...JSON.parse(lsGet('ledger.route.pending.'+user.id+'.'+j.id)||'[]')])];}
+    catch{ /* malformed old retry cache: ignore */ }
+  }
   routeTravelerChips();$('routeParticipantInput').value='';
   showJourneyEditor(true);
   $('journeyTitle').focus();
@@ -3986,7 +4022,11 @@ function initJourneys(){
     if(!code){toast('Enter a valid Ledger ID, e.g. ABC-123456');return;}
     const {error}=await sb.rpc('ledger_route_invite',{p_route_id:j.id,p_ledger_code:code});
     if(error){toast('Could not add traveler: '+error.message);return;}
-    $('journeyInviteId').value='';await loadJourneyExtras(j);toast('Traveler added to route');
+    $('journeyInviteId').value='';
+    await loadJourneyExtras(j);
+    if(!journeyMembers.some(m=>String(m.ledger_code||'').toUpperCase()===code)){
+      toast('Invitation submitted, but membership is not visible yet. Refresh Routes.');
+    }else toast('Traveler added. The Route should now appear in their Routes page.');
   });
   $('journeyMemberList')?.addEventListener('click',async e=>{
     const b=e.target.closest('[data-route-remove-member]');if(!b)return;
