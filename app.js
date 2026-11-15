@@ -3769,13 +3769,13 @@ async function deleteJourney(j){
 function routeActionMenu(j){
   const pins=new Set(routePinnedIds()),actions=[];
   if(journeyOwner(j)){
-    actions.push({text:pins.has(String(j.id))?'📌 Unpin route':'📌 Pin route',action:()=>toggleRoutePin(j.id)});
-    actions.push({text:'📁 Archive route',action:()=>setRouteArchived(j,true)});
-    actions.push({text:'✏️ Edit route details',action:()=>openJourneyForm(j)});
-    actions.push({text:'🗑️ Delete route',danger:true,action:()=>deleteJourney(j)});
+    actions.push({text:pins.has(String(j.id))?'📌 Unpin Route':'📌 Pin Route',action:()=>toggleRoutePin(j.id)});
+    actions.push({text:'📁 Archive Route',action:()=>setRouteArchived(j,true)});
+    actions.push({text:'✏️ Edit Route Details',action:()=>openJourneyForm(j)});
+    actions.push({text:'🗑️ Delete Route',danger:true,action:()=>deleteJourney(j)});
   }else{
-    actions.push({text:pins.has(String(j.id))?'📌 Unpin route':'📌 Pin route',action:()=>toggleRoutePin(j.id)});
-    actions.push({text:'🚪 Leave route',danger:true,action:()=>deleteJourney(j)});
+    actions.push({text:pins.has(String(j.id))?'📌 Unpin Route':'📌 Pin Route',action:()=>toggleRoutePin(j.id)});
+    actions.push({text:'🚪 Leave Route',danger:true,action:()=>deleteJourney(j)});
   }
   showActionSheet(j.title,j.destination||'Route',actions);
 }
@@ -3812,7 +3812,7 @@ function openJourneyForm(j=null){
   $('journeyTitle').value=j?.title||'';
   $('journeyDestination').value=j?.destination||'';
   $('journeyStartDate').value=j?.startDate||'';
-  $('journeyModalTitle').textContent=j?'Edit route':'Plan a route';
+  $('journeyModalTitle').textContent=j?'Edit Route':'Plan a Route';
   routeEmojiPicker(j?.emoji||'🧭');routeAvailableBills(j?.linkedBillId||'');
   routeTravelerDraft=Array.isArray(j?.travelers)?j.travelers.map(p=>({name:p.name||p.code||'Traveler',code:p.code||null})):(j?.inviteCodes||[]).map(code=>({name:'Ledger user',code}));
   routeTravelerChips();$('routeParticipantInput').value='';$('journeyAvatarPicker').hidden=true;$('routeAvatarTrigger').setAttribute('aria-expanded','false');
@@ -3872,7 +3872,7 @@ function renderJourneys(){
     list.innerHTML=ordered.length?ordered.map(j=>{
       const pin=pins.has(String(j.id));
       const displayDate=routeCardDate(j.startDate);
-      return `<div class="bill-card journey-tile ${pin?'is-pinned':''}" data-journey-open="${esc(j.id)}" tabindex="0" role="button" aria-label="Open ${esc(j.title)}"><div class="bill-card-left"><span class="bill-emoji journey-tile-icon">${esc(j.emoji||'🧭')}</span><div class="bill-card-info journey-tile-info"><div class="bill-name-row"><span class="bill-name">${esc(j.title)}</span>${j.shared?'<span class="tag shared-tag">Shared</span>':''}</div><div class="route-card-address muted fine" title="${esc([j.destination,displayDate].filter(Boolean).join(' · '))}">${esc([j.destination,displayDate].filter(Boolean).join(' · ')||'No address added')}</div></div></div><button type="button" class="bill-pin-btn ${pin?'on':''}" aria-label="${pin?'Unpin':'Pin'} ${esc(j.title)}" aria-pressed="${pin}" title="${pin?'Unpin':'Pin route'}">📌</button><button type="button" class="bill-drag-handle" aria-label="Reorder ${esc(j.title)}" title="Drag to reorder"><svg class="bill-grip-icon" viewBox="0 0 20 24" aria-hidden="true" focusable="false" fill="currentColor"><circle cx="6" cy="5" r="1.6"/><circle cx="14" cy="5" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="14" cy="12" r="1.6"/><circle cx="6" cy="19" r="1.6"/><circle cx="14" cy="19" r="1.6"/></svg></button><span class="bill-chevron" aria-hidden="true">›</span></div>`;
+      return `<div class="bill-card journey-tile ${pin?'is-pinned':''}" data-journey-open="${esc(j.id)}" tabindex="0" role="button" aria-label="Open ${esc(j.title)}"><div class="bill-card-left"><span class="bill-emoji journey-tile-icon">${esc(j.emoji||'🧭')}</span><div class="bill-card-info journey-tile-info"><div class="bill-name-row"><span class="bill-name">${esc(j.title)}</span>${j.shared?'<span class="tag shared-tag">Shared</span>':''}</div><div class="route-card-address muted fine" title="${esc([j.destination,displayDate].filter(Boolean).join(' · '))}">${esc([j.destination,displayDate].filter(Boolean).join(' · ')||'No address added')}</div></div></div><button type="button" class="bill-pin-btn ${pin?'on':''}" aria-label="${pin?'Unpin':'Pin'} ${esc(j.title)}" aria-pressed="${pin}" title="${pin?'Unpin':'Pin Route'}">📌</button><button type="button" class="bill-drag-handle" aria-label="Reorder ${esc(j.title)}" title="Drag to reorder"><svg class="bill-grip-icon" viewBox="0 0 20 24" aria-hidden="true" focusable="false" fill="currentColor"><circle cx="6" cy="5" r="1.6"/><circle cx="14" cy="5" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="14" cy="12" r="1.6"/><circle cx="6" cy="19" r="1.6"/><circle cx="14" cy="19" r="1.6"/></svg></button><span class="bill-chevron" aria-hidden="true">›</span></div>`;
     }).join(''):'<div class="empty-card card">No routes yet. Tap + to plan one.</div>';
     list.querySelectorAll('.journey-tile').forEach(card=>{
       const j=journeyById(card.dataset.journeyOpen);if(!j)return;

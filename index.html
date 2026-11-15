@@ -301,7 +301,7 @@
   <section class="page" id="page-journeys" hidden>
     <header class="top routes-top" id="routesMainHeader">
       <h1>Routes</h1>
-      <div class="route-top-actions"><button type="button" class="archive-icon-button" id="routeArchiveOpen" title="Archived routes" aria-label="Open archived routes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 7.5V5.75A1.75 1.75 0 0 1 5.25 4h5.1l2.1 2.2h6.3A1.75 1.75 0 0 1 20.5 8v10.25A1.75 1.75 0 0 1 18.75 20H5.25a1.75 1.75 0 0 1-1.75-1.75Z"/><path d="M3.5 9h17"/><path d="M9 14.5h6"/></svg></button></div>
+      <div class="route-top-actions"><button type="button" class="archive-icon-button" id="routeArchiveOpen" title="Archived Routes" aria-label="Open archived Routes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 7.5V5.75A1.75 1.75 0 0 1 5.25 4h5.1l2.1 2.2h6.3A1.75 1.75 0 0 1 20.5 8v10.25A1.75 1.75 0 0 1 18.75 20H5.25a1.75 1.75 0 0 1-1.75-1.75Z"/><path d="M3.5 9h17"/><path d="M9 14.5h6"/></svg></button></div>
     </header>
     <div id="journeyOverview">
       <div class="bill-list-toolbar route-list-toolbar">
@@ -311,12 +311,12 @@
       <div id="journeyList" class="journey-list bills-list"></div>
     </div>
     <div id="routeArchiveView" hidden>
-      <header class="top route-archive-head"><div class="archive-head"><button type="button" class="icon back-btn" id="routeArchiveBack" aria-label="Back to routes"><svg class="ui-center-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><h1 class="title-sm">Archived routes</h1></div></header>
+      <header class="top route-archive-head"><div class="archive-head"><button type="button" class="icon back-btn" id="routeArchiveBack" aria-label="Back to Routes"><svg class="ui-center-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><h1 class="title-sm">Archived Routes</h1></div></header>
       <p class="muted split-subhead">Restore a route without changing its linked bill or expenses</p>
       <div id="routeArchivedList" class="bills-list"></div>
     </div>
     <section id="journeyDetail" hidden>
-      <div class="journey-detail-head"><button id="journeyBack" type="button" class="icon" aria-label="Back to routes">‹</button><div class="journey-detail-avatar" id="journeyDetailAvatar" aria-hidden="true">🧭</div><div class="journey-detail-name"><h2 id="journeyDetailTitle"></h2><small id="journeyDetailSubtitle"></small></div><button id="journeyRefresh" type="button" class="route-icon-btn" title="Refresh shared routes" aria-label="Refresh routes">↻</button><button id="journeyEdit" type="button" class="route-icon-btn" aria-label="Route options" title="Route options">⋯</button><button id="journeyDelete" type="button" class="journey-danger" aria-label="Delete route" hidden>Delete</button></div>
+      <div class="journey-detail-head"><button id="journeyBack" type="button" class="icon" aria-label="Back to Routes">‹</button><div class="journey-detail-avatar" id="journeyDetailAvatar" aria-hidden="true">🧭</div><div class="journey-detail-name"><h2 id="journeyDetailTitle"></h2><small id="journeyDetailSubtitle"></small></div><button id="journeyRefresh" type="button" class="route-icon-btn" title="Refresh shared routes" aria-label="Refresh routes">↻</button><button id="journeyEdit" type="button" class="route-icon-btn" aria-label="Route Options" title="Route Options">⋯</button><button id="journeyDelete" type="button" class="journey-danger" aria-label="Delete Route" hidden>Delete</button></div>
       <div class="journey-summary"><div><small>Estimated cost</small><strong id="journeyTotal"></strong></div><div><small>Planned stops</small><strong id="journeyStopsCount"></strong></div></div>
       <div class="route-linked-bill" id="journeyLinkedBill" hidden></div><p id="journeyDetailNotes" class="fine"></p>
       <button type="button" id="journeyManageTravelers" class="route-manage-button"><span>👥 Travelers & files</span><span aria-hidden="true">›</span></button>
@@ -328,12 +328,12 @@
 <div id="routeEditorOverlay" class="modal-backdrop route-modal-overlay" hidden>
     <section id="journeyEditor" class="journey-edit-card route-modal-card" hidden role="dialog" aria-modal="true" aria-labelledby="journeyModalTitle">
       <form id="journeyForm">
-        <h2 id="journeyModalTitle">Plan a route</h2>
+        <h2 id="journeyModalTitle">Plan a Route</h2>
         <input id="journeyId" type="hidden"><input type="hidden" id="journeyEmoji" value="🧭">
         <div class="route-form-field">
           <label for="journeyTitle">Route name</label>
-          <div class="route-name-line"><button type="button" id="routeAvatarTrigger" class="route-selected-avatar" aria-label="Choose route emoji" aria-expanded="false">🧭</button><input id="journeyTitle" required maxlength="120" placeholder="e.g. Sagada 2027"></div>
-          <div id="journeyAvatarPicker" class="route-avatar-picker" role="group" aria-label="Choose route emoji" hidden></div>
+          <div class="route-name-line"><button type="button" id="routeAvatarTrigger" class="route-selected-avatar" aria-label="Choose Route emoji" aria-expanded="false">🧭</button><input id="journeyTitle" required maxlength="120" placeholder="e.g. Sagada 2027"></div>
+          <div id="journeyAvatarPicker" class="route-avatar-picker" role="group" aria-label="Choose Route emoji" hidden></div>
         </div>
         <div class="route-form-field"><label for="journeyDestination">Destination / address</label><input id="journeyDestination" maxlength="160" placeholder="e.g. Sagada, Mountain Province"></div>
         <div class="route-form-field"><label for="journeyStartDate">Start date</label><input id="journeyStartDate" type="date"></div>
@@ -345,7 +345,7 @@
           <input id="journeyInviteCodes" type="hidden">
         </div>
         
-        <div class="route-form-actions"><button class="primary" type="submit">Save route</button><button class="secondary" id="journeyCancel" type="button">Cancel</button></div>
+        <div class="route-form-actions"><button class="primary" type="submit">Save Route</button><button class="secondary" id="journeyCancel" type="button">Cancel</button></div>
       </form>
     </section>
     <section id="stopEditor" class="journey-edit-card route-modal-card" hidden aria-label="Edit itinerary stop"><form id="stopForm"><h2>Stop details</h2><input id="stopId" type="hidden"><div class="journey-fields"><div><label for="stopType">Type</label><select id="stopType"><option value="place">Place</option><option value="transport">Transport</option><option value="activity">Activity</option><option value="stay">Stay</option><option value="food">Food</option></select></div><div><label for="stopTitle">Name</label><input id="stopTitle" maxlength="120" required placeholder="Arrive at station"></div></div><div class="journey-fields"><div><label for="stopDate">Date</label><input id="stopDate" type="date"></div><div><label for="stopTime">Start time</label><input id="stopTime" type="time"></div><div><label for="stopEndTime">End time</label><input id="stopEndTime" type="time"></div></div><label for="stopLocation">Place / address</label><input id="stopLocation" maxlength="200" placeholder="Where is this stop?"><div id="stopTravelersWrap" class="route-travelers-wrap" hidden><strong>Travelers at this stop</strong><div id="stopTravelers" class="route-traveler-choices"></div><small class="fine">Leave all unchecked to include everyone.</small></div><label for="stopTransport">Transportation / how to get there</label><input id="stopTransport" maxlength="120" placeholder="Bus, Grab, walking…"><label for="stopCost">Estimated cost</label><input id="stopCost" type="number" min="0" max="999999999" step="0.01" inputmode="decimal" placeholder="0.00"><label for="stopPhotoUrl">Destination photo (direct HTTPS image link)</label><input id="stopPhotoUrl" type="url" placeholder="https://example.com/photo.jpg"><div id="stopPhotoGallery" class="route-gallery"></div><label for="stopNotes">Notes</label><textarea id="stopNotes" maxlength="1500" rows="2" placeholder="Tickets, reservations, reminders…"></textarea><div class="journey-form-actions"><button type="button" id="stopDelete" class="journey-danger">Delete stop</button><button type="button" id="stopCancel" class="secondary">Cancel</button><button type="submit" class="primary" id="stopSave">Save stop</button></div></form></section>
@@ -353,7 +353,7 @@
 </div>
 <div id="routeCollabOverlay" class="modal-backdrop route-modal-overlay" hidden>
       <section id="journeyCollab" role="dialog" aria-modal="true" aria-label="Travelers and files" class="journey-collab route-modal-card" hidden>
-        <div class="route-collab-header"><h2>Travelers & files</h2><button type="button" id="routeCollabClose" class="route-icon-btn" aria-label="Close travelers and files">×</button></div><div class="route-section-title"><div><h3>Sharing</h3><p class="fine" id="journeySharingStatus"></p></div><button class="secondary" type="button" id="journeyShareBtn">Share this route</button></div>
+        <div class="route-collab-header"><h2>Travelers & files</h2><button type="button" id="routeCollabClose" class="route-icon-btn" aria-label="Close travelers and files">×</button></div><div class="route-section-title"><div><h3>Sharing</h3><p class="fine" id="journeySharingStatus"></p></div><button class="secondary" type="button" id="journeyShareBtn">Share this Route</button></div>
         <p class="fine" id="journeyShareHint"></p>
         <div id="journeyMemberList" class="route-member-list"></div>
         <form id="journeyInviteForm" class="route-invite"><label for="journeyInviteId">Add by Ledger ID</label><div class="route-inline"><input id="journeyInviteId" placeholder="ABC-123456" maxlength="16" required><button type="submit" class="primary">Add traveler</button></div></form>
@@ -372,11 +372,11 @@
 </div>
 <div id="routeOptionsOverlay" class="modal-backdrop route-modal-overlay" hidden>
   <section class="route-options-card route-modal-card" role="dialog" aria-modal="true" aria-labelledby="routeOptionsTitle">
-    <h3 id="routeOptionsTitle">Route options</h3>
-    <button type="button" class="route-option" id="routeOptionEdit">Edit route <span>›</span></button>
+    <h3 id="routeOptionsTitle">Route Options</h3>
+    <button type="button" class="route-option" id="routeOptionEdit">Edit Route <span>›</span></button>
     <button type="button" class="route-option" id="routeOptionShare">Travelers & sharing <span>›</span></button>
     <button type="button" class="route-option" id="routeOptionRefresh">Refresh <span>↻</span></button>
-    <button type="button" class="route-option route-option-danger" id="routeOptionDelete">Delete or leave route <span>›</span></button>
+    <button type="button" class="route-option route-option-danger" id="routeOptionDelete">Delete or leave Route <span>›</span></button>
     <button type="button" class="secondary route-options-cancel" id="routeOptionClose">Cancel</button>
   </section>
 </div>
@@ -955,7 +955,7 @@
     <button type="button" role="menuitem" data-create="expense"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h14v18l-3-2-4 2-4-2-3 2z"/><path d="M8 8h8M8 12h6"/></svg><span>Add expense</span></button>
     <button type="button" role="menuitem" data-create="bill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M17 6a3 3 0 0 1 0 6M17 14a5 5 0 0 1 4 5v1"/></svg><span>Add a bill</span></button>
     
-    <button type="button" role="menuitem" data-create="journey"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15M15 6v15"/></svg><span>Plan a route</span></button>
+    <button type="button" role="menuitem" data-create="journey"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15M15 6v15"/></svg><span>Plan a Route</span></button>
     <button type="button" role="menuitem" data-create="in-bill" id="globalAddToBill" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Add expense to this bill</span></button>
     <button type="button" role="menuitem" data-create="payment" id="globalRecordPayment" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h18v11H3z"/><path d="M3 11h18M7 15h4"/></svg><span>Record payment</span></button>
   </div>
