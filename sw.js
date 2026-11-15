@@ -1,4 +1,4 @@
-const CACHE = 'ledger-v59-neutral-payments';
+const CACHE = 'ledger-v60-pastel-routes';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'
