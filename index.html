@@ -304,7 +304,6 @@
       <div class="route-top-actions"><button type="button" class="archive-icon-button" id="routeArchiveOpen" title="Archived routes" aria-label="Open archived routes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 7.5V5.75A1.75 1.75 0 0 1 5.25 4h5.1l2.1 2.2h6.3A1.75 1.75 0 0 1 20.5 8v10.25A1.75 1.75 0 0 1 18.75 20H5.25a1.75 1.75 0 0 1-1.75-1.75Z"/><path d="M3.5 9h17"/><path d="M9 14.5h6"/></svg></button></div>
     </header>
     <div id="journeyOverview">
-      <p class="route-home-subtitle">Trips, places and shared plans</p>
       <div class="bill-list-toolbar route-list-toolbar">
         <p class="muted split-subhead"><svg class="toolbar-grip" viewBox="0 0 20 24" aria-hidden="true"><circle cx="6" cy="5" r="2"/><circle cx="14" cy="5" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="14" cy="12" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="14" cy="19" r="2"/></svg><span>Pinned first · Drag to reorder</span></p>
         <div class="bill-sort-bar"><label for="routeSortSelect">Sort</label><select id="routeSortSelect" aria-label="Sort routes"><option value="manual">Custom order</option><option value="date">Trip date</option><option value="az">Name: A–Z</option><option value="za">Name: Z–A</option><option value="newest">Newest first</option></select></div>
@@ -345,7 +344,7 @@
           <p class="fine route-form-hint">Ledger IDs can access a shared route after invitation. Names are itinerary-only travelers.</p>
           <input id="journeyInviteCodes" type="hidden">
         </div>
-        <details class="route-optional-fields"><summary>Notes <span class="muted">(optional)</span></summary><textarea id="journeyNotes" maxlength="1500" rows="2" placeholder="What to remember…"></textarea></details>
+        
         <div class="route-form-actions"><button class="primary" type="submit">Save route</button><button class="secondary" id="journeyCancel" type="button">Cancel</button></div>
       </form>
     </section>

@@ -2358,3 +2358,145 @@ button:active{opacity:.86}
  #page-journeys > .routes-top .archive-icon-button,
  #page-journeys > .routes-top .notification-toggle{width:38px;height:38px;min-width:38px;min-height:38px;}
 }
+
+
+/* v68 · Routes inherits Bill Splitter spacing and card typography */
+#page-home > .top,
+#page-expenses > .top,
+#splitMainView > .top,
+#page-journeys > .routes-top,
+#page-settings > .top {
+  min-height:44px;
+  box-sizing:border-box;
+  align-items:center!important;
+  padding-top:0!important;
+  padding-bottom:0!important;
+}
+#page-journeys > .routes-top {
+  margin-bottom:var(--gap)!important;
+  font-size:inherit;
+}
+#page-journeys > .routes-top h1 {
+  font-size:var(--fs-xl)!important;
+  line-height:1.25;
+  font-weight:700;
+  letter-spacing:-.02em;
+}
+#page-journeys > .routes-top .route-top-actions {margin-left:auto;}
+#page-journeys > .routes-top #notificationCenter {order:2;margin-left:0!important;}
+#page-journeys > .routes-top .route-top-actions {order:1;}
+#page-journeys .route-list-toolbar {margin-top:0!important;}
+#page-journeys .journey-tile .journey-tile-icon,
+#page-journeys .route-archived-card .bill-emoji,
+#page-journeys .journey-detail-avatar {
+  display:inline-flex!important;
+  align-items:center;
+  justify-content:center;
+  width:auto!important;
+  height:auto!important;
+  min-width:0!important;
+  min-height:0!important;
+  flex:0 0 auto!important;
+  background:transparent!important;
+  border:0!important;
+  border-radius:0!important;
+  padding:0!important;
+  font-size:24px!important;
+  line-height:1!important;
+}
+#page-journeys .journey-tile .bill-card-left{gap:11px!important;}
+#page-journeys .journey-tile .journey-tile-info{gap:4px!important;}
+#page-journeys .journey-tile .bill-name-row{
+  display:flex!important;
+  flex-wrap:nowrap;
+  align-items:center!important;
+  gap:7px;
+  min-width:0;
+}
+#page-journeys .journey-tile .bill-name{
+  display:block;
+  flex:0 1 auto;
+  min-width:0;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#page-journeys .journey-tile .bill-name-row .shared-tag{
+  flex:none;
+  display:inline-flex;
+  align-items:center;
+  line-height:1.35;
+  font-size:var(--fs-xs);
+  padding:2px 7px;
+  margin:0;
+}
+#page-journeys .journey-tile .route-card-address{
+  display:block;
+  max-width:100%;
+  font-size:var(--fs-xs)!important;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#page-journeys .journey-tile .bill-drag-handle{
+  appearance:none;
+  flex:0 0 30px;
+  width:30px!important;
+  min-width:30px!important;
+  height:38px!important;
+  min-height:38px!important;
+  padding:0!important;
+  background:transparent!important;
+  border:1px solid transparent;
+  border-radius:9px;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  color:var(--muted);
+}
+#page-journeys .journey-tile .bill-drag-handle .bill-grip-icon{
+  width:20px!important;
+  height:24px!important;
+  display:block!important;
+  fill:currentColor!important;
+  stroke:none!important;
+}
+/* Use the existing Add a Bill sheet's type, label, input, and emoji treatment. */
+#routeEditorOverlay #journeyEditor h2 {
+  font-size:var(--fs-lg)!important;
+  color:var(--text)!important;
+  font-weight:700!important;
+  letter-spacing:-.02em!important;
+  line-height:1.25;
+  margin:0 0 10px!important;
+  text-transform:none!important;
+}
+#routeEditorOverlay .route-modal-card{background:var(--card)!important;}
+#routeEditorOverlay .route-form-field label{
+  font-size:var(--fs-xs)!important;
+  font-weight:500!important;
+  color:var(--muted)!important;
+}
+#routeEditorOverlay .route-modal-card input:not([type=hidden]),
+#routeEditorOverlay .route-modal-card select{
+  background:var(--bg)!important;
+  border-radius:var(--radius-md)!important;
+  font-size:var(--fs-base)!important;
+}
+#routeEditorOverlay .route-selected-avatar{
+  width:44px!important;
+  height:44px!important;
+  flex:0 0 44px!important;
+  background:var(--bg)!important;
+  border:1px solid var(--line)!important;
+  border-radius:var(--radius-md)!important;
+  font-size:24px!important;
+}
+#routeEditorOverlay .route-avatar-picker{gap:6px!important;}
+#routeEditorOverlay .route-avatar-option{border-radius:var(--radius-sm);}
+#routeEditorOverlay .route-form-actions button{font-size:var(--fs-base)!important;}
+@media (max-width:450px){
+ #page-journeys .journey-tile{gap:7px!important;padding:12px!important;}
+ #page-journeys .journey-tile .bill-card-left{gap:9px!important;}
+ #page-journeys .journey-tile .bill-drag-handle{flex-basis:26px!important;width:26px!important;min-width:26px!important;}
+}

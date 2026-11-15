@@ -3812,7 +3812,6 @@ function openJourneyForm(j=null){
   $('journeyTitle').value=j?.title||'';
   $('journeyDestination').value=j?.destination||'';
   $('journeyStartDate').value=j?.startDate||'';
-  $('journeyNotes').value=j?.notes||'';
   $('journeyModalTitle').textContent=j?'Edit route':'Plan a route';
   routeEmojiPicker(j?.emoji||'🧭');routeAvailableBills(j?.linkedBillId||'');
   routeTravelerDraft=Array.isArray(j?.travelers)?j.travelers.map(p=>({name:p.name||p.code||'Traveler',code:p.code||null})):(j?.inviteCodes||[]).map(code=>({name:'Ledger user',code}));
@@ -3873,7 +3872,7 @@ function renderJourneys(){
     list.innerHTML=ordered.length?ordered.map(j=>{
       const pin=pins.has(String(j.id));
       const displayDate=routeCardDate(j.startDate);
-      return `<div class="bill-card journey-tile ${pin?'is-pinned':''}" data-journey-open="${esc(j.id)}" tabindex="0" role="button" aria-label="Open ${esc(j.title)}"><div class="bill-card-left"><span class="bill-emoji journey-tile-icon">${esc(j.emoji||'🧭')}</span><div class="bill-card-info journey-tile-info"><div class="bill-name-row"><span class="bill-name">${esc(j.title)}</span></div><div class="route-card-address muted fine" title="${esc(j.destination||'')}">${esc(j.destination||'No address added')}</div><div class="bill-card-meta route-card-bottom">${j.shared?'<span class="tag shared-tag">Shared</span>':''}${displayDate?`<small class="muted fine">${esc(displayDate)}</small>`:''}</div></div></div><button type="button" class="bill-pin-btn ${pin?'on':''}" aria-label="${pin?'Unpin':'Pin'} ${esc(j.title)}" aria-pressed="${pin}" title="${pin?'Unpin':'Pin route'}">📌</button><button type="button" class="bill-drag-handle" aria-label="Reorder ${esc(j.title)}" title="Drag to reorder"><svg class="bill-grip-icon" viewBox="0 0 20 24" aria-hidden="true" focusable="false" fill="currentColor"><circle cx="6" cy="5" r="1.6"/><circle cx="14" cy="5" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="14" cy="12" r="1.6"/><circle cx="6" cy="19" r="1.6"/><circle cx="14" cy="19" r="1.6"/></svg></button><span class="bill-chevron" aria-hidden="true">›</span></div>`;
+      return `<div class="bill-card journey-tile ${pin?'is-pinned':''}" data-journey-open="${esc(j.id)}" tabindex="0" role="button" aria-label="Open ${esc(j.title)}"><div class="bill-card-left"><span class="bill-emoji journey-tile-icon">${esc(j.emoji||'🧭')}</span><div class="bill-card-info journey-tile-info"><div class="bill-name-row"><span class="bill-name">${esc(j.title)}</span>${j.shared?'<span class="tag shared-tag">Shared</span>':''}</div><div class="route-card-address muted fine" title="${esc([j.destination,displayDate].filter(Boolean).join(' · '))}">${esc([j.destination,displayDate].filter(Boolean).join(' · ')||'No address added')}</div></div></div><button type="button" class="bill-pin-btn ${pin?'on':''}" aria-label="${pin?'Unpin':'Pin'} ${esc(j.title)}" aria-pressed="${pin}" title="${pin?'Unpin':'Pin route'}">📌</button><button type="button" class="bill-drag-handle" aria-label="Reorder ${esc(j.title)}" title="Drag to reorder"><svg class="bill-grip-icon" viewBox="0 0 20 24" aria-hidden="true" focusable="false" fill="currentColor"><circle cx="6" cy="5" r="1.6"/><circle cx="14" cy="5" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="14" cy="12" r="1.6"/><circle cx="6" cy="19" r="1.6"/><circle cx="14" cy="19" r="1.6"/></svg></button><span class="bill-chevron" aria-hidden="true">›</span></div>`;
     }).join(''):'<div class="empty-card card">No routes yet. Tap + to plan one.</div>';
     list.querySelectorAll('.journey-tile').forEach(card=>{
       const j=journeyById(card.dataset.journeyOpen);if(!j)return;
@@ -3936,7 +3935,7 @@ function initJourneys(){
     const newCodes=routeTravelerDraft.map(p=>p.code).filter(Boolean);
     const alreadyInvited=new Set((old?.travelers||[]).map(p=>p.code).filter(Boolean));
     const freshCodes=newCodes.filter(code=>!alreadyInvited.has(code));
-    const j={id:old?.id||uid(),title,destination:$('journeyDestination').value.trim(),startDate:$('journeyStartDate').value,notes:$('journeyNotes').value.trim(),emoji:$('journeyEmoji').value||'🧭',linkedBillId:$('journeyLinkedBillSelect').value,
+    const j={id:old?.id||uid(),title,destination:$('journeyDestination').value.trim(),startDate:$('journeyStartDate').value,notes:old?.notes||'',emoji:$('journeyEmoji').value||'🧭',linkedBillId:$('journeyLinkedBillSelect').value,
       travelers:routeTravelerDraft.map(p=>({...p})),inviteCodes:[...new Set([...(old?.inviteCodes||[]),...freshCodes])],archived:!!old?.archived,createdAt:old?.createdAt||new Date().toISOString(),stops:old?.stops||[],...(old?.shared?{shared:true,ownerId:old.ownerId}:{})};
     if(old)Object.assign(old,j);else state.journeys.push(j);
     activeJourneyId=j.id;
