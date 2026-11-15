@@ -332,16 +332,15 @@
         <input id="journeyId" type="hidden"><input type="hidden" id="journeyEmoji" value="🧭">
         <div class="route-form-field">
           <label for="journeyTitle">Route name</label>
-          <div class="route-name-line"><button type="button" id="routeAvatarTrigger" class="route-selected-avatar" aria-label="Choose Route emoji" aria-expanded="false">🧭</button><input id="journeyTitle" required maxlength="120" placeholder="e.g. Sagada 2027"></div>
-          <div id="journeyAvatarPicker" class="route-avatar-picker" role="group" aria-label="Choose Route emoji" hidden></div>
+          <div class="route-name-line bill-header-row"><button type="button" id="routeAvatarTrigger" class="emoji-avatar-btn" title="Choose Route emoji avatar" aria-label="Choose Route avatar" aria-haspopup="dialog">🧭</button><input id="journeyTitle" class="bill-name-input" required maxlength="120" placeholder="e.g. Sagada 2027"></div>
         </div>
         <div class="route-form-field"><label for="journeyDestination">Destination / address</label><input id="journeyDestination" maxlength="160" placeholder="e.g. Sagada, Mountain Province"></div>
-        <div class="route-form-field"><label for="journeyStartDate">Start date</label><input id="journeyStartDate" type="date"></div>
-        <div class="route-form-field"><label for="journeyLinkedBillSelect">Linked bill <span class="muted">(optional)</span></label><select id="journeyLinkedBillSelect"><option value="">No linked bill</option></select></div>
-        <div class="route-form-field"><label for="routeParticipantInput">Travelers <span class="muted">(name or Ledger ID)</span></label>
+        <div class="route-fields-row"><div class="route-form-field"><label for="journeyStartDate">Start Date</label><input id="journeyStartDate" type="date"></div>
+        <div class="route-form-field"><label for="journeyLinkedBillSelect">Linked Bill (optional)</label><select id="journeyLinkedBillSelect"><option value="">No linked bill</option></select></div></div>
+        <div class="route-form-field"><label for="routeParticipantInput">Travelers (name or Ledger ID)</label>
           <div class="route-add-traveler"><input id="routeParticipantInput" maxlength="100" autocomplete="off" placeholder="Name or Ledger ID (ABC-123456)"><button type="button" id="routeParticipantAdd" class="secondary">Add</button></div>
+          <p class="fine route-form-hint">Enter someone's Ledger ID to share this Route: it shows up on their Routes tab and you can both view it. Plain names work for people without an account.</p>
           <div id="routeParticipantChips" class="route-participant-chips" aria-live="polite"></div>
-          <p class="fine route-form-hint">Ledger IDs can access a shared route after invitation. Names are itinerary-only travelers.</p>
           <input id="journeyInviteCodes" type="hidden">
         </div>
         

@@ -2565,3 +2565,21 @@ button:active{opacity:.86}
 /* v70: payment entries are full-card tap targets; no redundant chevron. */
 .bill-payment-row{cursor:pointer;}
 .bill-payment-row .activity-amount{margin-left:auto;}
+
+/* v71: Routes form is built from the same control system as Add/Edit Bill. */
+#routeEditorOverlay #journeyEditor .route-fields-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:end;min-width:0}
+#routeEditorOverlay #journeyEditor .route-fields-row>.route-form-field{min-width:0}
+#routeEditorOverlay #journeyEditor .route-fields-row input,
+#routeEditorOverlay #journeyEditor .route-fields-row select{width:100%;max-width:100%;min-width:0}
+#routeEditorOverlay #journeyEditor .route-name-line{display:flex;align-items:center;gap:8px;min-width:0}
+#routeEditorOverlay #journeyEditor .route-name-line #routeAvatarTrigger{height:44px!important;width:44px!important;min-height:44px!important;flex:0 0 44px!important;border-radius:var(--radius-md)!important;background:var(--bg)!important;font-size:24px!important;padding:0!important}
+#routeEditorOverlay #journeyEditor .route-name-line #journeyTitle{height:44px!important;min-height:44px!important;flex:1;min-width:0}
+#routeEditorOverlay #journeyEditor .route-form-field>label{font-size:var(--fs-xs)!important;font-weight:500!important;color:var(--muted)!important;line-height:1.4!important}
+#routeEditorOverlay #journeyEditor .route-form-hint{font-size:var(--fs-xs)!important;line-height:1.5!important;margin:-4px 0 10px!important;color:var(--muted)!important}
+#routeEditorOverlay #journeyEditor .route-add-traveler{gap:8px}
+#routeEditorOverlay #journeyEditor .route-add-traveler button{background:var(--bar);font-size:var(--fs-base);padding:0 14px}
+#routeEditorOverlay #journeyEditor .route-person-chip{font-size:var(--fs-xs);font-weight:400}
+#routeEditorOverlay #journeyEditor .route-form-actions{margin-top:8px}
+@media(max-width:360px){#routeEditorOverlay #journeyEditor .route-fields-row{gap:7px}#routeEditorOverlay #journeyEditor .route-fields-row select{font-size:12px!important}}
+/* Avatar chooser must appear above the Routes modal, as it does above Edit Bill. */
+body > #emojiPickerPopover{z-index:2500!important}

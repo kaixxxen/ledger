@@ -1339,8 +1339,9 @@ function initEmojiPickerPopover() {
   const names = ['Dog','Cat','Mouse','Hamster','Rabbit','Fox','Bear','Panda','Koala','Tiger','Lion','Cow','Pig','Frog','Monkey','Chicken','Penguin','Bird','Duck','Eagle','Owl','Bat','Wolf','Boar','Horse','Unicorn','Bee','Bug','Butterfly','Turtle'];
   let pendingEmoji = '';
   let priorFocus = null;
+  let activeAvatarTarget = 'bill';
   const renderChoices = () => {
-    grid.innerHTML = DEFAULT_AVATAR_EMOJIS.map((emoji, i) => ({emoji, name:names[i] || 'Animal'}))
+    grid.innerHTML = (activeAvatarTarget === 'route' ? ROUTE_EMOJIS : DEFAULT_AVATAR_EMOJIS).map((emoji, i) => ({emoji, name:activeAvatarTarget === 'route' ? 'Route avatar' : (names[i] || 'Animal')}))
       .map(item => `<button type="button" class="emoji-grid-item${item.emoji === pendingEmoji ? ' is-selected' : ''}" data-emoji="${item.emoji}" aria-label="${item.name}" aria-pressed="${item.emoji === pendingEmoji}"><span>${item.emoji}</span></button>`).join('')
 ;
   };
@@ -1349,16 +1350,18 @@ function initEmojiPickerPopover() {
     document.body.classList.remove('emoji-picker-open');
     if (priorFocus?.isConnected) priorFocus.focus();
   };
-  const open = () => {
+  const open = (target = 'bill') => {
+    activeAvatarTarget = target;
     priorFocus = document.activeElement;
-    pendingEmoji = hiddenInput?.value || btn.textContent.trim() || '🐶';
+    pendingEmoji = target === 'route' ? ($('journeyEmoji')?.value || '🧭') : (hiddenInput?.value || btn.textContent.trim() || '🐶');
     if (typeInput) typeInput.value = '';
     renderChoices();
     popover.hidden = false;
     document.body.classList.add('emoji-picker-open');
     closeBtn?.focus({preventScroll:true});
   };
-  btn.onclick = e => { e.stopPropagation(); if (popover.hidden) open(); else close(); };
+  btn.onclick = e => { e.stopPropagation(); if (popover.hidden) open('bill'); else close(); };
+  $('routeAvatarTrigger')?.addEventListener('click', e => { e.stopPropagation(); if (popover.hidden) open('route'); else close(); });
   closeBtn?.addEventListener('click', close);
   popover.addEventListener('click', e => { if (e.target === popover) close(); });
   grid.addEventListener('click', e => {
@@ -1374,8 +1377,8 @@ function initEmojiPickerPopover() {
   });
   confirmBtn.addEventListener('click', () => {
     const emoji = (typeInput?.value || '').trim() || pendingEmoji || '🐶';
-    btn.textContent = emoji;
-    if (hiddenInput) hiddenInput.value = emoji;
+    if (activeAvatarTarget === 'route') routeEmojiPicker(emoji);
+    else { btn.textContent = emoji; if (hiddenInput) hiddenInput.value = emoji; }
     close();
   });
   document.addEventListener('keydown', e => {
@@ -1391,7 +1394,7 @@ function initEmojiPickerPopover() {
     }
   });
   // Opening another app modal closes the picker without changing its saved avatar.
-  new MutationObserver(() => { if ($('addPersonModal')?.hidden && !popover.hidden) close(); })
+  new MutationObserver(() => { if (activeAvatarTarget === 'bill' && $('addPersonModal')?.hidden && !popover.hidden) close(); })
     .observe($('addPersonModal'), {attributes:true,attributeFilter:['hidden']});
 }
 
@@ -3686,7 +3689,6 @@ function showJourneyEditor(open){
 function routeEmojiPicker(value='🧭'){
   $('journeyEmoji').value=value;
   if($('routeAvatarTrigger'))$('routeAvatarTrigger').textContent=value;
-  $('journeyAvatarPicker').innerHTML=ROUTE_EMOJIS.map(emoji=>`<button type="button" class="route-avatar-option ${emoji===value?'selected':''}" data-route-emoji="${emoji}" aria-label="${emoji} avatar" aria-pressed="${emoji===value}">${emoji}</button>`).join('');
 }
 function routeAvailableBills(selected=''){
   $('journeyLinkedBillSelect').innerHTML='<option value="">No linked bill</option>'+(state.billGroups||[]).filter(g=>!g.archived).map(g=>`<option value="${esc(g.id)}" ${String(g.id)===selected?'selected':''}>${esc(g.name)}</option>`).join('');
@@ -3825,7 +3827,7 @@ function openJourneyForm(j=null){
   $('journeyModalTitle').textContent=j?'Edit Route':'Plan a Route';
   routeEmojiPicker(j?.emoji||'🧭');routeAvailableBills(j?.linkedBillId||'');
   routeTravelerDraft=Array.isArray(j?.travelers)?j.travelers.map(p=>({name:p.name||p.code||'Traveler',code:p.code||null})):(j?.inviteCodes||[]).map(code=>({name:'Ledger user',code}));
-  routeTravelerChips();$('routeParticipantInput').value='';$('journeyAvatarPicker').hidden=true;$('routeAvatarTrigger').setAttribute('aria-expanded','false');
+  routeTravelerChips();$('routeParticipantInput').value='';
   showJourneyEditor(true);
   $('journeyTitle').focus();
 }
@@ -3920,7 +3922,6 @@ function initJourneys(){
     const dialog = $(id); if (dialog && dialog.parentElement !== document.body) document.body.appendChild(dialog);
   });
   $('journeyCancel')?.addEventListener('click',closeRouteOverlays);
-  $('routeAvatarTrigger')?.addEventListener('click',()=>{const picker=$('journeyAvatarPicker');picker.hidden=!picker.hidden;$('routeAvatarTrigger').setAttribute('aria-expanded',String(!picker.hidden));});
   $('routeParticipantAdd')?.addEventListener('click',addRouteTraveler);
   $('routeParticipantInput')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addRouteTraveler();}});
   $('routeParticipantChips')?.addEventListener('click',e=>{const b=e.target.closest('[data-remove-route-person]');if(!b)return;routeTravelerDraft.splice(Number(b.dataset.removeRoutePerson),1);routeTravelerChips();});
@@ -3928,7 +3929,6 @@ function initJourneys(){
   $('routeArchiveBack')?.addEventListener('click',()=>{routeArchiveView=false;renderJourneys();});
   $('routeSortSelect')?.addEventListener('change',e=>{lsSet(routePrefsKey('sort'),e.target.value);renderJourneys();});
   $('routeArchivedList')?.addEventListener('click',async e=>{const restore=e.target.closest('[data-restore-route]'),del=e.target.closest('[data-delete-archived-route]'),row=e.target.closest('[data-archived-route]');if(!row)return;const j=journeyById(row.dataset.archivedRoute);if(!j)return;if(restore){await setRouteArchived(j,false);return;}if(del){await deleteJourney(j);return;}routeArchiveView=false;activeJourneyId=j.id;renderJourneys();await loadJourneyExtras(j);renderJourneys();});
-  $('journeyAvatarPicker')?.addEventListener('click',e=>{const btn=e.target.closest('[data-route-emoji]');if(!btn)return;routeEmojiPicker(btn.dataset.routeEmoji);$('journeyAvatarPicker').hidden=true;$('routeAvatarTrigger').setAttribute('aria-expanded','false');});
   $('routeEditorOverlay')?.addEventListener('click',e=>{if(e.target.id==='routeEditorOverlay')closeRouteOverlays();});
   $('routeOptionsOverlay')?.addEventListener('click',e=>{if(e.target.id==='routeOptionsOverlay')closeRouteOverlays();});
   $('routeOptionClose')?.addEventListener('click',closeRouteOverlays);
