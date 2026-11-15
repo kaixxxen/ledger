@@ -3596,8 +3596,19 @@ async function uploadJourneyFile(){
 async function shareJourney(j){
   if(mode!=='cloud'||!sb||!user){toast('Sign in first to share a route');return;}
   const data={title:j.title,destination:j.destination,startDate:j.startDate,notes:j.notes,stops:j.stops,links:j.links||[]};
-  const res=await sb.from('ledger_routes').insert({id:j.id,owner_id:user.id,data}).select('id').single();
-  if(res.error){toast('Could not share route: '+res.error.message);return;}
+  // The RPC derives the route owner from the verified JWT, not local cached account state.
+  // It also avoids requiring a SELECT of the newly inserted row in the same browser request.
+  const {data:authData,error:authError}=await sb.auth.getUser();
+  const activeUser=authData?.user;
+  if(authError||!activeUser){toast('Your sign-in session has expired. Sign in again to share this route.');return;}
+  if(!activeUser.id||activeUser.id!==user.id){toast('Your account session changed. Refresh Ledger and try again.');return;}
+  const res=await sb.rpc('ledger_route_create',{p_route_id:j.id,p_data:data});
+  if(res.error){
+    console.error('Route sharing failed', {code:res.error.code, message:res.error.message, details:res.error.details, hint:res.error.hint});
+    const missing=res.error.code==='PGRST202'||/ledger_route_create.*(not found|schema cache)/i.test(res.error.message||'');
+    toast(missing?'Route sharing setup is missing. Run FIX-ROUTE-SHARING-v63.sql in Supabase first.':'Could not share route: '+res.error.message);
+    return;
+  }
   state.journeys=state.journeys.filter(x=>x.id!==j.id);save();
   await loadSharedJourneys();await loadJourneyExtras(journeyById(j.id));toast('Route is ready to share. Add travelers by Ledger ID.');
 }
