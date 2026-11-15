@@ -2213,3 +2213,78 @@ button:active{opacity:.86}
   .dock button.on{background:color-mix(in srgb,var(--user-accent) 16%,var(--card));}
 }
 @media(max-width:380px){.bill-repeat-dates{grid-template-columns:1fr;}}
+
+
+/* v66 Routes — bill-consistent list, compact creation sheet and long-press actions */
+#page-journeys .routes-top{display:flex!important;flex-wrap:nowrap!important;align-items:center!important;gap:10px!important;margin-bottom:8px!important;justify-content:space-between!important;}
+#page-journeys .routes-top h1{margin:0!important;flex:1;min-width:0;font-size:clamp(22px,5vw,28px);}
+#page-journeys .route-top-actions{display:flex;align-items:center;gap:8px;flex:none;}
+#page-journeys .routes-top > #notificationCenter{flex:none;margin-left:0;}
+#page-journeys .route-home-subtitle{margin:0 0 14px;color:var(--muted);font-size:var(--fs-sm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+#page-journeys .route-list-toolbar{margin:5px 0 13px;display:flex;min-width:0;}
+#page-journeys .route-list-toolbar>.split-subhead{min-width:0;}
+#page-journeys .route-list-toolbar .bill-sort-bar{flex:none;}
+#page-journeys .journey-list{display:grid;gap:12px;}
+#page-journeys .journey-tile{display:flex!important;align-items:center!important;justify-content:initial;gap:8px!important;width:100%;min-width:0;min-height:84px;padding:13px 12px!important;box-sizing:border-box;cursor:pointer;touch-action:pan-y;user-select:none;-webkit-user-select:none;}
+#page-journeys .journey-tile .bill-card-left{flex:1;min-width:0;}
+#page-journeys .journey-tile .journey-tile-icon{width:42px!important;height:42px!important;flex:none!important;border-radius:13px;display:grid;place-items:center;font-size:23px;background:var(--bar);}
+#page-journeys .journey-tile .journey-tile-info{min-width:0;flex:1;display:block;}
+#page-journeys .journey-tile .bill-card-meta{min-width:0;gap:5px;align-items:center;flex-wrap:nowrap;overflow:hidden;}
+#page-journeys .journey-tile .bill-card-meta small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;}
+#page-journeys .journey-tile .bill-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;}
+#page-journeys .journey-tile .journey-tile-cost{flex:none;min-width:36px;max-width:70px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:right;display:grid;gap:2px;font-weight:650;font-size:12px;line-height:1.25;}
+#page-journeys .journey-tile .journey-tile-cost small{font-size:10px;font-weight:400;}
+#page-journeys .journey-tile .bill-pin-btn{flex:none;}
+#page-journeys .journey-tile .bill-drag-handle{flex:none;touch-action:none;}
+#page-journeys .journey-tile .bill-chevron{flex:none;}
+#page-journeys .journey-tile:focus-visible{outline:2px solid var(--user-accent);outline-offset:2px;}
+#page-journeys .journey-tile.dragging{opacity:.75;}
+#page-journeys .journey-tile.drop-target{outline:2px dashed var(--muted);outline-offset:-3px;}
+#page-journeys .route-archived-card{gap:9px;min-width:0;}
+#page-journeys .route-archived-card .bill-card-left{flex:1;min-width:0;}
+#page-journeys .route-archived-card .bill-card-info{min-width:0;}
+#page-journeys .route-archived-card button{flex:none;min-height:38px;padding:7px 10px;border-radius:11px;}
+#page-journeys .route-archive-head{display:flex;gap:8px;align-items:center;}
+#page-journeys .route-archive-head .archive-head{display:flex;gap:8px;align-items:center;min-width:0;flex:1;}
+#page-journeys .route-archive-head h1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#page-journeys .journey-detail-head #notificationCenter{flex:none;}
+#routeEditorOverlay .route-modal-card{width:min(100%,480px);max-height:min(90dvh,800px);padding:22px 20px!important;border-radius:26px!important;}
+#routeEditorOverlay #journeyEditor h2{font-size:22px!important;font-weight:750;line-height:1.2;text-transform:none!important;letter-spacing:-.03em!important;margin:0 0 12px!important;}
+#routeEditorOverlay #journeyForm{display:grid;gap:13px;}
+#routeEditorOverlay .route-form-field{display:grid;gap:7px;min-width:0;}
+#routeEditorOverlay .route-form-field label{display:block;margin:0;font-size:13px;font-weight:550;color:var(--muted);}
+#routeEditorOverlay .route-modal-card input:not([type=hidden]),#routeEditorOverlay .route-modal-card select,#routeEditorOverlay .route-modal-card textarea{height:47px;min-height:47px;border:1px solid var(--line);border-radius:13px;background:var(--bar);padding:11px 13px;font-size:14px;min-width:0;}
+#routeEditorOverlay .route-modal-card textarea{height:auto;min-height:70px;}
+#routeEditorOverlay .route-name-line{display:flex;align-items:center;gap:9px;min-width:0;}
+#routeEditorOverlay .route-name-line input{flex:1;min-width:0;}
+#routeEditorOverlay .route-selected-avatar{width:47px;height:47px;flex:0 0 47px;border:1px solid var(--line);border-radius:13px;background:var(--bar);display:grid;place-items:center;font-size:25px;padding:0;}
+#routeEditorOverlay .route-avatar-picker{grid-template-columns:repeat(8,minmax(0,1fr));gap:6px;margin-top:3px;}
+#routeEditorOverlay .route-avatar-picker[hidden]{display:none!important;}
+#routeEditorOverlay .route-avatar-option{min-height:34px;font-size:20px;padding:3px;}
+#routeEditorOverlay .route-add-traveler{display:flex;align-items:center;gap:8px;min-width:0;}
+#routeEditorOverlay .route-add-traveler input{flex:1;min-width:0;}
+#routeEditorOverlay .route-add-traveler button{flex:none;width:auto;min-height:47px;padding:9px 16px;border-radius:13px;background:var(--bar);font-weight:600;}
+#routeEditorOverlay .route-participant-chips{display:flex;flex-wrap:wrap;gap:7px;min-height:0;}
+#routeEditorOverlay .route-participant-chips:empty{display:none;}
+#routeEditorOverlay .route-person-chip{display:inline-flex;align-items:center;gap:7px;max-width:100%;padding:6px 9px 6px 12px;background:var(--bar);border:1px solid var(--line);border-radius:13px;color:var(--text);font-size:12px;min-height:30px;}
+#routeEditorOverlay .route-person-chip>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#routeEditorOverlay .route-person-chip button{border:0;background:transparent;color:var(--muted);font-size:18px;line-height:1;width:22px;height:22px;flex:none;padding:0;}
+#routeEditorOverlay .route-form-hint{line-height:1.35;font-size:11px;margin:0;}
+#routeEditorOverlay .route-optional-fields{min-width:0;}
+#routeEditorOverlay .route-optional-fields summary{font-size:13px;font-weight:600;cursor:pointer;padding:3px 0;color:var(--text);}
+#routeEditorOverlay .route-optional-fields textarea{margin-top:9px;}
+#routeEditorOverlay .route-form-actions{display:flex;flex-direction:column;margin-top:6px;gap:8px;}
+#routeEditorOverlay .route-form-actions button{width:100%;min-height:47px;border-radius:14px;font-size:14px;font-weight:650;}
+#routeEditorOverlay .route-form-actions .primary{order:0;}
+#routeEditorOverlay .route-form-actions .secondary{order:1;background:var(--bar);}
+@media(max-width:450px){
+ #page-journeys .journey-tile{gap:5px!important;padding:12px 9px!important;}
+ #page-journeys .journey-tile .journey-tile-cost{max-width:52px;font-size:11px;}
+ #page-journeys .journey-tile .bill-card-meta .tag{font-size:10px;padding:3px 6px;}
+ #page-journeys .journey-tile .bill-card-meta small{font-size:10px;}
+ #routeEditorOverlay .route-modal-card{padding:17px 16px!important;}
+ #routeEditorOverlay .route-avatar-picker{gap:4px;}
+ #page-journeys .route-archived-card .route-archive-delete{padding:7px 8px;}
+}
+
+#page-journeys .routes-top[hidden],#page-journeys .route-archive-head[hidden]{display:none!important;}

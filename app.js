@@ -573,6 +573,9 @@ function placeNotificationInHeader() {
   if (!center) return;
   const splitVisible = currentPage === 'split';
   let target;
+  if(currentPage==='journeys'&&activeJourneyId){target=document.querySelector('#journeyDetail .journey-detail-head');}
+  else if(currentPage==='journeys'&&routeArchiveView){target=document.querySelector('#routeArchiveView > .top');}
+  else
   if (splitVisible && $('splitDetailView') && !$('splitDetailView').hidden) {
     target = document.querySelector('#splitDetailView .split-header-actions');
   } else if (splitVisible && $('splitArchiveView') && !$('splitArchiveView').hidden) {
@@ -3552,7 +3555,7 @@ async function loadJourneyExtras(j){
 async function persistJourney(j){
   if(!j.shared){save();return true;}
   if(!sb||!user){toast('Sign in to edit shared routes');return false;}
-  const data={title:j.title,destination:j.destination,startDate:j.startDate,notes:j.notes,stops:j.stops,links:j.links||[],emoji:j.emoji||"🧭",linkedBillId:j.linkedBillId||""};
+  const data={title:j.title,destination:j.destination,startDate:j.startDate,notes:j.notes,stops:j.stops,links:j.links||[],emoji:j.emoji||"🧭",linkedBillId:j.linkedBillId||"",archived:!!j.archived,travelers:j.travelers||[],createdAt:j.createdAt||""};
   const {error}=await sb.from('ledger_routes').update({data,updated_at:new Date().toISOString()}).eq('id',j.id);
   if(error){toast('Could not save shared route: '+error.message);await loadSharedJourneys();return false;}
   return true;
@@ -3634,7 +3637,7 @@ async function uploadJourneyFile(){
 }
 async function shareJourney(j){
   if(mode!=='cloud'||!sb||!user){toast('Sign in first to share a route');return;}
-  const data={title:j.title,destination:j.destination,startDate:j.startDate,notes:j.notes,stops:j.stops,links:j.links||[],emoji:j.emoji||"🧭",linkedBillId:j.linkedBillId||""};
+  const data={title:j.title,destination:j.destination,startDate:j.startDate,notes:j.notes,stops:j.stops,links:j.links||[],emoji:j.emoji||"🧭",linkedBillId:j.linkedBillId||"",archived:!!j.archived,travelers:j.travelers||[],createdAt:j.createdAt||""};
   // The RPC derives the route owner from the verified JWT, not local cached account state.
   // It also avoids requiring a SELECT of the newly inserted row in the same browser request.
   const {data:authData,error:authError}=await sb.auth.getUser();
@@ -3654,6 +3657,8 @@ async function shareJourney(j){
   toast('Route shared. You can add travelers by Ledger ID.');
 }
 
+let routeArchiveView=false;
+let routeTravelerDraft=[];
 const ROUTE_EMOJIS = ['🧭','🏕️','✈️','🏖️','🏔️','🌸','🚗','🚆','⛵','🌆','🎒','🌴','🌅','🗺️','🏛️','🎡'];
 const JTYPE = {place:'Place',transport:'Transport',activity:'Activity',stay:'Stay',food:'Food'};
 function journeyById(id){return journeysAll().find(j=>j.id===id);}
@@ -3670,6 +3675,7 @@ function showJourneyEditor(open){
 }
 function routeEmojiPicker(value='🧭'){
   $('journeyEmoji').value=value;
+  if($('routeAvatarTrigger'))$('routeAvatarTrigger').textContent=value;
   $('journeyAvatarPicker').innerHTML=ROUTE_EMOJIS.map(emoji=>`<button type="button" class="route-avatar-option ${emoji===value?'selected':''}" data-route-emoji="${emoji}" aria-label="${emoji} avatar" aria-pressed="${emoji===value}">${emoji}</button>`).join('');
 }
 function routeAvailableBills(selected=''){
@@ -3688,6 +3694,117 @@ async function sendRouteInvitations(j){
   await loadJourneyExtras(j);
 }
 
+// Route list preferences use the same account-specific, device-local model as Bill Splitter.
+const routePrefsKey = part => 'ledger.route.'+part+'.'+(mode==='cloud'&&user?user.id:'local');
+const routePinnedIds = () => readStringArray(routePrefsKey('pins'));
+const routeSortMode = () => lsGet(routePrefsKey('sort'))||'manual';
+function routeOrdered(items){
+  const how=routeSortMode(), xs=items.slice();
+  if(how==='az')return xs.sort((a,b)=>a.title.localeCompare(b.title));
+  if(how==='za')return xs.sort((a,b)=>b.title.localeCompare(a.title));
+  if(how==='date')return xs.sort((a,b)=>(a.startDate||'9999').localeCompare(b.startDate||'9999'));
+  if(how==='newest')return xs.sort((a,b)=>(Date.parse(b.createdAt||'')||0)-(Date.parse(a.createdAt||'')||0));
+  const order=readStringArray(routePrefsKey('order'));
+  const pos=new Map(order.map((id,i)=>[id,i]));
+  return xs.sort((a,b)=>(pos.get(String(a.id))??1e9)-(pos.get(String(b.id))??1e9));
+}
+function toggleRoutePin(id){
+  const pins=new Set(routePinnedIds()),key=String(id),was=pins.has(key);
+  if(was)pins.delete(key);else pins.add(key);
+  lsSet(routePrefsKey('pins'),JSON.stringify([...pins]));
+  renderJourneys();toast(was?'Route unpinned':'Route pinned to top');
+}
+function moveRoute(id,targetId){
+  const pins=new Set(routePinnedIds());
+  if(pins.has(id)!==pins.has(targetId)){toast('Move pinned routes within the pinned section');return;}
+  const all=journeysAll().filter(j=>!j.archived),ordered=[...routeOrdered(all.filter(j=>pins.has(String(j.id)))),...routeOrdered(all.filter(j=>!pins.has(String(j.id))))];
+  const ids=ordered.map(j=>String(j.id)),from=ids.indexOf(id),to=ids.indexOf(targetId);
+  if(from<0||to<0||from===to)return;
+  ids.splice(from,1);ids.splice(to,0,id);
+  lsSet(routePrefsKey('order'),JSON.stringify(ids));lsSet(routePrefsKey('sort'),'manual');
+  if($('routeSortSelect'))$('routeSortSelect').value='manual';
+  renderJourneys();
+}
+function initRouteDrag(){
+  const host=$('journeyList');if(!host||host.dataset.dragReady)return;
+  host.dataset.dragReady='1';let dragging=null,target=null;
+  const clear=()=>{host.querySelectorAll('.journey-tile').forEach(x=>x.classList.remove('dragging','drop-target'));dragging=null;target=null;};
+  host.addEventListener('pointerdown',e=>{const h=e.target.closest('.bill-drag-handle'),card=h?.closest('.journey-tile');if(!card)return;
+    e.preventDefault();e.stopPropagation();dragging=card.dataset.journeyOpen;h.setPointerCapture(e.pointerId);card.classList.add('dragging');});
+  host.addEventListener('pointermove',e=>{if(!dragging)return;const c=document.elementFromPoint(e.clientX,e.clientY)?.closest('.journey-tile');
+    host.querySelectorAll('.journey-tile').forEach(x=>x.classList.remove('drop-target'));
+    target=c&&c.dataset.journeyOpen!==dragging?c.dataset.journeyOpen:null;if(target)c.classList.add('drop-target');});
+  host.addEventListener('pointerup',()=>{const from=dragging,to=target;clear();if(from&&to)moveRoute(from,to);});
+  host.addEventListener('pointercancel',clear);
+  host.addEventListener('keydown',e=>{const h=e.target.closest('.bill-drag-handle');if(!h||!['ArrowUp','ArrowDown'].includes(e.key))return;
+    const c=h.closest('.journey-tile');if(!c)return;e.preventDefault();const pins=new Set(routePinnedIds());
+    const cards=[...host.querySelectorAll('.journey-tile')].filter(x=>pins.has(x.dataset.journeyOpen)===pins.has(c.dataset.journeyOpen));
+    const next=cards[cards.indexOf(c)+(e.key==='ArrowUp'?-1:1)];if(next)moveRoute(c.dataset.journeyOpen,next.dataset.journeyOpen);});
+}
+async function setRouteArchived(j,archived){
+  if(!j||!journeyOwner(j)){toast('Only the route owner can do that');return false;}
+  const old=j.archived;j.archived=archived;
+  if(!await persistJourney(j)){j.archived=old;return false;}
+  if(activeJourneyId===j.id&&archived)activeJourneyId=null;
+  renderJourneys();toast(archived?'Route archived':'Route restored');return true;
+}
+async function deleteJourney(j){
+  if(!j)return false;
+  const owner=journeyOwner(j);
+  if(!confirm(j.shared&&!owner?`Leave route “${j.title}”?`:`Permanently delete “${j.title}” and its itinerary and files? Its linked bill will be kept.`))return false;
+  if(j.shared){
+    if(owner){
+      const docs=await sb.from('ledger_route_files').select('storage_path').eq('route_id',j.id);
+      if(docs.error){toast('Could not list route documents: '+docs.error.message);return false;}
+      const paths=(docs.data||[]).map(f=>f.storage_path);
+      if(paths.length){const r=await sb.storage.from(ROUTE_BUCKET).remove(paths);if(r.error){toast('Could not remove route documents: '+r.error.message);return false;}}
+    }
+    const result=await (owner?sb.from('ledger_routes').delete().eq('id',j.id):sb.from('ledger_route_members').delete().eq('route_id',j.id).eq('user_id',user.id));
+    if(result.error){toast(result.error.message);return false;}
+    await loadSharedJourneys();
+  }else{state.journeys=state.journeys.filter(x=>x.id!==j.id);save();}
+  if(activeJourneyId===j.id)activeJourneyId=null;
+  renderJourneys();toast(owner?'Route deleted':'You left the route');return true;
+}
+function routeActionMenu(j){
+  const pins=new Set(routePinnedIds()),actions=[];
+  if(journeyOwner(j)){
+    actions.push({text:pins.has(String(j.id))?'📌 Unpin route':'📌 Pin route',action:()=>toggleRoutePin(j.id)});
+    actions.push({text:'📁 Archive route',action:()=>setRouteArchived(j,true)});
+    actions.push({text:'✏️ Edit route details',action:()=>openJourneyForm(j)});
+    actions.push({text:'🗑️ Delete route',danger:true,action:()=>deleteJourney(j)});
+  }else{
+    actions.push({text:pins.has(String(j.id))?'📌 Unpin route':'📌 Pin route',action:()=>toggleRoutePin(j.id)});
+    actions.push({text:'🚪 Leave route',danger:true,action:()=>deleteJourney(j)});
+  }
+  showActionSheet(j.title,j.destination||'Route',actions);
+}
+function routeTravelerChips(){
+  const el=$('routeParticipantChips');if(!el)return;
+  el.innerHTML=routeTravelerDraft.map((p,i)=>`<span class="route-person-chip"><span>${esc(p.name)}${p.code?' (#'+esc(p.code)+')':''}</span><button type="button" aria-label="Remove ${esc(p.name)}" data-remove-route-person="${i}">×</button></span>`).join('');
+}
+async function addRouteTraveler(){
+  const el=$('routeParticipantInput'),button=$('routeParticipantAdd');if(!el)return;
+  const raw=el.value.trim();if(!raw)return;
+  const code=parseLedgerId(raw);let person;
+  if(code){
+    if(mode!=='cloud'||!sb||!user){toast('Sign in to invite someone by Ledger ID');return;}
+    if(routeTravelerDraft.some(p=>p.code===code)){toast('Traveler already added');return;}
+    button.disabled=true;
+    try{
+      const result=await sb.rpc('lookup_profiles',{p_codes:[code]});
+      if(result.error){toast('Could not look up Ledger ID: '+result.error.message);return;}
+      const hit=(result.data||[])[0];if(!hit){toast('Ledger ID not found: #'+code);return;}
+      person={name:hit.nick||'Ledger user',code};
+    }finally{button.disabled=false;}
+  }else{
+    if(/^#|^[a-zA-Z]{3}-?\d/.test(raw)){toast('Enter a valid Ledger ID (ABC-123456) or a person’s name');return;}
+    if(routeTravelerDraft.some(p=>!p.code&&p.name.toLowerCase()===raw.toLowerCase())){toast('Traveler already added');return;}
+    person={name:raw.slice(0,80),code:null};
+  }
+  routeTravelerDraft.push(person);el.value='';routeTravelerChips();el.focus();
+}
+function openRouteArchives(){routeArchiveView=true;activeJourneyId=null;renderJourneys();}
 function openJourneyForm(j=null){
   location.hash='#journeys';
   if(currentPage!=='journeys')route();
@@ -3698,7 +3815,8 @@ function openJourneyForm(j=null){
   $('journeyNotes').value=j?.notes||'';
   $('journeyModalTitle').textContent=j?'Edit route':'Plan a route';
   routeEmojiPicker(j?.emoji||'🧭');routeAvailableBills(j?.linkedBillId||'');
-  $('journeyInviteCodes').value=(j?.inviteCodes||[]).join(', ');
+  routeTravelerDraft=Array.isArray(j?.travelers)?j.travelers.map(p=>({name:p.name||p.code||'Traveler',code:p.code||null})):(j?.inviteCodes||[]).map(code=>({name:'Ledger user',code}));
+  routeTravelerChips();$('routeParticipantInput').value='';$('journeyAvatarPicker').hidden=true;$('routeAvatarTrigger').setAttribute('aria-expanded','false');
   showJourneyEditor(true);
   $('journeyTitle').focus();
 }
@@ -3729,16 +3847,34 @@ function renderJourneys(){
   const list=$('journeyList'),detail=$('journeyDetail');if(!list||!detail)return;
   const journeys=journeysAll();
   if(activeJourneyId&&!journeyById(activeJourneyId))activeJourneyId=null;
-  if ($('journeyNewButton')) $('journeyNewButton').hidden=!!activeJourneyId;
-  $('journeyOverview').hidden=!!activeJourneyId;
-  detail.hidden=!activeJourneyId;
-  if(!activeJourneyId){
-    list.innerHTML=journeys.length?journeys.map(j=>{
-      const total=j.stops.reduce((n,p)=>n+p.cost,0);
-      return `<button type="button" class="journey-tile" data-journey-open="${esc(j.id)}"><span class="journey-tile-icon" aria-hidden="true">${esc(j.emoji||'🧭')}</span><span class="journey-tile-info"><strong>${esc(j.title)}</strong><small>${esc([j.destination,j.startDate].filter(Boolean).join(' · ')||'Plan your next route')} · ${j.stops.length} ${j.stops.length===1?'stop':'stops'} ${j.shared?'· Shared':''}</small></span><span class="journey-tile-cost">${money(total)}<small>estimate</small></span><span aria-hidden="true">›</span></button>`;
-    }).join(''):'<div class="journey-empty"><strong>Your next journey starts here.</strong><p>Add places, transport, dates, and estimated costs—all in one plan.</p></div>';
-    return;
+  const inDetail=!!activeJourneyId;
+  $('routesMainHeader').hidden=inDetail||routeArchiveView;
+  $('journeyOverview').hidden=inDetail||routeArchiveView;
+  $('routeArchiveView').hidden=!routeArchiveView||inDetail;
+  detail.hidden=!inDetail;
+  if(!inDetail){
+    if(routeArchiveView){
+      const archived=journeys.filter(j=>j.archived);
+      $('routeArchivedList').innerHTML=archived.length?archived.map(j=>`<div class="bill-card route-archived-card" data-archived-route="${esc(j.id)}"><div class="bill-card-left"><span class="bill-emoji">${esc(j.emoji||'🧭')}</span><div class="bill-card-info"><div class="bill-name-row"><span class="bill-name">${esc(j.title)}</span></div><small class="muted fine">${esc(j.destination||'Archived route')}</small></div></div><button type="button" class="unarchive-btn secondary" data-restore-route="${esc(j.id)}">Restore</button>${journeyOwner(j)?`<button type="button" class="route-archive-delete secondary" data-delete-archived-route="${esc(j.id)}" aria-label="Delete ${esc(j.title)}">Delete</button>`:''}</div>`).join(''):'<div class="empty-card card">No archived routes yet.</div>';
+      placeNotificationInHeader();return;
+    }
+    const pins=new Set(routePinnedIds()),visible=journeys.filter(j=>!j.archived);
+    const ordered=[...routeOrdered(visible.filter(j=>pins.has(String(j.id)))),...routeOrdered(visible.filter(j=>!pins.has(String(j.id))))];
+    $('routeSortSelect').value=routeSortMode();
+    list.innerHTML=ordered.length?ordered.map(j=>{
+      const total=(j.stops||[]).reduce((n,p)=>n+(Number(p.cost)||0),0),pin=pins.has(String(j.id));
+      const count=(j.travelers||[]).length;
+      const meta=[j.destination,j.startDate,count?`${count} ${count===1?'traveler':'travelers'}`:''].filter(Boolean).join(' · ');
+      return `<div class="bill-card journey-tile ${pin?'is-pinned':''}" data-journey-open="${esc(j.id)}" tabindex="0" role="button" aria-label="Open ${esc(j.title)}"><div class="bill-card-left"><span class="bill-emoji journey-tile-icon">${esc(j.emoji||'🧭')}</span><div class="bill-card-info journey-tile-info"><div class="bill-name-row"><span class="bill-name">${esc(j.title)}</span></div><div class="bill-card-meta">${j.shared?'<span class="tag shared-tag">Shared</span>':''}<small class="muted fine">${esc(meta||'Plan your next trip')}</small></div></div></div><span class="journey-tile-cost">${money(total)}<small>estimate</small></span><button type="button" class="bill-pin-btn ${pin?'on':''}" aria-label="${pin?'Unpin':'Pin'} ${esc(j.title)}" aria-pressed="${pin}" title="${pin?'Unpin':'Pin route'}">📌</button><button type="button" class="bill-drag-handle" aria-label="Reorder ${esc(j.title)}" title="Drag to reorder"><svg class="bill-grip-icon" viewBox="0 0 20 24" aria-hidden="true" focusable="false" fill="currentColor"><circle cx="6" cy="5" r="1.6"/><circle cx="14" cy="5" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="14" cy="12" r="1.6"/><circle cx="6" cy="19" r="1.6"/><circle cx="14" cy="19" r="1.6"/></svg></button><span class="bill-chevron" aria-hidden="true">›</span></div>`;
+    }).join(''):'<div class="empty-card card">No routes yet. Tap + to plan one.</div>';
+    list.querySelectorAll('.journey-tile').forEach(card=>{
+      const j=journeyById(card.dataset.journeyOpen);if(!j)return;
+      card.querySelector('.bill-pin-btn').onclick=e=>{e.stopPropagation();toggleRoutePin(j.id);};
+      attachLongPress(card,e=>{if(!e.target?.closest?.('.bill-pin-btn,.bill-drag-handle'))routeActionMenu(j);});
+    });
+    initRouteDrag();placeNotificationInHeader();return;
   }
+  placeNotificationInHeader();
   const j=journeyById(activeJourneyId), total=j.stops.reduce((n,p)=>n+p.cost,0);
   $('journeyDetailTitle').textContent=j.title;
   $('journeyDetailAvatar').textContent=j.emoji||'🧭';
@@ -3767,7 +3903,15 @@ function initJourneys(){
     const dialog = $(id); if (dialog && dialog.parentElement !== document.body) document.body.appendChild(dialog);
   });
   $('journeyCancel')?.addEventListener('click',closeRouteOverlays);
-  $('journeyAvatarPicker')?.addEventListener('click',e=>{const btn=e.target.closest('[data-route-emoji]');if(btn)routeEmojiPicker(btn.dataset.routeEmoji);});
+  $('routeAvatarTrigger')?.addEventListener('click',()=>{const picker=$('journeyAvatarPicker');picker.hidden=!picker.hidden;$('routeAvatarTrigger').setAttribute('aria-expanded',String(!picker.hidden));});
+  $('routeParticipantAdd')?.addEventListener('click',addRouteTraveler);
+  $('routeParticipantInput')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addRouteTraveler();}});
+  $('routeParticipantChips')?.addEventListener('click',e=>{const b=e.target.closest('[data-remove-route-person]');if(!b)return;routeTravelerDraft.splice(Number(b.dataset.removeRoutePerson),1);routeTravelerChips();});
+  $('routeArchiveOpen')?.addEventListener('click',openRouteArchives);
+  $('routeArchiveBack')?.addEventListener('click',()=>{routeArchiveView=false;renderJourneys();});
+  $('routeSortSelect')?.addEventListener('change',e=>{lsSet(routePrefsKey('sort'),e.target.value);renderJourneys();});
+  $('routeArchivedList')?.addEventListener('click',async e=>{const restore=e.target.closest('[data-restore-route]'),del=e.target.closest('[data-delete-archived-route]'),row=e.target.closest('[data-archived-route]');if(!row)return;const j=journeyById(row.dataset.archivedRoute);if(!j)return;if(restore){await setRouteArchived(j,false);return;}if(del){await deleteJourney(j);return;}routeArchiveView=false;activeJourneyId=j.id;renderJourneys();await loadJourneyExtras(j);renderJourneys();});
+  $('journeyAvatarPicker')?.addEventListener('click',e=>{const btn=e.target.closest('[data-route-emoji]');if(!btn)return;routeEmojiPicker(btn.dataset.routeEmoji);$('journeyAvatarPicker').hidden=true;$('routeAvatarTrigger').setAttribute('aria-expanded','false');});
   $('routeEditorOverlay')?.addEventListener('click',e=>{if(e.target.id==='routeEditorOverlay')closeRouteOverlays();});
   $('routeOptionsOverlay')?.addEventListener('click',e=>{if(e.target.id==='routeOptionsOverlay')closeRouteOverlays();});
   $('routeOptionClose')?.addEventListener('click',closeRouteOverlays);
@@ -3781,8 +3925,11 @@ function initJourneys(){
   $('journeyForm')?.addEventListener('submit',async e=>{
     e.preventDefault();const title=$('journeyTitle').value.trim();if(!title)return;
     const old=journeyById($('journeyId').value);
-    const rawCodes=$('journeyInviteCodes').value.split(/[\s,;]+/).map(s=>s.trim()).filter(Boolean);
-    const j={id:old?.id||uid(),title,destination:$('journeyDestination').value.trim(),startDate:$('journeyStartDate').value,notes:$('journeyNotes').value.trim(),emoji:$('journeyEmoji').value||'🧭',linkedBillId:$('journeyLinkedBillSelect').value,inviteCodes:[...new Set([...(old?.inviteCodes||[]),...rawCodes])],stops:old?.stops||[],...(old?.shared?{shared:true,ownerId:old.ownerId}:{})};
+    const newCodes=routeTravelerDraft.map(p=>p.code).filter(Boolean);
+    const alreadyInvited=new Set((old?.travelers||[]).map(p=>p.code).filter(Boolean));
+    const freshCodes=newCodes.filter(code=>!alreadyInvited.has(code));
+    const j={id:old?.id||uid(),title,destination:$('journeyDestination').value.trim(),startDate:$('journeyStartDate').value,notes:$('journeyNotes').value.trim(),emoji:$('journeyEmoji').value||'🧭',linkedBillId:$('journeyLinkedBillSelect').value,
+      travelers:routeTravelerDraft.map(p=>({...p})),inviteCodes:[...new Set([...(old?.inviteCodes||[]),...freshCodes])],archived:!!old?.archived,createdAt:old?.createdAt||new Date().toISOString(),stops:old?.stops||[],...(old?.shared?{shared:true,ownerId:old.ownerId}:{})};
     if(old)Object.assign(old,j);else state.journeys.push(j);
     activeJourneyId=j.id;
     if(j.shared){if(!await persistJourney(j))return;}else save();
@@ -3790,25 +3937,12 @@ function initJourneys(){
     if(j.shared&&j.inviteCodes?.length)await sendRouteInvitations(j);
     else if(!j.shared&&j.inviteCodes?.length&&mode==='cloud'&&sb&&user)await shareJourney(j);
   });
-  $('journeyList')?.addEventListener('click',async e=>{const b=e.target.closest('[data-journey-open]');if(!b)return;activeJourneyId=b.dataset.journeyOpen;renderJourneys();await loadJourneyExtras(journeyById(activeJourneyId));renderJourneys();});
+  $('journeyList')?.addEventListener('click',async e=>{const b=e.target.closest('[data-journey-open]');if(!b||e.target.closest('.bill-pin-btn,.bill-drag-handle'))return;if(b._lpFired){b._lpFired=false;return;}routeArchiveView=false;activeJourneyId=b.dataset.journeyOpen;renderJourneys();await loadJourneyExtras(journeyById(activeJourneyId));renderJourneys();});
+  $('journeyList')?.addEventListener('keydown',e=>{if(e.target.closest('.bill-pin-btn,.bill-drag-handle')||!['Enter',' '].includes(e.key))return;const b=e.target.closest('[data-journey-open]');if(!b)return;e.preventDefault();b.click();});
   $('journeyBack')?.addEventListener('click',()=>{activeJourneyId=null;$('stopEditor').hidden=true;renderJourneys();});
   $('journeyEdit')?.addEventListener('click',()=>{$('routeOptionsOverlay').hidden=false;});
   $('journeyLinkedBill')?.addEventListener('click',e=>{if(!e.target.closest('#routeOpenLinkedBill'))return;const j=journeyById(activeJourneyId);if(!j?.linkedBillId)return;location.hash='#split';route();openBillDetail(j.linkedBillId);});
-  $('journeyDelete')?.addEventListener('click',async()=>{
-    const j=journeyById(activeJourneyId);if(!j)return;
-    if(!confirm(j.shared&&!journeyOwner(j)?`Leave route “${j.title}”?`:`Delete route “${j.title}” and its stops?`))return;
-    if(j.shared){
-      if(journeyOwner(j)){
-        const docs=await sb.from('ledger_route_files').select('storage_path').eq('route_id',j.id);
-        if(docs.error){toast('Could not list route files: '+docs.error.message);return;}
-        const paths=(docs.data||[]).map(f=>f.storage_path);
-        if(paths.length){const rm=await sb.storage.from(ROUTE_BUCKET).remove(paths);if(rm.error){toast('Could not remove files: '+rm.error.message);return;}}
-      }
-      const q=journeyOwner(j)?sb.from('ledger_routes').delete().eq('id',j.id):sb.from('ledger_route_members').delete().eq('route_id',j.id).eq('user_id',user.id);
-      const {error}=await q;if(error){toast(error.message);return;}await loadSharedJourneys();}
-    else {state.journeys=state.journeys.filter(x=>x.id!==j.id);save();}
-    activeJourneyId=null;renderJourneys();toast('Route updated');
-  });
+  $('journeyDelete')?.addEventListener('click',()=>deleteJourney(journeyById(activeJourneyId)));
   $('journeyAddStop')?.addEventListener('click',()=>openStopForm());
   $('stopCancel')?.addEventListener('click',closeRouteOverlays);
   $('stopForm')?.addEventListener('submit',async e=>{
