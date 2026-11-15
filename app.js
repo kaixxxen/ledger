@@ -1870,15 +1870,25 @@ function calculateGroupBalance(group) {
     totalExpenses: totalCents / 100, myNet: (balancesCents[me] || 0) / 100, issues };
 }
 
+// Shared helper: payment creation and editing are invoked outside bind().
+// Keep this at module scope so the floating menu and payment row can use it.
+function billPaymentParticipantOptions(group) {
+  return (group.participants || []).map(p =>
+    `<option value="${esc(p.key)}">${esc(partLabel(p))}</option>`
+  ).join('');
+}
+
 function openBillPayment(preselected = null, editPaymentId = null) {
   const group = (state.billGroups || []).find(g => g.id === selectedGroupId);
   if (!group) return;
-  const opts = paidByOptions(group);
+  const opts = billPaymentParticipantOptions(group);
   if ((group.participants || []).length < 2) { toast('Add two members to record a payment.'); return; }
   const existing = editPaymentId ? (group.settlements || []).find(p => String(p.id) === String(editPaymentId)) : null;
   if (editPaymentId && !existing) { toast('Payment not found. Refresh this bill.'); return; }
   $('settleEditId').value = existing?.id || '';
-  $('settleModalTitle').textContent = existing ? 'Edit payment' : 'Record payment';
+  $('settleModalTitle').textContent = existing ? 'Edit Payment' : 'Record Payment';
+  const saveButton = $('settleForm')?.querySelector('button[type="submit"]');
+  if (saveButton) saveButton.textContent = existing ? 'Save Changes' : 'Record Payment';
   $('settleDelete').hidden = !existing;
   $('settlePayer').innerHTML = opts;
   $('settleReceiver').innerHTML = opts;
@@ -2020,7 +2030,7 @@ function renderBillExpensesList(group) {
         return `<div class="bill-expense-card bill-activity-row bill-payment-row edit-payment-row" data-id="${esc(pay.id)}" role="button" tabindex="0" aria-label="Edit payment by ${esc(shortFor(group,pay.from))} to ${esc(shortFor(group,pay.to))}">
           <span class="activity-glyph payment-glyph" aria-hidden="true">✓</span>
           <div class="activity-copy"><strong>Payment</strong><small>${esc(shortFor(group,pay.from))} → ${esc(shortFor(group,pay.to))} · ${esc(pay.method||'Payment')}</small></div>
-          <span class="activity-amount is-payment">+${money(pay.amount)}</span><svg class="activity-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
+          <span class="activity-amount is-payment">+${money(pay.amount)}</span>
         </div>`;
       }
       const exp=row.exp;

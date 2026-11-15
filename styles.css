@@ -2561,3 +2561,7 @@ button:active{opacity:.86}
   #page-journeys #journeyList .journey-tile .bill-pin-btn {width:30px!important;height:32px!important;}
   #page-journeys #journeyList .journey-tile .bill-drag-handle {flex-basis:26px!important;width:26px!important;}
 }
+
+/* v70: payment entries are full-card tap targets; no redundant chevron. */
+.bill-payment-row{cursor:pointer;}
+.bill-payment-row .activity-amount{margin-left:auto;}
