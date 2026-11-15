@@ -2040,3 +2040,53 @@ button:active{opacity:.86}
 .route-travelers-wrap{display:grid;gap:7px;padding:12px;border-radius:14px;background:var(--bar)}.route-travelers-wrap[hidden]{display:none!important}.route-travelers-wrap strong{font-size:var(--fs-xs)}.route-traveler-choices{display:flex;flex-wrap:wrap;gap:8px}.route-traveler-choice{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:12px;padding:8px 10px;background:var(--card);font-size:var(--fs-xs);font-weight:500}.route-traveler-choice input{width:16px!important;height:16px;accent-color:var(--user-accent)}
 
 .journey-stop{cursor:pointer;transition:border-color .18s,background .18s}.journey-stop:active{background:var(--bar)}.journey-stop:focus-within{outline:2px solid var(--user-accent);outline-offset:2px}
+
+/* v62 — accent-driven budget hero, legible in light and dark, motion retained */
+:root[data-theme="light"] .hero, :root[data-theme="dark"] .hero {
+ background:linear-gradient(125deg,
+  color-mix(in srgb,var(--user-accent) 52%,var(--card)) 0%,
+  color-mix(in srgb,var(--user-accent) 31%,var(--card)) 50%,
+  color-mix(in srgb,var(--user-accent) 14%,var(--card)) 100%);
+ color:var(--text);overflow:hidden;
+}
+:root[data-theme="light"] .hero::after,:root[data-theme="dark"] .hero::after {
+ background:radial-gradient(circle,rgba(var(--user-accent-rgb),.44),transparent 68%);
+ animation:ledgerHeroGlow 13s ease-in-out infinite alternate;
+}
+.bill-repeat-row{display:flex;gap:12px;align-items:center;padding:13px;border:1px solid var(--line);border-radius:16px;background:var(--bar);margin:14px 0}
+.bill-repeat-row input{width:20px;height:20px;flex:none;accent-color:var(--user-accent)}
+.bill-repeat-row span{display:grid;gap:4px;min-width:0}.bill-repeat-row strong{font-size:var(--fs-sm)}.bill-repeat-row small{font-size:var(--fs-xs);color:var(--muted);line-height:1.4}
+.bill-activity-row{min-width:0}.bill-activity-row .activity-copy{min-width:0;overflow-wrap:anywhere}
+.payment-row-remove{flex:none;margin-left:4px;width:32px;height:32px;display:grid;place-items:center;border:1px solid var(--line);border-radius:10px;background:var(--bar);color:var(--muted);font-size:20px}
+/* Routes: cards and controls never overlap or crop long strings on narrow screens. */
+#page-journeys,#page-journeys *{box-sizing:border-box}
+#page-journeys .routes-top,#page-journeys .journey-detail-head,#page-journeys .route-section-title{min-width:0}
+#page-journeys .journey-detail-head{display:grid;grid-template-columns:36px minmax(0,1fr) auto auto auto;gap:6px;align-items:center}
+#page-journeys .journey-detail-name{min-width:0;overflow:hidden}
+#page-journeys .journey-detail-head button{white-space:nowrap;max-width:100%}
+#page-journeys .journey-tile,#page-journeys .journey-stop,#page-journeys .route-member,#page-journeys .route-file-row{max-width:100%;min-width:0}
+#page-journeys .journey-tile-info,#page-journeys .journey-stop-main{min-width:0}
+#page-journeys .journey-stop-right{min-width:0;max-width:32%;white-space:normal;overflow-wrap:anywhere}
+#page-journeys .journey-stop-right strong{overflow-wrap:anywhere}
+#page-journeys .route-file-row a,#page-journeys .route-file-name{min-width:0;overflow-wrap:anywhere}
+#page-journeys .journey-fields{grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr))}
+#page-journeys .journey-edit-card{max-width:100%;min-width:0}
+#page-journeys input,#page-journeys select,#page-journeys textarea{max-width:100%;min-width:0}
+@media(max-width:520px){
+ #page-journeys .journey-detail-head{grid-template-columns:36px minmax(0,1fr) auto;gap:6px}
+ #page-journeys .journey-detail-head #journeyEdit{grid-column:2;justify-self:end}
+ #page-journeys .journey-detail-head #journeyDelete{grid-column:3;justify-self:end}
+ #page-journeys .journey-detail-head #journeyRefresh{grid-column:3;grid-row:1}
+ #page-journeys .routes-top{align-items:flex-start}
+ #page-journeys .routes-top h1{font-size:24px}
+ #page-journeys .routes-top .secondary{padding:9px 12px}
+ #page-journeys .journey-tile{padding:12px 10px;gap:8px}
+ #page-journeys .journey-tile-icon{width:34px;height:34px;font-size:19px;flex:none}
+ #page-journeys .journey-tile-cost{max-width:29%;white-space:normal;overflow-wrap:anywhere}
+ #page-journeys .journey-stop{gap:8px;padding:13px 10px}
+ #page-journeys .journey-stop-right{max-width:35%}
+ #page-journeys .route-section-title{flex-wrap:wrap}
+ #page-journeys .route-section-title>*{min-width:0}
+}
+
+@media(prefers-reduced-motion:reduce){:root[data-theme="light"] .hero::after,:root[data-theme="dark"] .hero::after{animation:none}}

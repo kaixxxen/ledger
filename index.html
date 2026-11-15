@@ -264,7 +264,6 @@
       <div class="seg" id="splitDetailTabs">
         <button type="button" data-v="expenses" class="on">Expenses</button>
         <button type="button" data-v="balances">Balances</button>
-        <button type="button" data-v="history">Audit Log</button>
       </div>
 
       <!-- EXPENSES TAB -->
@@ -293,13 +292,6 @@
         <div id="splitBalancesList" class="card group"></div>
       </div>
 
-      <!-- PAYMENT HISTORY TAB -->
-      <div id="splitTabHistory" hidden>
-        <h2 class="section-title first">Audit Log</h2>
-        <div class="card group">
-          <div id="splitHistoryList"></div>
-        </div>
-      </div>
     </div>
   </section>
 
@@ -600,7 +592,7 @@
   <div class="modal-card">
     <h3>Record payment</h3>
     <form id="settleForm">
-      <p class="fine">Choose an outstanding balance. Partial payments are supported.</p>
+      <p class="fine">Choose who paid whom. Enter any payment, including advance or partial payments. Balances update to the centavo.</p>
       <div class="row2">
         <div>
           <label class="lbl" for="settlePayer">Paid By (Payer)</label>
@@ -619,11 +611,11 @@
         <div>
           <label class="lbl" for="settleMethod">Payment Method</label>
           <select id="settleMethod">
-            <option value="GCash">GCash</option>
-            <option value="Maya">Maya</option>
-            <option value="Cash">Cash</option>
             <option value="Bank Transfer">Bank Transfer</option>
-            <option value="Venmo">Venmo / PayPal</option>
+            <option value="Maya">Maya</option>
+            <option value="GCash">GCash</option>
+            <option value="MariBank">MariBank</option>
+            <option value="Cash">Cash</option>
           </select>
         </div>
       </div>
@@ -702,6 +694,7 @@
         <div class="receipt-scan-result" role="status" aria-live="polite" hidden></div>
         
       </div></details>
+      <label class="bill-repeat-row" for="splitExpRepeat"><input type="checkbox" id="splitExpRepeat"><span><strong>Repeat monthly</strong><small>Automatically add this shared expense on the same day each month</small></span></label>
       <div class="btnrow modal-actions">
         <button type="submit" class="primary">Save Expense</button>
         <button type="button" class="secondary danger" id="btnDeleteSplitExpense" hidden>Delete Expense</button>

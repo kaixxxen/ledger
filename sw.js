@@ -1,4 +1,4 @@
-const CACHE = 'ledger-v61-shared-routes';
+const CACHE = 'ledger-v62-manual-payments-recurring-routes';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'

@@ -645,6 +645,9 @@ function setGlobalActionsOpen(open) {
   const inBill = currentPage === 'split' && !!selectedGroupId && !!$('splitDetailView') && !$('splitDetailView').hidden;
   if ($('globalAddToBill')) $('globalAddToBill').hidden = !inBill;
   if ($('globalRecordPayment')) $('globalRecordPayment').hidden = !inBill;
+  $$('#globalActionsMenu button[data-create]').forEach(b => {
+    if (!['in-bill','payment'].includes(b.dataset.create)) b.hidden = inBill;
+  });
   if (open) {
     closeNotifications();
     menu.hidden = false;
@@ -1864,32 +1867,91 @@ function calculateGroupBalance(group) {
 function openBillPayment(preselected = null) {
   const group = (state.billGroups || []).find(g => g.id === selectedGroupId);
   if (!group) return;
-  const outstanding = calculateGroupBalance(group).settlements;
-  if (!outstanding.length) { toast('No outstanding balances to record a payment for.'); return; }
   const opts = paidByOptions(group);
+  if ((group.participants || []).length < 2) { toast('Add two members to record a payment.'); return; }
   $('settlePayer').innerHTML = opts;
   $('settleReceiver').innerHTML = opts;
-  const preferred = preselected && outstanding.find(x => x.from === preselected.from && x.to === preselected.to);
-  const selected = preferred || outstanding[0];
-  $('settlePayer').value = selected.from;
-  $('settleReceiver').value = selected.to;
-  $('settleAmount').value = selected.amount.toFixed(2);
-  $('settleAmount').max = selected.amount.toFixed(2);
+  const outstanding = calculateGroupBalance(group).settlements;
+  const selected = (preselected && outstanding.find(s => s.from === preselected.from && s.to === preselected.to)) || outstanding[0];
+  $('settlePayer').value = selected?.from || group.participants[0].key;
+  $('settleReceiver').value = selected?.to || group.participants.find(p => p.key !== $('settlePayer').value)?.key || '';
   $('settleNote').value = '';
   $('settleModal').hidden = false;
+  syncPaymentAmountToPair();
 }
 function syncPaymentAmountToPair() {
   const group = (state.billGroups || []).find(g => g.id === selectedGroupId);
   if (!group || $('settleModal')?.hidden) return;
   const outstanding = calculateGroupBalance(group).settlements.find(s => s.from === $('settlePayer').value && s.to === $('settleReceiver').value);
-  if (!outstanding) { $('settleAmount').value = ''; $('settleAmount').removeAttribute('max'); return; }
-  $('settleAmount').value = outstanding.amount.toFixed(2);
-  $('settleAmount').max = outstanding.amount.toFixed(2);
+  // Suggestions are convenience only. Manual payments may be recorded when
+  // there is no outstanding settlement, e.g., advance payments or corrections.
+  $('settleAmount').value = outstanding ? outstanding.amount.toFixed(2) : '';
+  $('settleAmount').removeAttribute('max');
 }
 
+
+// Monthly bill expenses use a stable month-specific UUID, so simultaneous
+// clients cannot accidentally create duplicate charges. Source expense remains
+// the editable schedule; generated expenses are ordinary bill entries.
+function recurringUuid(source, month) {
+  const input = `${source}:${month}`;
+  let bytes = [];
+  for (let seed = 0; seed < 4; seed++) {
+    let h = (2166136261 ^ (seed * 0x9e3779b9)) >>> 0;
+    for (let i = 0; i < input.length; i++) { h ^= input.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    for (let b = 3; b >= 0; b--) bytes.push((h >>> (b*8)) & 255);
+  }
+  bytes[6] = (bytes[6] & 15) | 64; bytes[8] = (bytes[8] & 63) | 128;
+  const hex = bytes.map(v => v.toString(16).padStart(2,'0')).join('');
+  return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+}
+function dueRecurringExpenses(group, now = today()) {
+  const additions = [], seen = new Set((group.expenses||[]).map(e=>e.id));
+  for (const e of [...(group.expenses||[])]) {
+    const config = e.tripData?.recurring;
+    if (config?.frequency !== 'monthly' || !/^\d{4}-\d{2}-\d{2}$/.test(config.startDate||'')) continue;
+    const base = config.startDate;
+    const startYear = Number(base.slice(0,4)), startMonth = Number(base.slice(5,7)) - 1;
+    const untilYear = Number(now.slice(0,4)), untilMonth = Number(now.slice(5,7)) - 1;
+    // Limit catch-up to 120 months to guard corrupt data / runaway schedules.
+    const limit = Math.min(120, (untilYear-startYear)*12+untilMonth-startMonth);
+    for (let n=1;n<=limit;n++) {
+      const dt = new Date(Date.UTC(startYear, startMonth+n, 1));
+      const year = dt.getUTCFullYear(), month = dt.getUTCMonth();
+      const day = Math.min(Number(config.day)||1, new Date(Date.UTC(year,month+1,0)).getUTCDate());
+      const date = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      if (date>now) continue;
+      const id = recurringUuid(e.id, date.slice(0,7));
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const tripData = {...(e.tripData||{})}; delete tripData.recurring;
+      tripData.recurringInstance = {sourceId:e.id,month:date.slice(0,7)};
+      additions.push({...e,id,date,tripData});
+    }
+  }
+  return additions;
+}
+let recurringSyncBusy = false;
+async function syncBillRecurrences(group) {
+  if (!group || recurringSyncBusy) return;
+  const due = dueRecurringExpenses(group);
+  if (!due.length) return;
+  recurringSyncBusy = true;
+  try {
+    if (group.shared) {
+      if (!sb || mode !== 'cloud') return;
+      const { error } = await sb.from('bill_expenses').upsert(due.map(e => expenseRow(group.id,e)),{onConflict:'id',ignoreDuplicates:true});
+      if (error) { console.warn('Recurring bill charge not synced',error); return; }
+    }
+    const seen = new Set(group.expenses.map(e=>e.id));
+    due.forEach(e=>{if(!seen.has(e.id))group.expenses.push(e);});
+    persistGroup(group);renderBillDetail();
+  } finally { recurringSyncBusy=false; }
+}
 function renderBillDetail() {
   const group = (state.billGroups || []).find(g => g.id === selectedGroupId);
   if (!group) { closeBillDetail(); return; }
+  if (dueRecurringExpenses(group).length) queueMicrotask(() => syncBillRecurrences(group));
 
   if ($('splitPersonAvatar')) $('splitPersonAvatar').textContent = group.emoji || '🐶';
   if ($('splitPersonName')) $('splitPersonName').textContent = group.name;
@@ -1906,12 +1968,10 @@ function renderBillDetail() {
 
   if ($('splitTabExpenses')) $('splitTabExpenses').hidden = activeSplitTab !== 'expenses';
   if ($('splitTabBalances')) $('splitTabBalances').hidden = activeSplitTab !== 'balances';
-  if ($('splitTabHistory')) $('splitTabHistory').hidden = activeSplitTab !== 'history';
   setSeg('splitDetailTabs', activeSplitTab);
 
   if (activeSplitTab === 'expenses') renderBillExpensesList(group);
   else if (activeSplitTab === 'balances') renderBillBalancesTab(group);
-  else if (activeSplitTab === 'history') renderBillHistoryTab(group);
 
   // Keep the balance banner and settlement rows current even when the user
   // deletes/edits an expense from the Expenses tab. The next Balances visit
@@ -1946,7 +2006,7 @@ function renderBillExpensesList(group) {
         return `<div class="bill-expense-card bill-activity-row bill-payment-row" aria-label="Payment by ${esc(shortFor(group,pay.from))} to ${esc(shortFor(group,pay.to))}">
           <span class="activity-glyph payment-glyph" aria-hidden="true">✓</span>
           <div class="activity-copy"><strong>Payment</strong><small>${esc(shortFor(group,pay.from))} → ${esc(shortFor(group,pay.to))} · ${esc(pay.method||'Payment')}</small></div>
-          <span class="activity-amount is-payment">+${money(pay.amount)}</span>
+          <span class="activity-amount is-payment">+${money(pay.amount)}</span><button type="button" class="del-settle-btn payment-row-remove" data-id="${esc(pay.id)}" aria-label="Delete recorded payment" title="Delete payment">×</button>
         </div>`;
       }
       const exp=row.exp;
@@ -1954,7 +2014,7 @@ function renderBillExpensesList(group) {
       const type=detail ? (detail.category==='delivery'?'Food delivery':detail.category==='food'?'Individual':'Group') : 'Shared';
       return `<div class="bill-expense-card edit-split-exp-btn bill-activity-row" data-id="${esc(exp.id)}" role="button" tabindex="0" aria-label="Edit ${esc(exp.title)}">
         <span class="activity-glyph expense-glyph" aria-hidden="true">−</span>
-        <div class="activity-copy"><strong>${esc(exp.title)}</strong><small>${esc(type)} · Paid by ${esc(shortFor(group,exp.paidBy))}</small></div>
+        <div class="activity-copy"><strong>${esc(exp.title)}</strong><small>${esc(type)} · Paid by ${esc(shortFor(group,exp.paidBy))}${exp.tripData?.recurring ? " · ↻ Monthly" : exp.tripData?.recurringInstance ? " · ↻ Recurring" : ""}</small></div>
         <span class="activity-amount is-expense">−${money(exp.amount)}</span>
       </div>`;
     }).join('')}</div>`;
@@ -1971,10 +2031,10 @@ function renderBillBalancesTab(group) {
       status.textContent = 'Balances need review';
       status.className = 'neg-text';
       sub.textContent = 'Some expense shares do not match their totals';
-    } else if (myNet < -0.01) {
+    } else if (myNet < -0.005) {
       status.textContent = `You owe ${money(Math.abs(myNet))}`;
       status.className = 'neg-text'; sub.textContent = 'Your overall net balance in this group';
-    } else if (myNet > 0.01) {
+    } else if (myNet > 0.005) {
       status.textContent = `Owed ${money(Math.abs(myNet))}`;
       status.className = 'pos-text'; sub.textContent = 'Your overall net balance in this group';
     } else {
@@ -2725,7 +2785,7 @@ function bind() {
   on('txSearch', 'keydown', e => { if (e.key === 'Escape') { e.preventDefault(); toggleExpenseSearch(false); } });
   on('txSearch', 'input', () => { txSearch = $('txSearch').value.trim().toLowerCase(); expanded.tx = false; renderExpenses(); });
 
-  on('splitHistoryList', 'click', async e => {
+  on('splitExpensesGroupedList', 'click', async e => {
     const b = e.target.closest('.del-settle-btn'); if (!b) return;
     const group = state.billGroups.find(g => g.id === selectedGroupId);
     if (!group || !confirm('Delete this recorded payment?')) return;
@@ -3081,10 +3141,10 @@ function bind() {
 
   on('splitDetailTabs', 'click', e => {
     const b = e.target.closest('button'); if (!b) return;
-    const order = ['expenses', 'balances', 'history'];
+    const order = ['expenses', 'balances'];
     const was = activeSplitTab;
     activeSplitTab = b.dataset.v; renderBillDetail();
-    if (was !== activeSplitTab) slideIn($({ expenses: 'splitTabExpenses', balances: 'splitTabBalances', history: 'splitTabHistory' }[activeSplitTab]), order.indexOf(activeSplitTab) > order.indexOf(was) ? 1 : -1);
+    if (was !== activeSplitTab) slideIn($({ expenses: 'splitTabExpenses', balances: 'splitTabBalances' }[activeSplitTab]), order.indexOf(activeSplitTab) > order.indexOf(was) ? 1 : -1);
   });
 
   function renderParticipantToggleGrid(group) {
@@ -3129,6 +3189,7 @@ function bind() {
       $('splitExpAmount').value = '';
       if (group.trip) updateTripFormMode();
       $('splitExpDate').value = today();
+      if ($('splitExpRepeat')) $('splitExpRepeat').checked = false;
 
       $('splitExpPaidBy').innerHTML = paidByOptions(group);
       const me = myKeyFor(group);
@@ -3163,6 +3224,11 @@ function bind() {
       if (!tripData) return;
     }
     if (!group.trip && !selectedSplitParticipants.length) { toast('Select at least one person.'); return; }
+    const repeats = !!$('splitExpRepeat')?.checked;
+    const recurring = repeats ? { frequency: 'monthly', startDate: dateVal, day: Number(dateVal.slice(-2)) } : null;
+    // The existing trip_data JSON column holds recurrence metadata for both
+    // Standard and Detailed bills; no table or migration is required.
+    tripData = { ...(tripData || {}), ...(recurring ? { recurring } : {}) };
     const exp = { id: existing ? existing.id : uid(), title, amount, paidBy, participants: group.trip ? Object.keys(tripData.shares) : [...selectedSplitParticipants], date: dateVal, tripData };
 
     if (group.shared) {
@@ -3189,6 +3255,7 @@ function bind() {
       $('splitExpAmount').value = exp.amount;
       if (group.trip) updateTripFormMode();
       $('splitExpDate').value = exp.date;
+      if ($('splitExpRepeat')) $('splitExpRepeat').checked = !!exp.tripData?.recurring;
 
       $('splitExpPaidBy').innerHTML = paidByOptions(group);
       $('splitExpPaidBy').value = exp.paidBy;
@@ -3262,11 +3329,9 @@ function bind() {
 
     if (from === to) { toast('Payer and receiver cannot be the same person.'); return; }
     if (!(amount > 0)) return;
-    const outstanding = calculateGroupBalance(group).settlements.find(s => s.from === from && s.to === to);
-    if (!outstanding) { toast('This payment is no longer outstanding. Refresh and try again.'); return; }
-    if (Math.round(amount * 100) > Math.round(outstanding.amount * 100)) {
-      toast('Payment cannot exceed the remaining amount owed.'); return;
-    }
+    // Do not require an outstanding suggestion: payments are manually entered.
+    // Overpayments become an opposite-direction balance, never vanish.
+    if (!group.participants.some(p => p.key === from) || !group.participants.some(p => p.key === to)) { toast('Choose valid members.'); return; }
 
     const s = { id: uid(), from, to, amount, method, note, date: today() };
     if (group.shared) {
@@ -3278,7 +3343,7 @@ function bind() {
     if (!group.settlements) group.settlements = [];
     group.settlements.push(s);
     persistGroup(group);
-    $('settleModal').hidden = true; renderBillDetail(); if (activeSplitTab !== 'history') renderBillHistoryTab(group); toast(`Recorded ${money(amount)}. Balances updated.`);
+    $('settleModal').hidden = true; renderBillDetail();  toast(`Recorded ${money(amount)}. Balances updated.`);
   });
 
   on('methodChips', 'click', e => {
