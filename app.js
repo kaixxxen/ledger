@@ -288,7 +288,8 @@ function normalize(raw) {
       location: String(p.location||'').slice(0,200),
       transport: String(p.transport||'').slice(0,120),
       cost: Math.max(0,Math.round((Number(p.cost)||0)*100)/100),
-      notes: String(p.notes||'').slice(0,1500)
+      notes: String(p.notes||'').slice(0,1500),
+      photoUrls: (Array.isArray(p.photoUrls)?p.photoUrls:[]).map(imageHttpUrl).filter(Boolean).slice(0,12)
     }))
   }));
 
@@ -2284,6 +2285,7 @@ function setSync(text) { const el = $('syncState'); if (el) el.textContent = tex
 // Shared bills live in their own server tables, so they are never copied into the private ledger_data row.
 function ledgerSnapshot() {
   const snap = JSON.parse(JSON.stringify(state));
+  snap.journeys=(snap.journeys||[]).filter(j=>!j.shared);
   snap.billGroups = (snap.billGroups || []).filter(g => !g.shared);
   return snap;
 }
@@ -2351,6 +2353,9 @@ async function enterCloud(u) {
   await pull();
   await loadProfile();
   await loadSharedBills();
+  await loadSharedJourneys();
+  clearInterval(journeySyncTimer);
+  journeySyncTimer=setInterval(()=>{if(mode==='cloud'&&!document.hidden)loadSharedJourneys();},30000);
   startSharedSync();
 }
 
@@ -3404,8 +3409,136 @@ function registerServiceWorker() {
 
 // v60 — Journeys: a planned itinerary with estimates, independent from expenses.
 let activeJourneyId = null;
+let sharedJourneys = [];
+let journeyFiles = [];
+let journeyMembers = [];
+let journeySyncTimer = null;
+let journeySharedReady = false;
+const ROUTE_BUCKET = 'ledger-route-files';
+const CLOUD_FILE_LIMIT = 15 * 1024 * 1024;
+const uploadMime = new Set(['image/jpeg','image/png','image/webp','image/gif','application/pdf',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.ms-powerpoint','application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/msword','text/plain','application/zip']);
+function journeysAll(){return [...(state.journeys||[]), ...sharedJourneys];}
+function isSharedJourney(j){return !!j?.shared;}
+function journeyOwner(j){return !j?.shared || (!!user && j.ownerId === user.id);}
+function imageHttpUrl(value){try{const u=new URL(value);return u.protocol==='https:'?u.href:'';}catch{return '';}}
+function safeFileName(name){return String(name||'attachment').replace(/[^a-zA-Z0-9._-]/g,'_').slice(0,100);}
+function stopPhotoUrls(p){return Array.isArray(p.photoUrls)?p.photoUrls.filter(Boolean).slice(0,12):[];}
+async function loadSharedJourneys(){
+  if(mode!=='cloud'||!sb||!user)return;
+  const {data,error}=await sb.from('ledger_routes').select('id,owner_id,data,updated_at').order('updated_at',{ascending:false});
+  if(error){console.warn('Routes sharing is not set up:',error.message);journeySharedReady=false;return;}
+  sharedJourneys=(data||[]).map(row=>({...(row.data||{}),id:row.id,ownerId:row.owner_id,shared:true}));
+  journeySharedReady=true;
+  if(activeJourneyId&&!journeyById(activeJourneyId))activeJourneyId=null;
+  if(currentPage==='journeys')renderJourneys();
+}
+async function loadJourneyExtras(j){
+  journeyFiles=[];journeyMembers=[];
+  if(!j?.shared||!sb)return;
+  const [a,b]=await Promise.all([
+    sb.from('ledger_route_files').select('id,route_id,stop_id,display_name,mime_type,storage_path,owner_id,assigned_user_id,created_at').eq('route_id',j.id).order('created_at',{ascending:false}),
+    sb.from('ledger_route_members').select('user_id,display_name,ledger_code').eq('route_id',j.id)]);
+  if(a.error)toast('Could not load files: '+a.error.message);else journeyFiles=a.data||[];
+  if(b.error)toast('Could not load travelers: '+b.error.message);else journeyMembers=b.data||[];
+  renderJourneyExtras();
+}
+async function persistJourney(j){
+  if(!j.shared){save();return true;}
+  if(!sb||!user){toast('Sign in to edit shared routes');return false;}
+  const data={title:j.title,destination:j.destination,startDate:j.startDate,notes:j.notes,stops:j.stops,links:j.links||[]};
+  const {error}=await sb.from('ledger_routes').update({data,updated_at:new Date().toISOString()}).eq('id',j.id);
+  if(error){toast('Could not save shared route: '+error.message);await loadSharedJourneys();return false;}
+  return true;
+}
+function journeyFileRows(stopId){
+  return journeyFiles.filter(f=>stopId===undefined||f.stop_id===stopId).map(f=>{
+    const name=esc(f.display_name), assigned=journeyMembers.find(m=>m.user_id===f.assigned_user_id),stop=journeyById(activeJourneyId)?.stops.find(p=>p.id===f.stop_id);
+    return `<div class="route-file-row"><span class="route-file-name">📎 ${name}<small>${f.assigned_user_id?'Private · '+esc(assigned?.display_name||'Assigned traveler'):'Shared with everyone'}${stop?' · '+esc(stop.title):''}</small></span><button type="button" class="secondary" data-route-file-open="${esc(f.id)}">Open</button>${user&&f.owner_id===user.id||journeyOwner(journeyById(activeJourneyId))?`<button class="secondary" type="button" data-route-file-remove="${esc(f.id)}">Remove</button>`:''}</div>`;
+  }).join('');
+}
+function renderJourneyExtras(){
+  const j=journeyById(activeJourneyId);if(!j)return;
+  const panel=$('journeyCollab');if(!panel)return;
+  const shared=!!j.shared;
+  panel.hidden=false;
+  $('journeyShareBtn').hidden=shared||mode!=='cloud'||!sb;
+  $('journeySharingStatus').textContent=shared?'Shared · '+(journeyOwner(j)?'You manage this route':'Member access'):'Private route · saved to your Ledger';
+  $('journeyShareHint').textContent=mode==='cloud'?'Share a route to invite people by Ledger ID and securely attach files.':'Sign in to sync routes and upload shared files.';
+  $('journeyInviteForm').hidden=!shared||!journeyOwner(j);
+  $('journeyMemberList').innerHTML=shared?(journeyMembers.map(m=>`<div class="route-member"><span>👤 ${esc(m.display_name||'Ledger user')} ${m.ledger_code?'· #'+esc(m.ledger_code):''} ${m.user_id===j.ownerId?'· Owner':''}</span>${journeyOwner(j)&&m.user_id!==j.ownerId?`<button type="button" class="secondary" data-route-remove-member="${esc(m.user_id)}">Remove</button>`:''}</div>`).join('')||'<p class="fine">Loading travelers…</p>'):'<p class="fine">Share this route to manage travelers.</p>';
+  $('journeyFilesSection').hidden=!shared;
+  $('journeyFiles').innerHTML=journeyFileRows()||'<p class="fine">No shared files yet. Add an itinerary, PDF, PowerPoint, or exported Canva file.</p>';
+  $('journeyDocTraveler').innerHTML='<option value="">All route members</option>'+journeyMembers.map(m=>`<option value="${esc(m.user_id)}">${esc(m.display_name||'Traveler')}${m.user_id===j.ownerId?' (owner)':''}</option>`).join('');
+  $('journeyDocStop').innerHTML='<option value="">General itinerary / documents</option>'+(j.stops||[]).map(p=>`<option value="${esc(p.id)}">${esc(p.title)}</option>`).join('');
+  $('journeyLinkForm').hidden=!shared||!journeyOwner(j);
+  $('journeyLinks').innerHTML=(j.links||[]).map(l=>{
+    const url=imageHttpUrl(l.url);if(!url)return '';
+    return `<div class="route-file-row"><span class="route-file-name">🔗 ${esc(l.title||'Link')}</span><a class="route-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">Open</a>${journeyOwner(j)?`<button type="button" class="secondary" data-route-link-remove="${esc(l.id)}">Remove</button>`:''}</div>`;
+  }).join('')||'<p class="fine">No links yet. Keep a Canva or booking link handy for the group.</p>';
+  // Non-owners can share files or attach files addressed only to themselves.
+  if(!journeyOwner(j))Array.from($('journeyDocTraveler').options).forEach(o=>{if(o.value&&o.value!==user?.id)o.remove();});
+  const selected=$('stopPhotoGallery'); if(selected){
+    const stop=j.stops.find(p=>p.id===$('stopId').value);
+    const photos=stopPhotoUrls(stop);
+    selected.innerHTML=photos.map((url,i)=>`<div class="route-photo"><img src="${esc(url)}" loading="lazy" alt="Destination photo"><button type="button" data-route-photo-remove="${i}" aria-label="Remove photo">×</button></div>`).join('');
+    const attached=journeyFiles.filter(f=>f.stop_id===stop?.id&&f.mime_type?.startsWith('image/'));
+    selected.innerHTML+=attached.map(f=>`<button class="route-photo route-photo-file" type="button" data-route-file-open="${esc(f.id)}">📷 ${esc(f.display_name)}</button>`).join('');
+    if(sb)attached.forEach(async f=>{
+      const response=await sb.storage.from(ROUTE_BUCKET).createSignedUrl(f.storage_path,120);
+      if(!response.error&&response.data?.signedUrl){
+        const el=Array.from(selected.querySelectorAll('[data-route-file-open]')).find(x=>x.dataset.routeFileOpen===f.id);
+        if(el){el.textContent='';const img=document.createElement('img');img.src=response.data.signedUrl;img.alt=f.display_name;img.loading='lazy';el.appendChild(img);}
+      }
+    });
+  }
+}
+async function signedFileOpen(id){
+  const f=journeyFiles.find(x=>x.id===id);if(!f||!sb)return;
+  // Open an empty tab during the user's click, before awaiting the network.
+  // Otherwise iOS Safari blocks the signed URL as an unsolicited popup.
+  const tab=window.open('about:blank','_blank');
+  if(tab){tab.opener=null;tab.document.title='Opening document…';}
+  const {data,error}=await sb.storage.from(ROUTE_BUCKET).createSignedUrl(f.storage_path,60);
+  if(error||!data?.signedUrl){if(tab)tab.close();toast('Access denied or file unavailable');return;}
+  // Private Storage object; URL expires after 60 seconds.
+  if(tab)tab.location.replace(data.signedUrl);
+  else window.location.assign(data.signedUrl);
+}
+async function uploadJourneyFile(){
+  const j=journeyById(activeJourneyId),el=$('journeyDocFile'),file=el?.files?.[0];
+  if(!j?.shared||!file||!sb||!user){toast('Choose a file on a shared route');return;}
+  if(file.size>CLOUD_FILE_LIMIT){toast('Maximum file size is 15 MB');return;}
+  const ext=(file.name.split('.').pop()||'').toLowerCase();
+  const allowedExt=['jpg','jpeg','png','webp','gif','pdf','pptx','ppt','docx','doc','txt','zip'];
+  if(!allowedExt.includes(ext)||!uploadMime.has(file.type)&&file.type!==''){toast('Unsupported file type');return;}
+  const assigned=$('journeyDocTraveler').value||null;
+  if(assigned&&!journeyMembers.some(m=>m.user_id===assigned)){toast('Choose a member of this route');return;}
+  if(assigned&&assigned!==user.id&&!journeyOwner(j)){toast('Only the owner can assign another traveler');return;}
+  const path=`${j.id}/${assigned?'private':'shared'}/${assigned||'all'}/${uid()}.${ext}`;
+  const btn=$('journeyUploadBtn');btn.disabled=true;btn.textContent='Uploading…';
+  try{
+    const up=await sb.storage.from(ROUTE_BUCKET).upload(path,file,{contentType:file.type||'application/octet-stream',upsert:false});
+    if(up.error)throw up.error;
+    const row={route_id:j.id,stop_id:$('journeyDocStop').value||null,display_name:file.name.slice(0,180),mime_type:file.type||'application/octet-stream',storage_path:path,owner_id:user.id,assigned_user_id:assigned};
+    const ins=await sb.from('ledger_route_files').insert(row);
+    if(ins.error){await sb.storage.from(ROUTE_BUCKET).remove([path]);throw ins.error;}
+    el.value='';$('journeyDocLabel').value='';toast('File shared securely');await loadJourneyExtras(j);
+  }catch(e){console.error(e);toast('Upload failed: '+e.message);}finally{btn.disabled=false;btn.textContent='Upload file';}
+}
+async function shareJourney(j){
+  if(mode!=='cloud'||!sb||!user){toast('Sign in first to share a route');return;}
+  const data={title:j.title,destination:j.destination,startDate:j.startDate,notes:j.notes,stops:j.stops,links:j.links||[]};
+  const res=await sb.from('ledger_routes').insert({id:j.id,owner_id:user.id,data}).select('id').single();
+  if(res.error){toast('Could not share route: '+res.error.message);return;}
+  state.journeys=state.journeys.filter(x=>x.id!==j.id);save();
+  await loadSharedJourneys();await loadJourneyExtras(journeyById(j.id));toast('Route is ready to share. Add travelers by Ledger ID.');
+}
+
 const JTYPE = {place:'Place',transport:'Transport',activity:'Activity',stay:'Stay',food:'Food'};
-function journeyById(id){return (state.journeys||[]).find(j=>j.id===id);}
+function journeyById(id){return journeysAll().find(j=>j.id===id);}
 function showJourneyEditor(open){const el=$('journeyEditor');if(el)el.hidden=!open;}
 function openJourneyForm(j=null){
   location.hash='#journeys';
@@ -3430,12 +3563,19 @@ function openStopForm(stop=null){
   $('stopTransport').value=stop?.transport||'';
   $('stopCost').value=stop?.cost??'';
   $('stopNotes').value=stop?.notes||'';
+  $('stopPhotoUrl').value='';
+  $('stopTravelersWrap').hidden=!j.shared;
+  const assigned=Array.isArray(stop?.travelerIds)?stop.travelerIds:[];
+  $('stopTravelers').innerHTML=journeyMembers.map(m=>`<label class="route-traveler-choice"><input type="checkbox" value="${esc(m.user_id)}" ${assigned.includes(m.user_id)?'checked':''} ${!journeyOwner(j)?'disabled':''}><span>${esc(m.display_name||'Traveler')}</span></label>`).join('');
+  $('stopForm').querySelectorAll('input,textarea,select').forEach(el=>{if(!['stopId','stopPhotoUrl'].includes(el.id))el.disabled=!journeyOwner(j);});
+  $('stopSave').hidden=!journeyOwner(j);$('stopDelete').hidden=!journeyOwner(j);
+  renderJourneyExtras();
   $('stopEditor').hidden=false;
   $('stopTitle').focus();
 }
 function renderJourneys(){
   const list=$('journeyList'),detail=$('journeyDetail');if(!list||!detail)return;
-  const journeys=state.journeys||[];
+  const journeys=journeysAll();
   if(activeJourneyId&&!journeyById(activeJourneyId))activeJourneyId=null;
   $('journeyNewButton').hidden=!!activeJourneyId;
   $('journeyOverview').hidden=!!activeJourneyId;
@@ -3443,7 +3583,7 @@ function renderJourneys(){
   if(!activeJourneyId){
     list.innerHTML=journeys.length?journeys.map(j=>{
       const total=j.stops.reduce((n,p)=>n+p.cost,0);
-      return `<button type="button" class="journey-tile" data-journey-open="${esc(j.id)}"><span class="journey-tile-icon" aria-hidden="true">⌁</span><span class="journey-tile-info"><strong>${esc(j.title)}</strong><small>${esc([j.destination,j.startDate].filter(Boolean).join(' · ')||'Plan your next route')} · ${j.stops.length} ${j.stops.length===1?'stop':'stops'}</small></span><span class="journey-tile-cost">${money(total)}<small>estimate</small></span><span aria-hidden="true">›</span></button>`;
+      return `<button type="button" class="journey-tile" data-journey-open="${esc(j.id)}"><span class="journey-tile-icon" aria-hidden="true">⌁</span><span class="journey-tile-info"><strong>${esc(j.title)}</strong><small>${esc([j.destination,j.startDate].filter(Boolean).join(' · ')||'Plan your next route')} · ${j.stops.length} ${j.stops.length===1?'stop':'stops'} ${j.shared?'· Shared':''}</small></span><span class="journey-tile-cost">${money(total)}<small>estimate</small></span><span aria-hidden="true">›</span></button>`;
     }).join(''):'<div class="journey-empty"><strong>Your next journey starts here.</strong><p>Add places, transport, dates, and estimated costs—all in one plan.</p></div>';
     return;
   }
@@ -3454,41 +3594,116 @@ function renderJourneys(){
   $('journeyStopsCount').textContent=`${j.stops.length} ${j.stops.length===1?'stop':'stops'}`;
   $('journeyDetailNotes').textContent=j.notes||'';
   $('journeyDetailNotes').hidden=!j.notes;
+  $('journeyEdit').hidden=!journeyOwner(j);$('journeyDelete').textContent=journeyOwner(j)?'Delete':'Leave';
+  $('journeyAddStop').hidden=!journeyOwner(j);
+  renderJourneyExtras();
   const ordered=j.stops.slice().sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999')||(a.time||'99').localeCompare(b.time||'99'));
   $('journeyStops').innerHTML=ordered.length?ordered.map((p,i)=>{
     const dateLabel=[p.date,p.time+(p.endTime?`–${p.endTime}`:'')].filter(Boolean).join(' · ');
     const summary=[p.location,p.transport].filter(Boolean).join(' · ');
     const last=i>0&&ordered[i-1].date!==p.date;
-    return `${i===0||last?`<div class="journey-day-label">${esc(p.date||'Unscheduled')}</div>`:''}<article class="journey-stop" data-stop-id="${esc(p.id)}"><span class="journey-type-dot ${esc(p.type)}" aria-hidden="true"></span><div class="journey-stop-main"><div class="journey-stop-meta">${esc(JTYPE[p.type]||'Place')} · ${esc(dateLabel||'Time not set')}</div><strong>${esc(p.title)}</strong>${summary?`<small>${esc(summary)}</small>`:''}${p.notes?`<p>${esc(p.notes)}</p>`:''}</div><div class="journey-stop-right"><strong>${money(p.cost)}</strong><button type="button" class="journey-stop-edit" data-stop-edit="${esc(p.id)}" aria-label="Edit ${esc(p.title)}">Edit</button></div></article>`;
+    return `${i===0||last?`<div class="journey-day-label">${esc(p.date||'Unscheduled')}</div>`:''}<article class="journey-stop" data-stop-id="${esc(p.id)}"><span class="journey-type-dot ${esc(p.type)}" aria-hidden="true"></span><div class="journey-stop-main"><div class="journey-stop-meta">${esc(JTYPE[p.type]||'Place')} · ${esc(dateLabel||'Time not set')}</div><strong>${esc(p.title)}</strong>${summary?`<small>${esc(summary)}</small>`:''}${p.notes?`<p>${esc(p.notes)}</p>`:''}${Array.isArray(p.travelerIds)&&p.travelerIds.length?`<small>👤 ${esc(p.travelerIds.map(id=>journeyMembers.find(m=>m.user_id===id)?.display_name||'Traveler').join(', '))}</small>`:''}${stopPhotoUrls(p).length?`<div class="route-stop-photos">${stopPhotoUrls(p).map(url=>`<img src="${esc(url)}" alt="${esc(p.title)}" loading="lazy">`).join('')}</div>`:''}${j.shared&&journeyFiles.some(f=>f.stop_id===p.id)?`<small>📎 ${journeyFiles.filter(f=>f.stop_id===p.id).length} attachment(s) · Open Edit to view</small>`:''}</div><div class="journey-stop-right"><strong>${money(p.cost)}</strong><button type="button" class="journey-stop-edit" data-stop-edit="${esc(p.id)}" aria-label="View ${esc(p.title)}">${journeyOwner(j)?'Details':'View'}</button></div></article>`;
   }).join(''):'<div class="journey-empty">No stops yet. Add your first place or transport.</div>';
 }
 function initJourneys(){
   $('journeyNewButton')?.addEventListener('click',()=>openJourneyForm());
   $('journeyCancel')?.addEventListener('click',()=>showJourneyEditor(false));
-  $('journeyForm')?.addEventListener('submit',e=>{
+  $('journeyForm')?.addEventListener('submit',async e=>{
     e.preventDefault();const title=$('journeyTitle').value.trim();if(!title)return;
     const old=journeyById($('journeyId').value);
-    const j={id:old?.id||uid(),title,destination:$('journeyDestination').value.trim(),startDate:$('journeyStartDate').value,notes:$('journeyNotes').value.trim(),stops:old?.stops||[]};
+    const j={id:old?.id||uid(),title,destination:$('journeyDestination').value.trim(),startDate:$('journeyStartDate').value,notes:$('journeyNotes').value.trim(),stops:old?.stops||[],...(old?.shared?{shared:true,ownerId:old.ownerId}:{})};
     if(old)Object.assign(old,j);else state.journeys.push(j);
-    activeJourneyId=j.id;save();showJourneyEditor(false);renderJourneys();toast('Journey saved');
+    activeJourneyId=j.id;
+    if(j.shared){if(!await persistJourney(j))return;}else save();
+    showJourneyEditor(false);renderJourneys();toast('Journey saved');
   });
-  $('journeyList')?.addEventListener('click',e=>{const b=e.target.closest('[data-journey-open]');if(!b)return;activeJourneyId=b.dataset.journeyOpen;renderJourneys();});
+  $('journeyList')?.addEventListener('click',async e=>{const b=e.target.closest('[data-journey-open]');if(!b)return;activeJourneyId=b.dataset.journeyOpen;renderJourneys();await loadJourneyExtras(journeyById(activeJourneyId));renderJourneys();});
   $('journeyBack')?.addEventListener('click',()=>{activeJourneyId=null;$('stopEditor').hidden=true;renderJourneys();});
   $('journeyEdit')?.addEventListener('click',()=>openJourneyForm(journeyById(activeJourneyId)));
-  $('journeyDelete')?.addEventListener('click',()=>{const j=journeyById(activeJourneyId);if(!j||!confirm(`Delete journey “${j.title}” and its stops?`))return;state.journeys=state.journeys.filter(x=>x.id!==j.id);activeJourneyId=null;save();renderJourneys();toast('Journey deleted');});
+  $('journeyDelete')?.addEventListener('click',async()=>{
+    const j=journeyById(activeJourneyId);if(!j)return;
+    if(!confirm(j.shared&&!journeyOwner(j)?`Leave route “${j.title}”?`:`Delete route “${j.title}” and its stops?`))return;
+    if(j.shared){
+      if(journeyOwner(j)){
+        const docs=await sb.from('ledger_route_files').select('storage_path').eq('route_id',j.id);
+        if(docs.error){toast('Could not list route files: '+docs.error.message);return;}
+        const paths=(docs.data||[]).map(f=>f.storage_path);
+        if(paths.length){const rm=await sb.storage.from(ROUTE_BUCKET).remove(paths);if(rm.error){toast('Could not remove files: '+rm.error.message);return;}}
+      }
+      const q=journeyOwner(j)?sb.from('ledger_routes').delete().eq('id',j.id):sb.from('ledger_route_members').delete().eq('route_id',j.id).eq('user_id',user.id);
+      const {error}=await q;if(error){toast(error.message);return;}await loadSharedJourneys();}
+    else {state.journeys=state.journeys.filter(x=>x.id!==j.id);save();}
+    activeJourneyId=null;renderJourneys();toast('Route updated');
+  });
   $('journeyAddStop')?.addEventListener('click',()=>openStopForm());
   $('stopCancel')?.addEventListener('click',()=>{$('stopEditor').hidden=true;});
-  $('stopForm')?.addEventListener('submit',e=>{
+  $('stopForm')?.addEventListener('submit',async e=>{
     e.preventDefault();const j=journeyById(activeJourneyId);if(!j)return;
     const title=$('stopTitle').value.trim();if(!title)return;
     const cost=Number($('stopCost').value||0);if(!Number.isFinite(cost)||cost<0){toast('Enter a valid estimated cost');return;}
-    const p={id:$('stopId').value||uid(),title,type:$('stopType').value,date:$('stopDate').value,time:$('stopTime').value,endTime:$('stopEndTime').value,location:$('stopLocation').value.trim(),transport:$('stopTransport').value.trim(),cost:Math.round(cost*100)/100,notes:$('stopNotes').value.trim()};
+    const p={id:$('stopId').value||uid(),title,type:$('stopType').value,date:$('stopDate').value,time:$('stopTime').value,endTime:$('stopEndTime').value,location:$('stopLocation').value.trim(),transport:$('stopTransport').value.trim(),cost:Math.round(cost*100)/100,notes:$('stopNotes').value.trim(),travelerIds:Array.from($('stopTravelers').querySelectorAll('input:checked')).map(el=>el.value).filter(id=>journeyMembers.some(m=>m.user_id===id))};
     if(p.time&&p.endTime&&p.endTime<p.time){toast('End time cannot be earlier than start time');return;}
-    const old=j.stops.find(x=>x.id===p.id);if(old)Object.assign(old,p);else j.stops.push(p);
-    save();$('stopEditor').hidden=true;renderJourneys();toast('Stop saved');
+    if(!journeyOwner(j))return;
+    const old=j.stops.find(x=>x.id===p.id);p.photoUrls=old?.photoUrls||[];
+    const url=imageHttpUrl($('stopPhotoUrl').value.trim());
+    if($('stopPhotoUrl').value.trim()&&!url){toast('Use a direct HTTPS image URL');return;}
+    if(url&&!p.photoUrls.includes(url))p.photoUrls.push(url);
+    if(old)Object.assign(old,p);else j.stops.push(p);
+    if(!await persistJourney(j))return;
+    $('stopEditor').hidden=true;renderJourneys();toast('Stop saved');
   });
-  $('journeyStops')?.addEventListener('click',e=>{const b=e.target.closest('[data-stop-edit]');if(!b)return;const j=journeyById(activeJourneyId);const p=j?.stops.find(x=>x.id===b.dataset.stopEdit);if(p)openStopForm(p);});
-  $('stopDelete')?.addEventListener('click',()=>{const j=journeyById(activeJourneyId),id=$('stopId').value;if(!j||!id)return;if(!confirm('Delete this stop?'))return;j.stops=j.stops.filter(p=>p.id!==id);save();$('stopEditor').hidden=true;renderJourneys();toast('Stop deleted');});
+  $('journeyStops')?.addEventListener('click',e=>{const b=e.target.closest('[data-stop-id]');if(!b)return;const j=journeyById(activeJourneyId);const p=j?.stops.find(x=>x.id===b.dataset.stopId);if(p)openStopForm(p);});
+  $('stopDelete')?.addEventListener('click',async()=>{const j=journeyById(activeJourneyId),id=$('stopId').value;if(!j||!id)return;if(!confirm('Delete this stop?'))return;j.stops=j.stops.filter(p=>p.id!==id);await persistJourney(j);$('stopEditor').hidden=true;renderJourneys();toast('Stop deleted');});
+  $('journeyShareBtn')?.addEventListener('click',()=>{const j=journeyById(activeJourneyId);if(j)shareJourney(j);});
+  $('journeyInviteForm')?.addEventListener('submit',async e=>{
+    e.preventDefault();const j=journeyById(activeJourneyId),code=parseLedgerId($('journeyInviteId').value);
+    if(!j?.shared||!journeyOwner(j))return;
+    if(!code){toast('Enter a valid Ledger ID, e.g. ABC-123456');return;}
+    const {error}=await sb.rpc('ledger_route_invite',{p_route_id:j.id,p_ledger_code:code});
+    if(error){toast('Could not add traveler: '+error.message);return;}
+    $('journeyInviteId').value='';await loadJourneyExtras(j);toast('Traveler added to route');
+  });
+  $('journeyMemberList')?.addEventListener('click',async e=>{
+    const b=e.target.closest('[data-route-remove-member]');if(!b)return;
+    const j=journeyById(activeJourneyId);if(!j?.shared||!journeyOwner(j))return;
+    if(!confirm('Remove this traveler? They will lose access to this route and their private files.'))return;
+    const {error}=await sb.from('ledger_route_members').delete().eq('route_id',j.id).eq('user_id',b.dataset.routeRemoveMember);
+    if(error){toast(error.message);return;}await loadJourneyExtras(j);
+  });
+  $('journeyUploadBtn')?.addEventListener('click',uploadJourneyFile);
+  $('journeyLinkForm')?.addEventListener('submit',async e=>{
+    e.preventDefault();const j=journeyById(activeJourneyId),url=imageHttpUrl($('journeyLinkUrl').value.trim());
+    if(!j?.shared||!journeyOwner(j))return;
+    if(!url){toast('Use an HTTPS link');return;}
+    j.links ||= [];
+    j.links.push({id:uid(),title:$('journeyLinkTitle').value.trim().slice(0,100)||'Shared link',url});
+    if(!await persistJourney(j)){j.links.pop();return;}
+    $('journeyLinkForm').reset();renderJourneyExtras();toast('Link added');
+  });
+  document.getElementById('page-journeys')?.addEventListener('click',async e=>{
+    const open=e.target.closest('[data-route-file-open]');if(open){await signedFileOpen(open.dataset.routeFileOpen);return;}
+    const rm=e.target.closest('[data-route-file-remove]');if(rm){
+      const f=journeyFiles.find(x=>x.id===rm.dataset.routeFileRemove);if(!f||!confirm('Remove this attachment?'))return;
+      const rmObj=await sb.storage.from(ROUTE_BUCKET).remove([f.storage_path]);
+      if(rmObj.error){toast('Could not remove file: '+rmObj.error.message);return;}
+      const d=await sb.from('ledger_route_files').delete().eq('id',f.id);
+      if(d.error){toast(d.error.message);return;}
+      await loadJourneyExtras(journeyById(activeJourneyId));return;
+    }
+    const link=e.target.closest('[data-route-link-remove]');if(link){
+      const j=journeyById(activeJourneyId);if(!j?.shared||!journeyOwner(j))return;
+      j.links=(j.links||[]).filter(x=>x.id!==link.dataset.routeLinkRemove);
+      if(await persistJourney(j))renderJourneyExtras();return;
+    }
+    const photo=e.target.closest('[data-route-photo-remove]');if(photo){
+      const j=journeyById(activeJourneyId),stop=j?.stops.find(x=>x.id===$('stopId').value);
+      if(!stop||!journeyOwner(j))return;
+      stop.photoUrls=stopPhotoUrls(stop).filter((_,i)=>i!==Number(photo.dataset.routePhotoRemove));
+      await persistJourney(j);renderJourneyExtras();renderJourneys();
+    }
+  });
+  $('journeyRefresh')?.addEventListener('click',async()=>{await loadSharedJourneys();const j=journeyById(activeJourneyId);if(j)await loadJourneyExtras(j);renderJourneys();toast('Routes refreshed');});
+
 }
 
 async function boot() {
