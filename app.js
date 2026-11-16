@@ -649,10 +649,15 @@ function setGlobalActionsOpen(open) {
   if (!menu || !toggle) return;
   clearTimeout(globalActionsCloseTimer);
   const inBill = currentPage === 'split' && !!selectedGroupId && !!$('splitDetailView') && !$('splitDetailView').hidden;
+  const inRoute = currentPage === 'journeys' && !!activeJourneyId && !!$('journeyDetail') && !$('journeyDetail').hidden;
   if ($('globalAddToBill')) $('globalAddToBill').hidden = !inBill;
   if ($('globalRecordPayment')) $('globalRecordPayment').hidden = !inBill;
+  if ($('globalRouteTicket')) $('globalRouteTicket').hidden = !inRoute;
+  if ($('globalRouteStop')) $('globalRouteStop').hidden = !inRoute || !journeyOwner(journeyById(activeJourneyId));
   $$('#globalActionsMenu button[data-create]').forEach(b => {
-    if (!['in-bill','payment'].includes(b.dataset.create)) b.hidden = inBill;
+    const kind=b.dataset.create;
+    if (['in-bill','payment','route-ticket','route-stop'].includes(kind)) return;
+    b.hidden = inBill || inRoute;
   });
   if (open) {
     closeNotifications();
@@ -672,6 +677,8 @@ function initGlobalActions() {
     const btn = e.target.closest('button[data-create]'); if (!btn) return;
     const action = btn.dataset.create;
     closeGlobalActions(true);
+    if (action === 'route-stop') { openStopForm(); return; }
+    if (action === 'route-ticket') { openRouteTicketForm(); return; }
     if (action === 'payment') { openBillPayment(); return; }
     if (action === 'journey') { if (currentPage !== 'journeys') { location.hash='#journeys'; route(); } openJourneyForm(); return; }
     const targets = {expense:'btnAddExpenseBtn',bill:'btnAddPersonFabTop','in-bill':'btnOpenAddSplitExpense'};
@@ -3665,7 +3672,7 @@ async function uploadJourneyFile(){
     const row={route_id:j.id,stop_id:$('journeyDocStop').value||null,display_name:file.name.slice(0,180),mime_type:file.type||'application/octet-stream',storage_path:path,owner_id:user.id,assigned_user_id:assigned};
     const ins=await sb.from('ledger_route_files').insert(row);
     if(ins.error){await sb.storage.from(ROUTE_BUCKET).remove([path]);throw ins.error;}
-    el.value='';$('journeyDocLabel').value='';toast('File shared securely');await loadJourneyExtras(j);
+    el.value='';$('journeyDocLabel').value='';toast('Ticket uploaded');closeRouteOverlays();await loadJourneyExtras(j);
   }catch(e){console.error(e);toast('Upload failed: '+e.message);}finally{btn.disabled=false;btn.textContent='Upload file';}
 }
 async function shareJourney(j){
@@ -3699,10 +3706,22 @@ let routeTravelerDraft=[];
 const ROUTE_EMOJIS = ['🧭','🏕️','✈️','🏖️','🏔️','🌸','🚗','🚆','⛵','🌆','🎒','🌴','🌅','🗺️','🏛️','🎡'];
 const JTYPE = {place:'Place',transport:'Transport',activity:'Activity',stay:'Stay',food:'Food'};
 function journeyById(id){return journeysAll().find(j=>j.id===id);}
+// Keep one document upload form: it is moved into the dedicated floating Ticket sheet.
+function openRouteTicketForm(){
+  const j=journeyById(activeJourneyId);
+  if(!j){toast('Open a Route first');return;}
+  if(!j.shared){toast('Share this Route before uploading tickets');return;}
+  if(!sb||!user){toast('Sign in to upload tickets');return;}
+  closeRouteOverlays();
+  renderJourneyExtras();
+  const stop=$('journeyDocStop');if(stop)stop.value='';
+  $('routeTicketOverlay').hidden=false;
+}
 function closeRouteOverlays(){
   $('routeEditorOverlay').hidden=true;$('journeyEditor').hidden=true;$('stopEditor').hidden=true;
   $('routeOptionsOverlay').hidden=true;
   $('routeCollabOverlay').hidden=true;
+  if($('routeTicketOverlay'))$('routeTicketOverlay').hidden=true;
 }
 function showJourneyEditor(open){
   const el=$('journeyEditor');if(!el)return;
@@ -4019,18 +4038,26 @@ function renderJourneys(){
   }
   placeNotificationInHeader();
   const j=journeyById(activeJourneyId), total=j.stops.reduce((n,p)=>n+p.cost,0);
+  $('journeyHeroTitle').textContent=j.title;
+  $('journeyHeroDate').textContent=routeCardDate(j.startDate)||'Date not set';
+  const travelerKeys=new Set((j.travelers||[]).map(t=>t.code||t.name).filter(Boolean));
+  const cloudCodes=new Set(journeyMembers.map(m=>m.ledger_code||m.user_id).filter(Boolean));
+  const travelerCount=j.shared?Math.max(1,cloudCodes.size+(j.travelers||[]).filter(t=>!t.code).length):Math.max(1,travelerKeys.size+1);
+  $('journeyPerPerson').textContent=money(total/travelerCount);
+  $('journeyOpenLinkedBillHeader').hidden=!(state.billGroups||[]).some(g=>String(g.id)===String(j.linkedBillId||''));
   $('journeyDetailTitle').textContent=j.title;
   $('journeyDetailAvatar').textContent=j.emoji||'🧭';
   const linked=(state.billGroups||[]).find(g=>String(g.id)===String(j.linkedBillId||''));
   const linkedPanel=$('journeyLinkedBill');linkedPanel.hidden=!linked;
   if(linked)linkedPanel.innerHTML=`<span>Linked bill</span><strong>${esc(linked.emoji||'🧾')} ${esc(linked.name)}</strong><button type="button" id="routeOpenLinkedBill">Open bill →</button>`;
-  $('journeyDetailSubtitle').textContent=[j.destination,j.startDate].filter(Boolean).join(' · ')||'Plan the details of your journey';
+  linkedPanel.hidden=true; // Header link is now the only visible bill shortcut.
+  $('journeyDetailSubtitle').textContent=j.destination||'Destination not set';
   $('journeyTotal').textContent=money(total);
   $('journeyStopsCount').textContent=`${j.stops.length} ${j.stops.length===1?'stop':'stops'}`;
   $('journeyDetailNotes').textContent=j.notes||'';
   $('journeyDetailNotes').hidden=!j.notes;
   $('journeyEdit').hidden=false;$('journeyDelete').hidden=true;
-  $('journeyAddStop').hidden=!journeyOwner(j);
+  $('journeyAddStop').hidden=true; // Added from the floating + menu only.
   renderJourneyExtras();
   const ordered=j.stops.slice().sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999')||(a.time||'99').localeCompare(b.time||'99'));
   $('journeyStops').innerHTML=ordered.length?ordered.map((p,i)=>{
@@ -4042,9 +4069,14 @@ function renderJourneys(){
 }
 function initJourneys(){
   // Fixed dialogs must not be descendants of the animated/scrolled app root on iOS Safari.
-  ['routeEditorOverlay','routeCollabOverlay','routeOptionsOverlay'].forEach(id => {
+  ['routeEditorOverlay','routeCollabOverlay','routeOptionsOverlay','routeTicketOverlay'].forEach(id => {
     const dialog = $(id); if (dialog && dialog.parentElement !== document.body) document.body.appendChild(dialog);
   });
+  // Reuse the already-working secure attachment uploader, never create a second storage path.
+  const ticketHost=$('routeTicketFormHost'), existingUpload=$('journeyDocFile')?.closest('.route-upload');
+  if(ticketHost&&existingUpload)ticketHost.appendChild(existingUpload);
+  $('routeTicketCancel')?.addEventListener('click',closeRouteOverlays);
+  $('routeTicketOverlay')?.addEventListener('click',e=>{if(e.target.id==='routeTicketOverlay')closeRouteOverlays();});
   $('journeyCancel')?.addEventListener('click',closeRouteOverlays);
   $('routeParticipantAdd')?.addEventListener('click',addRouteTraveler);
   $('routeParticipantInput')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addRouteTraveler();}});
@@ -4121,6 +4153,7 @@ function initJourneys(){
   $('journeyList')?.addEventListener('click',async e=>{const b=e.target.closest('[data-journey-open]');if(!b||e.target.closest('.bill-pin-btn,.bill-drag-handle'))return;if(b._lpFired){b._lpFired=false;return;}routeArchiveView=false;activeJourneyId=b.dataset.journeyOpen;renderJourneys();const openedRoute=journeyById(activeJourneyId);await loadJourneyExtras(openedRoute);if(openedRoute?.shared&&openedRoute.linkedBillId&&journeyOwner(openedRoute))await syncRouteTravelersToLinkedBill(openedRoute,{quiet:true});renderJourneys();});
   $('journeyList')?.addEventListener('keydown',e=>{if(e.target.closest('.bill-pin-btn,.bill-drag-handle')||!['Enter',' '].includes(e.key))return;const b=e.target.closest('[data-journey-open]');if(!b)return;e.preventDefault();b.click();});
   $('journeyBack')?.addEventListener('click',()=>{activeJourneyId=null;$('stopEditor').hidden=true;renderJourneys();});
+  $('journeyOpenLinkedBillHeader')?.addEventListener('click',()=>{const j=journeyById(activeJourneyId);if(!j?.linkedBillId)return;location.hash='#split';route();openBillDetail(j.linkedBillId);});
   $('journeyEdit')?.addEventListener('click',()=>{$('routeOptionsOverlay').hidden=false;});
   $('journeyLinkedBill')?.addEventListener('click',e=>{if(!e.target.closest('#routeOpenLinkedBill'))return;const j=journeyById(activeJourneyId);if(!j?.linkedBillId)return;location.hash='#split';route();openBillDetail(j.linkedBillId);});
   $('journeyDelete')?.addEventListener('click',()=>deleteJourney(journeyById(activeJourneyId)));
