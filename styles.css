@@ -3779,3 +3779,191 @@ body.ledger-drive-picker-open #routeTicketOverlay{
 #page-journeys #journeyDetail .route-ticket-icon{
   border-radius:0!important;
 }
+
+/* =====================================================================
+   LEDGER v114 — PLAYFUL UTILITY / BATCH 1
+   Shared visual language only. No layout geometry, form heights, or markup
+   changes: existing app behavior, user-selected avatars and spacing survive.
+   ===================================================================== */
+:root{
+  --play-lime:#d7f392;
+  --play-blue:#b8d8ff;
+  --play-lilac:#dac8ff;
+  --play-peach:#ffd7b6;
+  --play-pink:#ffc6de;
+  --play-mint:#bcebd9;
+  --play-ink:#242431;
+  --play-outline:color-mix(in srgb,var(--text) 9%,var(--line));
+  --play-softshadow:0 4px 18px rgba(36,36,49,.045);
+}
+:root[data-theme="light"]{
+  --bg:#f7f6f2;
+  --card:#fffdfa;
+  --card-2:#f8f7f4;
+  --line:#e7e5e1;
+  --bar:#f1efec;
+  --text:#242431;
+  --muted:#757581;
+}
+:root[data-theme="dark"]{
+  --bg:#101014;
+  --card:#1b1b21;
+  --card-2:#23232a;
+  --bar:#282830;
+  --line:#34343d;
+  --text:#f5f3f9;
+  --muted:#b2afbc;
+  --play-outline:#363640;
+  --play-softshadow:0 5px 22px rgba(0,0,0,.13);
+}
+
+/* Clear, confident headings; keep the established font-size scale intact. */
+.page .top h1,.routes-top h1{
+  font-weight:800;
+  letter-spacing:-.045em;
+  line-height:1.14;
+}
+.page .card-head h2,.page .card h2,
+.modal-card h3{
+  letter-spacing:-.025em;
+}
+.page .top .monthLabel{
+  font-weight:650;
+}
+
+/* Flat, purposeful colorful panels; sizes and spacing remain unchanged. */
+.page .card,.page .stat,.page .mini,
+.page .bill-card,.page .bill-expense-card,
+.page .journey-tile,.page .journey-intro{
+  border-color:var(--play-outline);
+  box-shadow:var(--play-softshadow);
+}
+#page-home .stats .stat:nth-child(3n+1){
+  background:color-mix(in srgb,var(--play-mint) 27%,var(--card));
+}
+#page-home .stats .stat:nth-child(3n+2){
+  background:color-mix(in srgb,var(--play-peach) 25%,var(--card));
+}
+#page-home .stats .stat:nth-child(3n){
+  background:color-mix(in srgb,var(--play-lilac) 23%,var(--card));
+}
+#page-home .hero{
+  background:linear-gradient(123deg,#30334c 0%,#303e4a 58%,#41544c 100%);
+  border:1px solid rgba(255,255,255,.13);
+  color:#fff;
+  box-shadow:0 10px 28px rgba(28,33,50,.15);
+}
+#page-home .hero::after{
+  background:radial-gradient(circle,rgba(215,243,146,.25),transparent 70%);
+}
+:root[data-theme="light"] #page-home .hero{
+  background:linear-gradient(122deg,#30334c 0%,#3f4761 58%,#51665c 100%);
+}
+#page-home .hero .big,#page-home .hero small{color:#fff}
+
+/* Flat navigation icons with a different quiet pastel for each destination. */
+.dock{
+  border:1px solid var(--play-outline);
+  background:color-mix(in srgb,var(--card) 93%,transparent);
+  box-shadow:0 12px 36px rgba(20,20,32,.16);
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+}
+.dock button{
+  position:relative;
+  border-radius:18px;
+  color:var(--muted);
+}
+.dock svg{
+  width:22px;height:22px;
+  stroke-width:1.85;
+  transition:transform .18s ease;
+}
+.dock button.on{
+  color:#23232b!important;
+  font-weight:750;
+  background:var(--play-lime)!important;
+}
+.dock button[data-go="expenses"].on{background:var(--play-blue)!important}
+.dock button[data-go="split"].on{background:var(--play-lilac)!important}
+.dock button[data-go="journeys"].on{background:var(--play-peach)!important}
+.dock button[data-go="settings"].on{background:var(--play-mint)!important}
+.dock button.on svg{
+  stroke:currentColor!important;
+  transform:translateY(-1px);
+}
+
+/* Unified controls: no fixed-height overrides or widened buttons. */
+.primary:not(.danger){
+  background:var(--play-lime);
+  border:1px solid rgba(36,36,49,.08);
+  color:#242431;
+  font-weight:750;
+  box-shadow:none;
+}
+.secondary:not(.danger){
+  border:1px solid var(--play-outline);
+  background:var(--card-2);
+  font-weight:650;
+}
+.secondary.cta:not(.danger){
+  background:color-mix(in srgb,var(--play-blue) 25%,var(--card));
+  border-color:var(--play-outline);
+}
+.icon-btn,.page .icon{
+  border-radius:12px;
+}
+input:not([type="checkbox"]):not([type="radio"]),select,textarea{
+  background:var(--card-2);
+  border-color:var(--play-outline);
+}
+input:focus,select:focus,textarea:focus{
+  border-color:color-mix(in srgb,var(--user-accent) 65%,var(--text));
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--play-lilac) 34%,transparent);
+}
+:where(button,input,select,textarea):focus-visible{
+  outline:2px solid color-mix(in srgb,var(--play-lilac) 70%,var(--text));
+  outline-offset:2px;
+}
+
+/* Unified dialogs without changing their widths, paddings or scroll behavior. */
+.modal-card{
+  border:1px solid var(--play-outline);
+  background:var(--card);
+  box-shadow:0 24px 70px rgba(5,5,12,.25);
+}
+.modal-card h3{
+  font-weight:750;
+}
+:root[data-theme="dark"] .modal-card{
+  background:var(--card)!important;
+  border-color:var(--play-outline)!important;
+}
+:root[data-theme="dark"] .primary:not(.danger),
+:root[data-theme="light"] .primary:not(.danger){
+  background:var(--play-lime);
+  color:#242431;
+}
+:root[data-theme="dark"] .secondary:not(.danger),
+:root[data-theme="light"] .secondary:not(.danger){
+  background:var(--card-2);
+  color:var(--text);
+  border-color:var(--play-outline);
+}
+
+/* Polished global action menu — reuse existing vector plus icon. */
+#globalActionsToggle{
+  background:var(--play-lime)!important;
+  color:#252531!important;
+  box-shadow:0 9px 25px rgba(24,24,30,.17);
+}
+#globalActionsToggle svg{stroke:#252531!important;}
+.global-actions-menu{
+  border-color:var(--play-outline)!important;
+  box-shadow:0 16px 38px rgba(12,12,20,.14);
+}
+
+/* Preserve low-motion preferences and accessible layout. */
+@media(prefers-reduced-motion:reduce){
+  .dock svg{transition:none;transform:none!important;}
+}
