@@ -3132,9 +3132,10 @@ body.ledger-drive-picker-open #routeTicketOverlay{
 
 
 /* v95 — Google Drive button polish + clean ticket details modal */
-#routeTicketOverlay .route-drive-add{padding:0 10px;}
-#routeTicketOverlay .route-drive-add-inner{display:inline-flex;align-items:center;justify-content:center;gap:8px;max-width:100%;}
-#routeTicketOverlay .route-drive-icon{width:18px;height:18px;display:block;flex:none;}
+#routeTicketOverlay .route-drive-add{padding:0 12px;display:flex;align-items:center;justify-content:center;}
+#routeTicketOverlay .route-drive-add-inner{display:inline-flex;align-items:center;justify-content:center;gap:9px;max-width:100%;height:100%;line-height:1;}
+#routeTicketOverlay .route-drive-add-inner span{display:inline-flex;align-items:center;line-height:1.1;}
+#routeTicketOverlay .route-drive-icon{width:22px;height:22px;display:block;flex:none;align-self:center;}
 
 #routeTicketDetailOverlay{z-index:2620!important;}
 #routeTicketDetailOverlay .modal-card{
