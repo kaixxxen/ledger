@@ -1,4 +1,4 @@
-const CACHE='ledger-v105-itinerary-archive';
+const CACHE='ledger-v106-stop-detail-view';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'google-picker-config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'

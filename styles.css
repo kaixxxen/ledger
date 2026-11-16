@@ -3321,3 +3321,36 @@ body.ledger-drive-picker-open #routeTicketOverlay{
 #page-journeys .journey-content-head .route-mini-sort{margin-left:0;flex:none;}
 #page-journeys .journey-content-head .route-mini-sort select{height:34px;min-width:100px;max-width:112px;}
 @media(max-width:380px){#page-journeys .journey-content-head h3{font-size:var(--fs-md);}#page-journeys .journey-content-head{gap:6px;}}
+
+
+/* v106 – read-only Stop Details + aligned, compact ticket title */
+#routeStopDetailOverlay{z-index:2620!important;}
+#routeStopDetailOverlay .modal-card{
+  width:min(100%,480px);max-height:min(86dvh,760px);padding:18px;
+  overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+}
+#routeStopDetailBody{display:grid;gap:12px;min-width:0;overflow-x:hidden;}
+#routeStopDetailBody .route-stop-detail-cover{width:100%;max-height:250px;aspect-ratio:16/9;position:relative;overflow:hidden;border-radius:14px;background:var(--bar);}
+#routeStopDetailBody .route-stop-detail-cover img{width:100%;height:100%;display:block;object-fit:cover;}
+#routeStopDetailBody .route-stop-detail-photo-count{position:absolute;right:10px;bottom:10px;padding:4px 8px;border-radius:999px;background:rgba(0,0,0,.65);color:#fff;font-size:var(--fs-xs);}
+#routeStopDetailBody .route-stop-detail-thumbnails{display:flex;gap:8px;max-width:100%;overflow-x:auto;}
+#routeStopDetailBody .route-stop-detail-thumbnails a{flex:0 0 65px;height:55px;display:block;border-radius:10px;overflow:hidden;}
+#routeStopDetailBody .route-stop-detail-thumbnails img{width:100%;height:100%;object-fit:cover;}
+#routeStopDetailBody .route-stop-detail-heading{display:grid;gap:4px;min-width:0;}
+#routeStopDetailBody .route-stop-detail-heading strong{font-size:var(--fs-base);font-weight:650;color:var(--text);line-height:1.35;overflow-wrap:anywhere;}
+#routeStopDetailBody .route-stop-detail-heading small{color:var(--muted);font-size:var(--fs-sm);line-height:1.35;}
+#routeStopDetailBody .route-stop-detail-section{display:grid;gap:8px;min-width:0;}
+#routeStopDetailBody .route-stop-detail-row{display:grid;grid-template-columns:minmax(90px, 36%) minmax(0,1fr);align-items:center;gap:10px;padding:10px 12px;min-height:44px;border:1px solid var(--line);border-radius:12px;background:var(--card);min-width:0;}
+#routeStopDetailBody .route-stop-detail-row small,#routeStopDetailBody .route-stop-detail-field small{font-size:var(--fs-xs);font-weight:600;color:var(--muted);line-height:1.3;}
+#routeStopDetailBody .route-stop-detail-row strong{font-size:var(--fs-sm);font-weight:650;color:var(--text);line-height:1.35;text-align:right;min-width:0;overflow-wrap:anywhere;}
+#routeStopDetailBody .route-stop-detail-duo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-width:0;}
+#routeStopDetailBody .route-stop-detail-field{min-height:44px;display:flex;flex-direction:column;justify-content:center;gap:4px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card);min-width:0;}
+#routeStopDetailBody .route-stop-detail-field strong{font-size:var(--fs-sm);line-height:1.35;font-weight:650;color:var(--text);min-width:0;overflow-wrap:anywhere;}
+#routeStopDetailBody .route-ticket-detail-section-title{font-size:var(--fs-xs);font-weight:700;color:var(--muted);text-transform:uppercase;}
+#routeStopDetailBody .route-stop-detail-note{padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--card);font-size:var(--fs-sm);white-space:pre-wrap;overflow-wrap:anywhere;}
+#routeStopDetailOverlay .btnrow.modal-actions{margin-top:14px;}
+#routeTicketDetailBody .route-ticket-detail-hero{align-items:center!important;}
+#routeTicketDetailBody .route-ticket-detail-hero-copy{justify-content:center;}
+#routeTicketDetailBody .route-ticket-detail-hero-copy strong{font-size:var(--fs-base)!important;font-weight:650!important;line-height:1.35!important;}
+@media(max-width:420px){#routeStopDetailOverlay .modal-card{padding:16px;}#routeStopDetailBody .route-stop-detail-row{grid-template-columns:minmax(90px,36%) minmax(0,1fr);}}
