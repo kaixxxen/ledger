@@ -1,4 +1,4 @@
-const CACHE='ledger-v109-route-hero-refine';
+const CACHE='ledger-v110-route-hero-polish';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'google-picker-config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'

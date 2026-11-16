@@ -3490,3 +3490,100 @@ body.ledger-drive-picker-open #routeTicketOverlay{
   #page-journeys #journeyDetail .route-overview-destination{font-size:14px;}
   #page-journeys #journeyDetail .route-overview-date{font-size:13px;}
 }
+
+
+/* v110 — Premium polish pass for Route hero */
+#page-journeys #journeyDetail .route-overview-card{
+  border-radius:26px;
+  box-shadow:0 8px 28px rgba(0,0,0,.08);
+}
+#page-journeys #journeyDetail .route-slide-viewport::after{
+  content:"";
+  position:absolute;
+  inset:auto 0 0 0;
+  height:34%;
+  background:linear-gradient(180deg,rgba(0,0,0,0) 0%,rgba(0,0,0,.28) 100%);
+  pointer-events:none;
+}
+#page-journeys #journeyDetail .route-slide-caption{
+  gap:6px;
+  border-radius:16px;
+}
+#page-journeys #journeyDetail .route-slide-location{
+  display:inline-flex;
+  align-items:center;
+  flex:0 1 auto;
+  padding:0;
+}
+#page-journeys #journeyDetail .route-slide-credit{
+  flex:1 1 auto;
+}
+#page-journeys #journeyDetail .route-slide-credit::before{
+  margin-right:6px;
+}
+#page-journeys #journeyDetail .route-slide-arrow{
+  width:32px;
+  height:32px;
+  min-width:32px;
+  background:rgba(18,18,18,.40);
+  border:1px solid rgba(255,255,255,.15);
+}
+#page-journeys #journeyDetail .route-destination-slideshow + .route-overview-main{
+  padding:14px 16px 12px!important;
+}
+#page-journeys #journeyDetail .route-overview-main{
+  display:grid;
+  gap:3px;
+}
+#page-journeys #journeyDetail .route-overview-main h3{
+  margin:0 0 3px;
+}
+#page-journeys #journeyDetail .route-overview-destination,
+#page-journeys #journeyDetail .route-overview-date{
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+#page-journeys #journeyDetail .route-overview-date{
+  opacity:.92;
+}
+#page-journeys #journeyDetail .route-overview-stats{
+  background:color-mix(in srgb,var(--card) 92%,var(--user-accent) 8%);
+}
+#page-journeys #journeyDetail .route-overview-stats>div{
+  padding:13px 10px;
+  gap:5px!important;
+}
+#page-journeys #journeyDetail .route-overview-stats small{
+  font-size:11px;
+  letter-spacing:.01em;
+}
+#page-journeys #journeyDetail .route-overview-stats strong{
+  font-size:clamp(16px,4.5vw,19px);
+  font-weight:700;
+}
+#page-journeys #journeyDetail .route-overview-stats>.route-cost-summary-trigger{
+  cursor:pointer;
+}
+#page-journeys #journeyDetail .route-overview-stats>.route-cost-summary-trigger:active{
+  transform:scale(.99);
+}
+@media(max-width:420px){
+  #page-journeys #journeyDetail .route-overview-card{border-radius:24px;}
+  #page-journeys #journeyDetail .route-slide-arrow{
+    width:30px;
+    height:30px;
+    min-width:30px;
+  }
+  #page-journeys #journeyDetail .route-slide-caption{
+    gap:5px;
+    border-radius:14px;
+  }
+  #page-journeys #journeyDetail .route-destination-slideshow + .route-overview-main{
+    padding:13px 14px 12px!important;
+  }
+  #page-journeys #journeyDetail .route-overview-stats>div{
+    padding:12px 8px;
+  }
+}
