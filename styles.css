@@ -2994,3 +2994,27 @@ select:not([multiple]){max-width:100%;min-width:0;}
 #routeTicketOverlay .route-ticket-person-name{margin:0 0 6px;font-size:var(--fs-xs);color:var(--muted);font-weight:500;line-height:1.3}
 #routeTicketOverlay .route-ticket-file-button{height:44px;min-height:44px;box-sizing:border-box;padding:0 10px}
 #routeTicketOverlay .route-ticket-travelers{display:block}
+
+/* Ticket category: preserve the emoji tile while using the reliable native picker.
+   A custom dropdown inside an overflow-scrolling modal gets clipped on iOS. */
+#routeTicketOverlay .route-cat-wrap{position:relative;isolation:isolate}
+#routeTicketOverlay .route-cat-btn{pointer-events:none}
+#routeTicketOverlay select.route-cat-native{
+  position:absolute;inset:0;z-index:2;display:block;width:100%;height:44px;
+  min-height:44px;margin:0;padding:0;opacity:0;cursor:pointer;
+  -webkit-appearance:menulist;appearance:menulist;
+}
+/* iOS Safari uses internal date-edit subfields with their own alignment. */
+#routeTicketOverlay input#routeTicketDateTime{
+  height:44px;min-height:44px;line-height:normal;padding:0 10px;
+  -webkit-appearance:none;appearance:none;
+}
+#routeTicketOverlay input#routeTicketDateTime::-webkit-datetime-edit{
+  display:flex;align-items:center;height:100%;min-height:0;padding:0;
+}
+#routeTicketOverlay input#routeTicketDateTime::-webkit-date-and-time-value{
+  display:flex;align-items:center;height:100%;min-height:0;line-height:normal;
+}
+#routeTicketOverlay input#routeTicketDateTime::-webkit-datetime-edit-fields-wrapper{
+  display:flex;align-items:center;height:100%;padding:0;
+}

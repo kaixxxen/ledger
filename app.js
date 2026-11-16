@@ -4316,12 +4316,8 @@ function initJourneys(){
   $('routeTicketCancel')?.addEventListener('click',closeRouteOverlays);
 
   $('routeTicketCategory')?.addEventListener('change',updateRouteTicketLabels);
-  { const btn=$('routeTicketCategoryBtn'),menu=$('routeTicketCategoryMenu');
-    const closeMenu=()=>{if(menu){menu.hidden=true;btn?.setAttribute('aria-expanded','false');}};
-    btn?.addEventListener('click',e=>{e.stopPropagation();const open=menu.hidden;menu.hidden=!open;btn.setAttribute('aria-expanded',String(open));});
-    menu?.addEventListener('click',e=>{const o=e.target.closest('[data-cat]');if(!o)return;const sel=$('routeTicketCategory');sel.value=o.dataset.cat;sel.dispatchEvent(new Event('change'));closeMenu();});
-    document.addEventListener('click',e=>{if(menu&&!menu.hidden&&!e.target.closest('.route-cat-wrap'))closeMenu();});
-    $('routeTicketOverlay')?.addEventListener('keydown',e=>{if(e.key==='Escape'&&menu&&!menu.hidden){e.stopPropagation();closeMenu();}}); }
+  // The category select sits transparently over the emoji tile. Its native
+  // iOS/Android picker stays interactive inside the modal scroll container.
   $('routeTicketTravelerFiles')?.addEventListener('input',e=>{if(e.target.matches('[data-ticket-price]'))routeTicketTotalFromInputs();});
   
   $('routeTicketTravelerFiles')?.addEventListener('change',e=>{

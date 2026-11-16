@@ -1,4 +1,4 @@
-const CACHE='ledger-v91-ticket-modal';
+const CACHE='ledger-v92-ticket-picker-align';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'
