@@ -1,4 +1,4 @@
-const CACHE='ledger-v114-playful-batch1';
+const CACHE='ledger-v115-playful-batch2';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'google-picker-config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'

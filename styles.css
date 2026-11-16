@@ -3967,3 +3967,161 @@ input:focus,select:focus,textarea:focus{
 @media(prefers-reduced-motion:reduce){
   .dock svg{transition:none;transform:none!important;}
 }
+
+/* Ledger v115 · Batch 2: Bills, Routes, Tickets and Stops.
+   Component-scoped visual refresh; keep all existing dimensions, semantics and handlers. */
+:root{
+  --ledger-b2-sky:#bddcff;
+  --ledger-b2-lilac:#dfd0ff;
+  --ledger-b2-peach:#ffdbbd;
+  --ledger-b2-mint:#bdebd7;
+  --ledger-b2-lemon:#fff0a5;
+  --ledger-b2-rose:#ffc9dc;
+}
+/* Bills: a friendly colored indicator without changing avatar values or card geometry. */
+#page-split #billsList .bill-card{
+  position:relative;
+  overflow:hidden;
+  border-radius:19px;
+  border-color:var(--play-outline);
+  background:var(--card);
+  box-shadow:0 3px 13px rgba(15,15,25,.035);
+}
+#page-split #billsList .bill-card::before{
+  content:"";position:absolute;inset:10px auto 10px 0;width:4px;
+  border-radius:0 8px 8px 0;background:var(--ledger-b2-sky);
+  pointer-events:none;
+}
+#page-split #billsList .bill-card:nth-child(4n + 2)::before{background:var(--ledger-b2-peach)}
+#page-split #billsList .bill-card:nth-child(4n + 3)::before{background:var(--ledger-b2-lilac)}
+#page-split #billsList .bill-card:nth-child(4n + 4)::before{background:var(--ledger-b2-mint)}
+#page-split #billsList .bill-name{font-weight:750;letter-spacing:-.025em;}
+#page-split #billsList .bill-card-meta,
+#page-journeys #journeyList .bill-card-meta{min-width:0;}
+#page-split #billsList .shared-tag,
+#page-journeys #journeyList .shared-tag{
+  border-radius:999px;border:1px solid var(--play-outline);
+  background:color-mix(in srgb,var(--ledger-b2-lilac) 36%,var(--card));
+}
+/* Bill overview and expense rows: brighter surfaces while keeping exact row height. */
+#page-split .hero-split{
+  border-radius:19px;
+  background:color-mix(in srgb,var(--ledger-b2-lemon) 22%,var(--card));
+  border-color:var(--play-outline);
+}
+#page-split .hero-split b{letter-spacing:-.035em;font-weight:750;}
+#page-split .bill-expense-card{
+  border-color:var(--play-outline);
+  border-radius:16px;
+  box-shadow:0 2px 10px rgba(15,15,25,.025);
+}
+/* Route listing: soft alternating surfaces without changing pin/drag hit areas. */
+#page-journeys #journeyList .journey-tile{
+  position:relative;
+  border-color:var(--play-outline);
+  border-radius:19px;
+  background:color-mix(in srgb,var(--ledger-b2-sky) 11%,var(--card));
+  box-shadow:0 3px 12px rgba(15,15,25,.035);
+}
+#page-journeys #journeyList .journey-tile:nth-child(3n + 2){
+  background:color-mix(in srgb,var(--ledger-b2-peach) 12%,var(--card));
+}
+#page-journeys #journeyList .journey-tile:nth-child(3n + 3){
+  background:color-mix(in srgb,var(--ledger-b2-lilac) 12%,var(--card));
+}
+#page-journeys #journeyList .journey-tile .bill-name{font-weight:750;letter-spacing:-.025em;}
+#page-journeys #journeyList .route-card-address{
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+/* Route hero gets a softer editorial presentation; retain fixed alignment and slide controls. */
+#page-journeys #journeyDetail .route-overview-main{
+  background:color-mix(in srgb,var(--ledger-b2-mint) 11%,var(--card))!important;
+}
+#page-journeys #journeyDetail .route-overview-main h3{
+  font-weight:780;letter-spacing:-.04em;
+}
+#page-journeys #journeyDetail .route-overview-stats{
+  background:color-mix(in srgb,var(--ledger-b2-sky) 11%,var(--card));
+}
+#page-journeys .journey-content-head h3{
+  letter-spacing:-.035em;font-weight:780;
+}
+#page-journeys .route-itinerary-tabs{
+  background:color-mix(in srgb,var(--ledger-b2-lilac) 13%,var(--card));
+  border-radius:14px;
+}
+/* Flat ticket pictogram. The existing category emoji remains in the DOM for screen readers
+   and saved data, but its visual is replaced by the same vector system across categories. */
+#page-journeys .route-ticket-itinerary{
+  border-color:color-mix(in srgb,var(--ledger-b2-lilac) 42%,var(--line))!important;
+  background:color-mix(in srgb,var(--ledger-b2-lilac) 8%,var(--card))!important;
+  border-radius:18px;
+}
+#page-journeys .route-ticket-icon,
+#routeTicketDetailBody .route-ticket-detail-hero-icon{
+  position:relative;
+  color:transparent!important;
+  font-size:0!important;
+  background:color-mix(in srgb,var(--ledger-b2-lilac) 39%,var(--card))!important;
+  border-radius:13px;
+}
+#page-journeys .route-ticket-icon::after,
+#routeTicketDetailBody .route-ticket-detail-hero-icon::after{
+  content:"";display:block;width:22px;height:22px;
+  background-color:color-mix(in srgb,#6552c9 85%,var(--text));
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M4 4.75A1.75 1.75 0 0 1 5.75 3h12.5A1.75 1.75 0 0 1 20 4.75V9a3 3 0 0 0 0 6v4.25A1.75 1.75 0 0 1 18.25 21H5.75A1.75 1.75 0 0 1 4 19.25V15a3 3 0 0 0 0-6V4.75Zm2 0v2.8a5 5 0 0 1 0 8.9v2.8h12v-2.8a5 5 0 0 1 0-8.9v-2.8H6Zm5 2.1h2v2.1h-2v-2.1Zm0 4.1h2v2.1h-2v-2.1Zm0 4.1h2v2.1h-2v-2.1Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M4 4.75A1.75 1.75 0 0 1 5.75 3h12.5A1.75 1.75 0 0 1 20 4.75V9a3 3 0 0 0 0 6v4.25A1.75 1.75 0 0 1 18.25 21H5.75A1.75 1.75 0 0 1 4 19.25V15a3 3 0 0 0 0-6V4.75Zm2 0v2.8a5 5 0 0 1 0 8.9v2.8h12v-2.8a5 5 0 0 1 0-8.9v-2.8H6Zm5 2.1h2v2.1h-2v-2.1Zm0 4.1h2v2.1h-2v-2.1Zm0 4.1h2v2.1h-2v-2.1Z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+/* Stops: clean text hierarchy and playful color accent in place of the removed dot. */
+#page-journeys .journey-stop{
+  border-color:var(--play-outline)!important;
+  border-radius:18px;
+  box-shadow:0 3px 13px rgba(15,15,25,.035);
+}
+#page-journeys .journey-stop .journey-type-dot{display:none!important;}
+#page-journeys .journey-stop .route-stop-card-content{
+  border-top:3px solid var(--ledger-b2-mint);
+  min-width:0;
+}
+#page-journeys .journey-stop:nth-child(3n + 2) .route-stop-card-content{border-top-color:var(--ledger-b2-peach)}
+#page-journeys .journey-stop:nth-child(3n + 3) .route-stop-card-content{border-top-color:var(--ledger-b2-sky)}
+#page-journeys .journey-stop .journey-stop-main strong{
+  font-weight:750;letter-spacing:-.02em;
+}
+#page-journeys .journey-stop .journey-stop-meta{
+  letter-spacing:.01em;
+}
+#page-journeys .journey-stop .journey-stop-right{
+  min-width:0;overflow:hidden;
+}
+/* Ticket and Stop detail panels match the refreshed card language, not a larger modal. */
+#routeTicketDetailBody .route-ticket-detail-hero{
+  background:color-mix(in srgb,var(--ledger-b2-lilac) 12%,var(--card));
+  border-color:var(--play-outline);
+}
+#routeTicketDetailBody .route-ticket-detail-hero-copy{
+  text-align:left;justify-items:start;min-width:0;
+}
+#routeTicketDetailBody .route-ticket-detail-hero-copy strong,
+#routeTicketDetailBody .route-ticket-detail-hero-copy small{
+  text-align:left;max-width:100%;
+}
+#routeStopDetailBody .route-stop-detail-row,
+#routeStopDetailBody .route-stop-detail-field,
+#routeTicketDetailBody .route-ticket-detail-row,
+#routeTicketDetailBody .route-ticket-detail-half{
+  border-color:var(--play-outline);
+  background:color-mix(in srgb,var(--ledger-b2-sky) 7%,var(--card));
+}
+/* Small-screen safeguard: preserve ellipsis and column bounds. */
+@media(max-width:420px){
+  #page-split #billsList .bill-card,
+  #page-journeys #journeyList .journey-tile{min-width:0;}
+  #page-journeys .route-ticket-main,
+  #page-journeys .journey-stop-main{min-width:0;}
+  #page-journeys .journey-stop .journey-stop-right{max-width:35%;}
+}
+@media(prefers-reduced-motion:reduce){
+  #page-split #billsList .bill-card,
+  #page-journeys #journeyList .journey-tile{transition:none!important;}
+}
