@@ -3372,3 +3372,8 @@ body.ledger-drive-picker-open #routeTicketOverlay{
 #page-journeys #journeyDetail .route-slide-credit a{color:var(--text);font-weight:600;text-decoration:underline!important;text-underline-offset:2px;}
 #page-journeys #journeyDetail .route-destination-slideshow + .route-overview-main{padding-top:20px;padding-bottom:20px;}
 @media(max-width:420px){#page-journeys #journeyDetail .route-slide-caption{display:grid;gap:3px;}#page-journeys #journeyDetail .route-slide-arrow{width:30px;height:30px;min-width:30px;}}
+
+/* v108 — Attribution stays readable for mixed Unsplash/Wikimedia slides. */
+#page-journeys #journeyDetail .route-slide-caption{align-items:center;min-width:0;}
+#page-journeys #journeyDetail .route-slide-credit{min-width:0;overflow-wrap:anywhere;line-height:1.35;}
+#page-journeys #journeyDetail .route-slide-credit a{text-decoration:underline!important;text-underline-offset:2px;}

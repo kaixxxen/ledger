@@ -4390,18 +4390,19 @@ function openRouteCostSummary(){
     ${result.unallocated>0.005?`<section class="route-cost-person"><div class="route-cost-person-top"><strong>Unallocated expenses</strong><b>${ticketMoney(result.unallocated)}</b></div><div class="route-cost-items">${itemList(result.unallocatedItems)}</div></section>`:''}`;
   showRouteOverlay('routeCostSummaryOverlay');
 }
-/* Destination slideshow — displays hosted Unsplash images only; no file storage. */
+/* Destination slideshow. Unsplash primary; Wikimedia Commons completes missing photos.
+   Images remain hosted by the original providers and are never stored in Supabase. */
 const routePhotoResults = new Map();
 let routeSlideshowState = { key:'', photos:[], index:0 };
 let routeSlideshowTimer = null;
 let routeSlideTouchStart = null;
 const routePhotoCreditBase = 'https://unsplash.com/?utm_source=ledger&utm_medium=referral';
+const routePhotoTargetCount = 5;
 function routePhotoSearchKey(route){
-  // A year in a route title is not part of the place name.
+  // Remove the route's year so photo searches focus on the destination.
   const title=String(route?.title||'').replace(/\b20\d{2}\b/g,'').trim();
   const destination=String(route?.destination||'').trim();
-  const titleWords=title.toLowerCase(),destWords=destination.toLowerCase();
-  return [title && !destWords.includes(titleWords)?title:'',destination].filter(Boolean).join(', ').slice(0,120);
+  return [title && !destination.toLowerCase().includes(title.toLowerCase())?title:'',destination].filter(Boolean).join(', ').slice(0,120);
 }
 function validUnsplashPhoto(photo){
   if(!photo||typeof photo!=='object')return null;
@@ -4413,8 +4414,65 @@ function validUnsplashPhoto(photo){
     if(profile && !/(^|\.)unsplash\.com$/.test(new URL(profile).hostname))return null;
     if(link && !/(^|\.)unsplash\.com$/.test(new URL(link).hostname))return null;
   }catch{return null;}
-  const attr=(url)=>{if(!url)return routePhotoCreditBase;try{const u=new URL(url);u.searchParams.set('utm_source','ledger');u.searchParams.set('utm_medium','referral');return u.toString();}catch{return routePhotoCreditBase;}};
-  return {id:String(photo.id||''),url:source,description:String(photo.description||'').slice(0,220),photographer:String(photo.photographer||'Photographer').slice(0,100),photographerUrl:attr(profile),photoUrl:attr(link)};
+  const attr=url=>{if(!url)return routePhotoCreditBase;try{const u=new URL(url);u.searchParams.set('utm_source','ledger');u.searchParams.set('utm_medium','referral');return u.toString();}catch{return routePhotoCreditBase;}};
+  return {provider:'unsplash',id:String(photo.id||source),url:source,description:String(photo.description||'').slice(0,220),photographer:String(photo.photographer||'Photographer').slice(0,100),photographerUrl:attr(profile),photoUrl:attr(link)};
+}
+function routePlainMetadata(value){
+  // Commons imageinfo.extmetadata is HTML; only render text, never inject HTML.
+  const doc=new DOMParser().parseFromString(String(value||''),'text/html');
+  return (doc.body?.textContent||'').replace(/\s+/g,' ').trim().slice(0,160);
+}
+function validCommonsPhoto(page){
+  const info=page?.imageinfo?.[0];
+  if(!info||!/^File:/i.test(page.title||''))return null;
+  const source=String(info.thumburl||info.url||'');
+  const pageLink=String(info.descriptionurl||'');
+  const meta=info.extmetadata||{};
+  const license=routePlainMetadata(meta.LicenseShortName?.value||meta.License?.value||'');
+  const author=routePlainMetadata(meta.Artist?.value||meta.Credit?.value||'Wikimedia Commons contributor');
+  const licenseUrl=String(meta.LicenseUrl?.value||'');
+  try{
+    if(!source.startsWith('https://')||!/(^|\.)wikimedia\.org$/.test(new URL(source).hostname))return null;
+    if(!pageLink.startsWith('https://')||!/(^|\.)wikimedia\.org$/.test(new URL(pageLink).hostname))return null;
+    if(licenseUrl && (!licenseUrl.startsWith('https://')||!['creativecommons.org','www.creativecommons.org','commons.wikimedia.org'].includes(new URL(licenseUrl).hostname)))return null;
+  }catch{return null;}
+  const width=Number(info.width)||0,height=Number(info.height)||0;
+  if(width && height && width<height*1.12)return null;
+  if(!/\.(?:jpe?g|png|webp)$/i.test(String(page.title||'')))return null;
+  // Commons should generally be freely licensed. Skip items without usable license metadata.
+  if(!license || /non.?commercial|no.?derivative|all rights reserved/i.test(license))return null;
+  return {provider:'wikimedia',id:String(page.pageid||page.title),url:source,
+    description:String(page.title||'').replace(/^File:/,'').replace(/\.[^.]+$/,'').replace(/_/g,' ').slice(0,180),
+    photographer:author||'Wikimedia contributor',photographerUrl:pageLink,photoUrl:pageLink,
+    license:license.slice(0,60),licenseUrl:licenseUrl||pageLink};
+}
+async function searchCommonsRoutePhotos(route,needed){
+  if(needed<=0)return [];
+  const queries=[];
+  const destination=String(route?.destination||'').trim();
+  const title=String(route?.title||'').replace(/\b20\d{2}\b/g,'').trim();
+  if(destination)queries.push(destination);
+  if(title && title.toLowerCase()!==destination.toLowerCase())queries.push([title,destination].filter(Boolean).join(' '));
+  if(!queries.length)return [];
+  const found=[],seen=new Set();
+  // Search no more than twice, sequentially, and reuse cached results per Route.
+  for(const query of queries.slice(0,2)){
+    if(found.length>=needed)break;
+    const params=new URLSearchParams({action:'query',format:'json',formatversion:'2',generator:'search',
+      gsrsearch:query+' filetype:bitmap',gsrnamespace:'6',gsrlimit:'20',prop:'imageinfo',
+      iiprop:'url|size|extmetadata',iiurlwidth:'1200',origin:'*'});
+    try{
+      const response=await fetch('https://commons.wikimedia.org/w/api.php?'+params.toString(),{method:'GET',credentials:'omit'});
+      if(!response.ok)throw Error('Wikimedia HTTP '+response.status);
+      const data=await response.json();
+      for(const page of data.query?.pages||[]){
+        const photo=validCommonsPhoto(page);
+        if(photo && !seen.has(photo.id)){seen.add(photo.id);found.push(photo);}
+        if(found.length>=needed)break;
+      }
+    }catch(error){console.warn('Wikimedia photo lookup unavailable:',error?.message||error);}
+  }
+  return found.slice(0,needed);
 }
 function stopRouteSlideshow(){
   if(routeSlideshowTimer!==null){clearInterval(routeSlideshowTimer);routeSlideshowTimer=null;}
@@ -4427,13 +4485,17 @@ function showRouteSlide(){
   routeSlideshowState.index=i;
   const photo=photos[i];
   imageEl.src=photo.url;
-  imageEl.alt=photo.description||'Photo associated with this route destination';
+  imageEl.alt=photo.description||'Destination inspiration photo';
   $('routeSlideCounter').textContent=photos.length>1?`${i+1} / ${photos.length}`:'';
   const j=journeyById(activeJourneyId);
   $('routeSlideLocation').textContent=j?.destination||'Destination inspiration';
-  // The route destination is the search query, not a claim about the image's precise location.
-  $('routeSlideLocation').title='Photos based on your destination search; locations may vary';
-  $('routeSlideCredit').innerHTML=`Photo by <a target="_blank" rel="noopener noreferrer" href="${esc(photo.photographerUrl)}">${esc(photo.photographer)}</a> on <a target="_blank" rel="noopener noreferrer" href="${routePhotoCreditBase}">Unsplash</a>`;
+  $('routeSlideLocation').title='Destination-inspired photographs; individual photo locations may vary';
+  if(photo.provider==='wikimedia'){
+    const license=photo.license?` · <a href="${esc(photo.licenseUrl)}" target="_blank" rel="noopener noreferrer">${esc(photo.license)}</a>`:'';
+    $('routeSlideCredit').innerHTML=`<a href="${esc(photo.photographerUrl)}" target="_blank" rel="noopener noreferrer">${esc(photo.photographer)}</a> · <a href="${esc(photo.photoUrl)}" target="_blank" rel="noopener noreferrer">Wikimedia Commons</a>${license}`;
+  }else{
+    $('routeSlideCredit').innerHTML=`Photo by <a target="_blank" rel="noopener noreferrer" href="${esc(photo.photographerUrl)}">${esc(photo.photographer)}</a> on <a target="_blank" rel="noopener noreferrer" href="${routePhotoCreditBase}">Unsplash</a>`;
+  }
   host.querySelectorAll('.route-slide-arrow').forEach(b=>b.hidden=photos.length<2);
 }
 function advanceRouteSlide(amount){
@@ -4447,13 +4509,9 @@ function startRouteSlideAutoAdvance(){
   if(routeSlideshowState.photos.length<2||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
   routeSlideshowTimer=setInterval(()=>{
     if(document.hidden||currentPage!=='journeys'||!activeJourneyId||$('journeyDetail')?.hidden)return;
-    advanceRouteSlideAuto();
+    routeSlideshowState.index=(routeSlideshowState.index+1)%routeSlideshowState.photos.length;
+    showRouteSlide();
   },5000);
-}
-function advanceRouteSlideAuto(){
-  if(routeSlideshowState.photos.length<2)return;
-  routeSlideshowState.index=(routeSlideshowState.index+1)%routeSlideshowState.photos.length;
-  showRouteSlide();
 }
 function paintRoutePhotos(route){
   const host=$('routeDestinationSlideshow');if(!host)return;
@@ -4473,22 +4531,31 @@ function paintRoutePhotos(route){
   host.hidden=true;
   stopRouteSlideshow();
   if(!route||!routePhotoSearchKey(route)||cached||!sb||mode!=='cloud'||!user)return;
-  // Mark as loading before invoking to avoid duplicate requests during rerenders.
   const routeId=String(route.id),search=routePhotoSearchKey(route);
   routePhotoResults.set(key,{pending:true});
-  sb.functions.invoke('route-photos',{body:{destination:search}}).then(({data,error})=>{
-    if(error)throw error;
-    if(data?.error)throw Error(String(data.error));
-    const photos=(Array.isArray(data?.photos)?data.photos:[]).map(validUnsplashPhoto).filter(Boolean).slice(0,5);
+  // Unsplash is preferred; fill any empty slots with Wikimedia Commons.
+  (async()=>{
+    let photos=[];
+    try{
+      const {data,error}=await sb.functions.invoke('route-photos',{body:{destination:search}});
+      if(error)throw error;
+      if(data?.error)throw Error(String(data.error));
+      photos=(Array.isArray(data?.photos)?data.photos:[]).map(validUnsplashPhoto).filter(Boolean).slice(0,routePhotoTargetCount);
+    }catch(err){console.warn('Unsplash destination photos unavailable; trying Wikimedia:',err?.message||err);}
+    if(photos.length<routePhotoTargetCount){
+      const remaining=routePhotoTargetCount-photos.length;
+      const commons=await searchCommonsRoutePhotos(route,remaining);
+      photos=photos.concat(commons).slice(0,routePhotoTargetCount);
+    }
     routePhotoResults.set(key,{photos,at:Date.now()});
     if(activeJourneyId===routeId&&routeSlideshowState.key===key){
       routeSlideshowState.photos=photos;
       if(photos.length){host.hidden=false;routeSlideshowState.index=0;showRouteSlide();startRouteSlideAutoAdvance();}
       else host.hidden=true;
     }
-  }).catch(err=>{
-    console.warn('Route destination photos unavailable:',err?.message||err);
-    routePhotoResults.set(key,{photos:[],error:true,at:Date.now()});
+  })().catch(err=>{
+    console.warn('Route photo search failed:',err?.message||err);
+    routePhotoResults.delete(key); // allow a retry after a transient failure
     if(activeJourneyId===routeId&&routeSlideshowState.key===key)host.hidden=true;
   });
 }
