@@ -318,6 +318,7 @@ function normalize(raw) {
       travelerPrices: (t.travelerPrices&&typeof t.travelerPrices==='object')?Object.fromEntries(Object.entries(t.travelerPrices).slice(0,30).map(([k,v])=>[String(k).slice(0,80),Math.max(0,Math.round((Number(v)||0)*100)/100)])):{},
       travelerLabels: Array.isArray(t.travelerLabels)?t.travelerLabels.map(x=>String(x).slice(0,100)).slice(0,30):[],
       attachmentLinks: (t.attachmentLinks&&typeof t.attachmentLinks==='object')?Object.fromEntries(Object.entries(t.attachmentLinks).slice(0,40).filter(([k,v])=>typeof v==='string'&&/^https:\/\//i.test(v)).map(([k,v])=>[String(k).slice(0,100),String(v).slice(0,2048)])):{},
+      attachmentNames: (t.attachmentNames&&typeof t.attachmentNames==='object')?Object.fromEntries(Object.entries(t.attachmentNames).slice(0,40).map(([k,v])=>[String(k).slice(0,100),String(v).slice(0,180)])):{},
     }))
   }));
 
@@ -3684,6 +3685,82 @@ async function signedFileOpen(id){
   if(tab)tab.location.replace(data.signedUrl);
   else window.location.assign(data.signedUrl);
 }
+// Google Picker: browser-only authorization. Access tokens stay in memory, and are never saved.
+let ledgerDrivePickerLoaded=false;
+let ledgerDrivePickerLoading=false;
+let ledgerDriveTokenClient=null;
+let ledgerDriveAccessToken='';
+let ledgerDrivePendingRow=null;
+function validDriveAttachmentUrl(value){
+  try{const u=new URL(value);return u.protocol==='https:'&&(/(^|\.)drive\.google\.com$/.test(u.hostname)||/(^|\.)docs\.google\.com$/.test(u.hostname));}catch{return false;}
+}
+window.addEventListener('ledger-gapi-ready',()=>ledgerGooglePickerReady());
+function ledgerGooglePickerReady(){
+  if(ledgerDrivePickerLoaded||ledgerDrivePickerLoading||!window.gapi?.load)return;
+  ledgerDrivePickerLoading=true;
+  gapi.load('picker',{callback:()=>{ledgerDrivePickerLoaded=true;ledgerDrivePickerLoading=false;},onerror:()=>{ledgerDrivePickerLoading=false;}});
+}
+function updateDriveRow(row,url,name){
+  if(!row||!row.isConnected)return;
+  row.dataset.driveUrl=url||'';
+  row.dataset.driveName=name||'';
+  const info=row.querySelector('.route-drive-selected');
+  const label=row.querySelector('.route-drive-file-name');
+  if(info)info.hidden=!url;
+  if(label){label.textContent=name||'';label.title=name||'';}
+}
+function openGoogleDrivePicker(key){
+  const row=[...document.querySelectorAll('#routeTicketTravelerFiles [data-ticket-person-row]')].find(r=>r.dataset.ticketPersonRow===key);
+  if(!row)return;
+  const cfg=window.LEDGER_GOOGLE_PICKER||{};
+  const project=String(cfg.projectNumber||'').trim(),client=String(cfg.clientId||'').trim(),api=String(cfg.apiKey||'').trim();
+  if(!/^\d+$/.test(project)||!client.endsWith('.apps.googleusercontent.com')||!api.startsWith('AIza')){
+    toast('Google Drive Picker needs configuration. See GOOGLE-DRIVE-SETUP.txt.');return;
+  }
+  if(!window.google?.accounts?.oauth2||!window.google?.picker||!ledgerDrivePickerLoaded){
+    ledgerGooglePickerReady();toast('Google Drive is still loading. Please tap Add from Drive again.');return;
+  }
+  ledgerDrivePendingRow=row;
+  try{
+    if(!ledgerDriveTokenClient){
+      ledgerDriveTokenClient=google.accounts.oauth2.initTokenClient({
+        client_id:client,
+        scope:'https://www.googleapis.com/auth/drive.file',
+        callback:()=>{}
+      });
+    }
+    ledgerDriveTokenClient.callback=(response)=>{
+      if(response?.error||!response?.access_token){toast('Google Drive authorization was not completed.');return;}
+      ledgerDriveAccessToken=response.access_token;
+      try{
+        const picker=new google.picker.PickerBuilder()
+          .addView(google.picker.ViewId.DOCS)
+          .setOAuthToken(ledgerDriveAccessToken)
+          .setDeveloperKey(api)
+          .setAppId(project)
+          .setOrigin(window.location.protocol+'//'+window.location.host)
+          .setCallback(data=>{
+            if(data?.action!==google.picker.Action.PICKED)return;
+            const doc=data[google.picker.Response.DOCUMENTS]?.[0];
+            if(!doc)return;
+            const id=String(doc[google.picker.Document.ID]||'');
+            const url=String(doc[google.picker.Document.URL]||'') || (id?'https://drive.google.com/open?id='+encodeURIComponent(id):'');
+            const name=String(doc[google.picker.Document.NAME]||'Google Drive file').slice(0,180);
+            if(!validDriveAttachmentUrl(url)){toast('Google Drive returned an invalid file link.');return;}
+            updateDriveRow(row,url,name);
+            toast('Drive file linked. Save the ticket to keep it.');
+          })
+          .build();
+        picker.setVisible(true);
+      }catch(e){console.error('Google Picker',e);toast('Could not open Google Drive Picker. Check API key restrictions.');}
+    };
+    ledgerDriveTokenClient.error_callback=err=>{
+      if(err?.type!=='popup_closed')toast('Google authorization popup was blocked or could not open.');
+    };
+    // Invoked directly from a user click for iOS Safari popup compatibility.
+    ledgerDriveTokenClient.requestAccessToken({prompt:ledgerDriveAccessToken?'':'consent'});
+  }catch(e){console.error('Google authorization',e);toast('Could not start Google Drive sign-in.');}
+}
 async function uploadJourneyFile(){
   let j=journeyById(activeJourneyId);if(!j){toast('Open a Route first');return;}
   const ticketId=$('routeTicketId')?.value||'',existing=ticketId?(j.tickets||[]).find(t=>String(t.id)===String(ticketId)):null;
@@ -3695,19 +3772,19 @@ async function uploadJourneyFile(){
   for(const i of priceInputs){const v=Number(i.value||0);if(!Number.isFinite(v)||v<0){toast('Enter valid ticket prices');return;}travelerPrices[i.dataset.ticketPrice]=Math.round(v*100)/100;}
   const cost=Math.round(Object.values(travelerPrices).reduce((n,v)=>n+(Number(v)||0),0)*100)/100;
   if($('routeTicketCost'))$('routeTicketCost').value=money(cost);
-  // Links live in the ticket metadata; no file bytes are uploaded to Supabase.
+  // Only Picker-selected URLs and safe names are stored, never Drive file bytes or tokens.
   const attachmentLinks={};
-  for(const input of document.querySelectorAll('#routeTicketTravelerFiles [data-ticket-link]')){
-    const link=input.value.trim();
-    if(!link)continue;
-    let url;
-    try{url=new URL(link);}catch{toast('Enter a valid HTTPS attachment link');input.focus();return;}
-    if(url.protocol!=='https:'||!url.hostname){toast('Attachment links must use HTTPS');input.focus();return;}
-    if(link.length>2048){toast('Attachment link is too long');input.focus();return;}
-    attachmentLinks[input.dataset.ticketLink]=url.href;
+  const attachmentNames={};
+  for(const row of document.querySelectorAll('#routeTicketTravelerFiles [data-ticket-person-row]')){
+    const key=row.dataset.ticketPersonRow;
+    const url=String(row.dataset.driveUrl||'');
+    if(!url)continue;
+    if(!validDriveAttachmentUrl(url)){toast('A ticket attachment is invalid. Select it again from Google Drive.');return;}
+    attachmentLinks[key]=url;
+    attachmentNames[key]=String(row.dataset.driveName||'Google Drive file').slice(0,180);
   }
   const ticket=existing||{id:uid(),archived:false,travelerLabels:[]};
-  Object.assign(ticket,{name:(place+(route?' ('+route+')':'')).slice(0,120),category,place:place.slice(0,160),route:route.slice(0,80),date,time,cost,travelerPrices,attachmentLinks});
+  Object.assign(ticket,{name:(place+(route?' ('+route+')':'')).slice(0,120),category,place:place.slice(0,160),route:route.slice(0,80),date,time,cost,travelerPrices,attachmentLinks,attachmentNames});
   j.tickets ||= [];if(!existing)j.tickets.push(ticket);
   const btn=$('journeyUploadBtn');if(btn){btn.disabled=true;btn.textContent=existing?'Saving…':'Adding…';}
   let metadataSaved=false;
@@ -3813,8 +3890,11 @@ function openRouteTicketForm(ticket=null){
     updateRouteTicketLabels();
     const host=$('routeTicketTravelerFiles');
     if(host){
-      const people=routeTicketTravelers(j),prices=ticket?.travelerPrices||{},links=ticket?.attachmentLinks||{};
-      host.innerHTML=people.length?people.map(p=>`<div class="route-ticket-person"><div class="route-ticket-person-name">${esc(p.label)}${p.isSelf?' <small>(You)</small>':p.isOwner?' <small>(Owner)</small>':''}</div><div class="row2"><input type="number" min="0" max="999999999" step="0.01" inputmode="decimal" placeholder="0.00" aria-label="Ticket price for ${esc(p.label)}" data-ticket-price="${esc(p.key)}" value="${esc(prices[p.key]??'')}"><input type="url" inputmode="url" autocomplete="off" placeholder="Paste Drive link" aria-label="Ticket attachment link for ${esc(p.label)}" data-ticket-link="${esc(p.key)}" value="${esc(links[p.key]||'')}"></div></div>`).join(''):'<p class="fine">Add travelers to this Route first.</p>';
+      const people=routeTicketTravelers(j),prices=ticket?.travelerPrices||{},links=ticket?.attachmentLinks||{},names=ticket?.attachmentNames||{};
+      host.innerHTML=people.length?people.map(p=>{
+        const url=links[p.key]||'',name=names[p.key]||(url?'Drive attachment':'');
+        return `<div class="route-ticket-person" data-ticket-person-row="${esc(p.key)}" data-drive-url="${esc(url)}" data-drive-name="${esc(name)}"><div class="route-ticket-person-name">${esc(p.label)}${p.isSelf?' <small>(You)</small>':p.isOwner?' <small>(Owner)</small>':''}</div><div class="row2"><input type="number" min="0" max="999999999" step="0.01" inputmode="decimal" placeholder="0.00" aria-label="Ticket price for ${esc(p.label)}" data-ticket-price="${esc(p.key)}" value="${esc(prices[p.key]??'')}"><button type="button" class="route-drive-add" data-drive-pick="${esc(p.key)}">☁ Add from Drive</button></div><div class="route-drive-selected" ${url?'':'hidden'}><span class="route-drive-file-name" title="${esc(name)}">${esc(name)}</span><button type="button" class="route-drive-remove" data-drive-remove="${esc(p.key)}" aria-label="Remove Drive attachment">×</button></div></div>`;
+      }).join(''):'<p class="fine">Add travelers to this Route first.</p>';
     }
     routeTicketTotalFromInputs();
     if(!showRouteOverlay('routeTicketOverlay'))toast(`Could not open ${ticket?'Edit Ticket':'Add a Ticket'}`);
@@ -4265,7 +4345,7 @@ function openRouteTicketDetail(t){
   const when=[routeCardDate(t.date),t.time?routeClockTime(t.time):''].filter(Boolean).join(' • ');
   const linkRows=Object.entries(t.attachmentLinks||{}).filter(([,url])=>{try{const u=new URL(url);return u.protocol==='https:';}catch{return false;}}).map(([key,url])=>{
     const person=routeTicketTravelers(journeyById(activeJourneyId)).find(p=>p.key===key);
-    return `<a class="route-ticket-detail-file" href="${esc(url)}" target="_blank" rel="noopener noreferrer"><span>${esc(person?.label||'Traveler')} · Drive attachment</span><span>Open ↗</span></a>`;
+    return `<a class="route-ticket-detail-file" href="${esc(url)}" target="_blank" rel="noopener noreferrer"><span>${esc(person?.label||'Traveler')} · ${esc(t.attachmentNames?.[key]||'Drive attachment')}</span><span>Open ↗</span></a>`;
   }).join('');
   const legacyRows=files.map(f=>`<button type="button" class="route-ticket-detail-file" data-route-file-open="${esc(f.id)}"><span>${esc(f.display_name||'Ticket file')}</span><span>Open</span></button>`).join('');
   const fileRows=linkRows+legacyRows||'<p class="fine">No links attached.</p>';
@@ -4323,12 +4403,19 @@ function initJourneys(){
   // Reuse the already-working secure attachment uploader, never create a second storage path.
   const ticketHost=$('routeTicketFormHost'), existingUpload=$('journeyDocFile')?.closest('.route-upload');
   if(ticketHost&&existingUpload)ticketHost.appendChild(existingUpload);
+  ledgerGooglePickerReady();
   $('routeTicketCancel')?.addEventListener('click',closeRouteOverlays);
 
   $('routeTicketCategory')?.addEventListener('change',updateRouteTicketLabels);
   // The category select sits transparently over the emoji tile. Its native
   // iOS/Android picker stays interactive inside the modal scroll container.
   $('routeTicketTravelerFiles')?.addEventListener('input',e=>{if(e.target.matches('[data-ticket-price]'))routeTicketTotalFromInputs();});
+  $('routeTicketTravelerFiles')?.addEventListener('click',e=>{
+    const add=e.target.closest('[data-drive-pick]');
+    if(add){openGoogleDrivePicker(add.dataset.drivePick);return;}
+    const remove=e.target.closest('[data-drive-remove]');
+    if(remove){updateDriveRow(remove.closest('[data-ticket-person-row]'),'','');}
+  });
   
   $('routeTicketOverlay')?.addEventListener('click',e=>{if(e.target.id==='routeTicketOverlay')closeRouteOverlays();});
   $('routeTicketDetailOverlay')?.addEventListener('click',e=>{if(e.target.id==='routeTicketDetailOverlay')closeRouteOverlays();});

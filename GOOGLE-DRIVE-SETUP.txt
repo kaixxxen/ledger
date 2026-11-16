@@ -1,0 +1,31 @@
+LEDGER GOOGLE DRIVE PICKER SETUP
+================================
+1. Open google-picker-config.js and replace the three placeholder values:
+   projectNumber = Google Cloud numeric PROJECT NUMBER (not project ID)
+   clientId      = Web OAuth Client ID ending .apps.googleusercontent.com
+   apiKey        = browser-restricted Google API Key starting AIza
+
+2. Make sure Google Picker API is enabled in the same Google Cloud project.
+   OAuth JavaScript origin: https://kaixxxen.github.io
+   API key website referrers: https://kaixxxen.github.io/* and https://docs.google.com/*
+   OAuth scope: https://www.googleapis.com/auth/drive.file
+   While OAuth is in Testing, register the Google account under Test users.
+
+3. Upload these five runtime files TOGETHER into the same published folder:
+   app.js, index.html, styles.css, sw.js, google-picker-config.js
+   Keep the existing config.js (Supabase configuration) unchanged.
+
+4. Hard-refresh Ledger on your iPhone. In a route, open Add a Ticket,
+   tap Add from Drive, authorize, browse, select a file, then SAVE the ticket.
+   Ticket details -> attachment should open the original Google Drive file.
+
+IMPORTANT
+- No file bytes are uploaded into Supabase. Only the Drive URL and display name
+  are saved in ticket metadata. The access token is held in browser memory only.
+- Google Drive sharing permissions remain in force. A different traveler needs
+  access to the original Drive file to open the link.
+- This build has been syntax-checked but not tested with your real credentials.
+- The browser API key and OAuth client ID are public identifiers. Keep the API
+  key restricted; NEVER put a client secret or service account key in web code.
+- Legacy manually pasted HTTPS attachments and old Supabase uploaded files
+  remain visible in Ticket Details when available.
