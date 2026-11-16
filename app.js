@@ -292,7 +292,19 @@ function normalize(raw) {
     emoji: String(j.emoji || '🧭').slice(0,8),
     linkedBillId: String(j.linkedBillId || ''),
     inviteCodes: Array.isArray(j.inviteCodes)?j.inviteCodes.map(x=>String(x)).slice(0,20):[],
+    // These fields were previously dropped on every reload, so archived routes
+    // reappeared and travelers/links vanished.
+    archived: !!j.archived,
+    createdAt: String(j.createdAt || ''),
+    travelers: (Array.isArray(j.travelers) ? j.travelers : []).filter(Boolean).map(t => ({
+      name: String(t.name || t.code || 'Traveler').slice(0,80),
+      code: t.code ? String(t.code).toUpperCase() : null
+    })).slice(0,40),
+    links: (Array.isArray(j.links) ? j.links : []).filter(l => l && imageHttpUrl(l.url)).map(l => ({
+      id: String(l.id || uid()), title: String(l.title || 'Link').slice(0,100), url: imageHttpUrl(l.url)
+    })).slice(0,30),
     stops: (Array.isArray(j.stops) ? j.stops : []).filter(Boolean).map(p => ({
+      travelerIds: Array.isArray(p.travelerIds) ? p.travelerIds.map(String).slice(0,40) : [],
       id: String(p.id || uid()), type: ['place','transport','activity','stay','food'].includes(p.type) ? p.type : 'place',
       title: String(p.title || 'Stop').slice(0,120),
       date: isIsoDate(p.date) ? p.date : '',
@@ -4016,6 +4028,13 @@ function routeCardDate(iso){
   if(date.getUTCFullYear()!==year||date.getUTCMonth()!==month-1||date.getUTCDate()!==day)return '';
   return `${String(day).padStart(2,'0')} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][month-1]} ${year}`;
 }
+// "Mon, Nov 16" style heading for an ISO date, without time-zone drift.
+function routeDayLabel(iso){
+  const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso||''));
+  if(!m)return 'Unscheduled';
+  const d=new Date(Date.UTC(+m[1],+m[2]-1,+m[3]));
+  return d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',timeZone:'UTC'});
+}
 function renderJourneys(){
   const list=$('journeyList'),detail=$('journeyDetail');if(!list||!detail)return;
   const journeys=journeysAll();
@@ -4047,7 +4066,8 @@ function renderJourneys(){
     initRouteDrag();placeNotificationInHeader();return;
   }
   placeNotificationInHeader();
-  const j=journeyById(activeJourneyId), total=j.stops.reduce((n,p)=>n+p.cost,0);
+  const j=journeyById(activeJourneyId), total=(j.stops||[]).reduce((n,p)=>n+(Number(p.cost)||0),0);
+  j.stops=Array.isArray(j.stops)?j.stops:[];
   $('journeyHeroTitle').textContent=j.title;
   $('journeyHeroDate').textContent=routeCardDate(j.startDate)||'Date not set';
   const travelerKeys=new Set((j.travelers||[]).map(t=>t.code||t.name).filter(Boolean));
@@ -4067,14 +4087,14 @@ function renderJourneys(){
   $('journeyDetailNotes').textContent=j.notes||'';
   $('journeyDetailNotes').hidden=!j.notes;
   $('journeyEdit').hidden=false;$('journeyDelete').hidden=true;
-  $('journeyAddStop').hidden=true; // Added from the floating + menu only.
+  $('journeyAddStop').hidden=!journeyOwner(j); // Also reachable from the floating + menu.
   renderJourneyExtras();
   const ordered=j.stops.slice().sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999')||(a.time||'99').localeCompare(b.time||'99'));
   $('journeyStops').innerHTML=ordered.length?ordered.map((p,i)=>{
-    const dateLabel=[p.date,p.time+(p.endTime?`–${p.endTime}`:'')].filter(Boolean).join(' · ');
+    const dateLabel=[p.time?p.time+(p.endTime?`–${p.endTime}`:''):''].filter(Boolean).join(' · ');
     const summary=[p.location,p.transport].filter(Boolean).join(' · ');
     const last=i>0&&ordered[i-1].date!==p.date;
-    return `${i===0||last?`<div class="journey-day-label">${esc(p.date||'Unscheduled')}</div>`:''}<article class="journey-stop" data-stop-id="${esc(p.id)}"><span class="journey-type-dot ${esc(p.type)}" aria-hidden="true"></span><div class="journey-stop-main"><div class="journey-stop-meta">${esc(JTYPE[p.type]||'Place')} · ${esc(dateLabel||'Time not set')}</div><strong>${esc(p.title)}</strong>${summary?`<small>${esc(summary)}</small>`:''}${p.notes?`<p>${esc(p.notes)}</p>`:''}${Array.isArray(p.travelerIds)&&p.travelerIds.length?`<small>👤 ${esc(p.travelerIds.map(id=>journeyMembers.find(m=>m.user_id===id)?.display_name||'Traveler').join(', '))}</small>`:''}${stopPhotoUrls(p).length?`<div class="route-stop-photos">${stopPhotoUrls(p).map(url=>`<img src="${esc(url)}" alt="${esc(p.title)}" loading="lazy">`).join('')}</div>`:''}${j.shared&&journeyFiles.some(f=>f.stop_id===p.id)?`<small>📎 ${journeyFiles.filter(f=>f.stop_id===p.id).length} attachment(s) · Open Edit to view</small>`:''}</div><div class="journey-stop-right"><strong>${money(p.cost)}</strong><button type="button" class="journey-stop-edit" data-stop-edit="${esc(p.id)}" aria-label="View ${esc(p.title)}">${journeyOwner(j)?'Details':'View'}</button></div></article>`;
+    return `${i===0||last?`<div class="journey-day-label">${esc(routeDayLabel(p.date))}</div>`:''}<article class="journey-stop" data-stop-id="${esc(p.id)}"><span class="journey-type-dot ${esc(p.type)}" aria-hidden="true"></span><div class="journey-stop-main"><div class="journey-stop-meta">${esc(JTYPE[p.type]||'Place')} · ${esc(dateLabel||'Time not set')}</div><strong>${esc(p.title)}</strong>${summary?`<small>${esc(summary)}</small>`:''}${p.notes?`<p>${esc(p.notes)}</p>`:''}${Array.isArray(p.travelerIds)&&p.travelerIds.length?`<small>👤 ${esc(p.travelerIds.map(id=>journeyMembers.find(m=>m.user_id===id)?.display_name||'Traveler').join(', '))}</small>`:''}${stopPhotoUrls(p).length?`<div class="route-stop-photos">${stopPhotoUrls(p).map(url=>`<img src="${esc(url)}" alt="${esc(p.title)}" loading="lazy">`).join('')}</div>`:''}${j.shared&&journeyFiles.some(f=>f.stop_id===p.id)?`<small>📎 ${journeyFiles.filter(f=>f.stop_id===p.id).length} attachment(s) · Open Edit to view</small>`:''}</div><div class="journey-stop-right"><strong>${money(p.cost)}</strong><button type="button" class="journey-stop-edit" data-stop-edit="${esc(p.id)}" aria-label="View ${esc(p.title)}">${journeyOwner(j)?'Details':'View'}</button></div></article>`;
   }).join(''):'<div class="journey-empty">No stops yet. Add your first place or transport.</div>';
 }
 function initJourneys(){
