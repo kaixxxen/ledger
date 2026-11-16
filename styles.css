@@ -3035,3 +3035,94 @@ select:not([multiple]){max-width:100%;min-width:0;}
 #splitPersonAvatar{display:grid;place-items:center;overflow:hidden}
 #splitPersonAvatar .bill-sticker-avatar{width:100%;height:100%}
 @media(max-width:430px){.bill-card-sticker,.split-header-sticker{width:26px;height:26px}.emoji-avatar-btn .picker-button-sticker{width:32px;height:32px}}
+
+
+/* v113 bill sticker avatar refinement */
+#splitPersonAvatar{
+  width:52px !important;
+  height:52px !important;
+  min-width:52px !important;
+  min-height:52px !important;
+  margin-right:14px !important;
+  border-radius:18px !important;
+  display:grid !important;
+  place-items:center !important;
+  overflow:hidden !important;
+  background:var(--card-2) !important;
+  border:1px solid var(--line) !important;
+  box-shadow:none !important;
+}
+#splitPersonAvatar .bill-sticker-avatar{
+  width:34px !important;
+  height:34px !important;
+  object-fit:contain !important;
+}
+.emoji-avatar-btn{
+  width:60px !important;
+  min-width:60px !important;
+  height:60px !important;
+  border-radius:18px !important;
+  overflow:hidden !important;
+  padding:0 !important;
+  background:var(--bg) !important;
+  border:1px solid var(--line) !important;
+}
+.emoji-avatar-btn .picker-button-sticker{
+  width:40px !important;
+  height:40px !important;
+  object-fit:contain !important;
+}
+.bill-card-sticker,.split-header-sticker{
+  width:28px !important;
+  height:28px !important;
+  object-fit:contain !important;
+}
+.linked-bill-sticker{width:18px !important;height:18px !important;object-fit:contain !important;}
+.split-person-sticker{width:34px !important;height:34px !important;object-fit:contain !important;}
+.bill-sticker-avatar{display:block;object-fit:contain;flex:none;}
+.emoji-grid{
+  grid-template-columns:repeat(4,minmax(0,1fr)) !important;
+  gap:12px !important;
+  padding:4px !important;
+  max-height:min(58vh,520px) !important;
+  overflow-y:auto !important;
+  align-content:start !important;
+}
+.emoji-grid-item.sticker-grid-item{
+  width:100% !important;
+  aspect-ratio:1 / 1 !important;
+  min-height:72px !important;
+  border-radius:18px !important;
+  background:color-mix(in srgb,var(--card-2) 88%, black) !important;
+  border:1px solid color-mix(in srgb,var(--line) 80%, transparent) !important;
+  padding:8px !important;
+  display:grid !important;
+  place-items:center !important;
+  overflow:hidden !important;
+}
+.emoji-grid-item.sticker-grid-item:hover{
+  background:color-mix(in srgb,var(--bar) 88%, black) !important;
+  border-color:#a9d6f3 !important;
+}
+.emoji-grid-item.sticker-grid-item.is-selected{
+  border:2px solid #a9d6f3 !important;
+  background:color-mix(in srgb,#a9d6f3 12%,var(--card-2)) !important;
+}
+.emoji-grid-item.sticker-grid-item .sticker-avatar-thumb{
+  width:78% !important;
+  height:78% !important;
+  object-fit:contain !important;
+  display:block !important;
+}
+.emoji-grid-item.sticker-grid-item.is-selected::after{
+  right:6px !important;
+  top:6px !important;
+}
+@media (max-width:430px){
+  .emoji-grid{gap:10px !important;}
+  .emoji-grid-item.sticker-grid-item{min-height:68px !important;border-radius:16px !important;}
+  .emoji-avatar-btn{width:56px !important;min-width:56px !important;height:56px !important;}
+  .emoji-avatar-btn .picker-button-sticker{width:38px !important;height:38px !important;}
+  #splitPersonAvatar{width:48px !important;height:48px !important;min-width:48px !important;min-height:48px !important;}
+  #splitPersonAvatar .bill-sticker-avatar{width:32px !important;height:32px !important;}
+}
