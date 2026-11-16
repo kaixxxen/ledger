@@ -330,29 +330,19 @@
         </div>
       </div>
       <section class="route-overview-card" aria-label="Route overview">
-        <div id="routeDestinationSlideshow" class="route-destination-slideshow" hidden aria-label="Destination photo slideshow">
-          <div class="route-slide-viewport" aria-live="off">
-            <img id="routeSlideImage" class="route-slide-image" alt="Destination photograph" loading="lazy">
-            <button type="button" class="route-slide-arrow previous" data-route-slide="-1" aria-label="Previous destination photo">‹</button>
-            <button type="button" class="route-slide-arrow next" data-route-slide="1" aria-label="Next destination photo">›</button>
-            <span id="routeSlideCounter" class="route-slide-count"></span>
-          </div>
-          <div class="route-slide-caption"><span id="routeSlideLocation" class="route-slide-location"></span></div>
-          <details class="route-slide-attribution"><summary aria-label="Photo credits and license" title="Photo credits and license">ⓘ</summary><div id="routeSlideCredit" class="route-slide-credit"></div></details>
-        </div>
         <div class="route-overview-main" id="journeyOverviewMain">
           <h3 id="journeyHeroTitle"></h3>
           <p id="journeyDetailSubtitle" class="route-overview-destination"></p>
           <p id="journeyHeroDate" class="route-overview-date"></p>
         </div>
         <div class="route-overview-stats route-overview-stats-two">
-          <button id="journeyCostSummaryOpen" type="button" class="route-cost-summary-trigger" aria-label="View estimated individual costs and expense breakdown"><small>Estimated total cost</small><strong id="journeyTotal"></strong></button>
+          <div><small>Estimated total cost</small><strong id="journeyTotal"></strong></div>
           <div><small>Planned stops</small><strong id="journeyStopsCount"></strong></div>
         </div>
       </section>
       <div class="route-linked-bill" id="journeyLinkedBill" hidden></div>
       <p id="journeyDetailNotes" class="fine" hidden></p>
-      <div class="journey-content-head"><h3 id="journeyItineraryHeading">Itinerary</h3><button id="journeyItineraryArchive" type="button" class="route-itinerary-archive-btn" aria-label="View archived tickets and stops" aria-pressed="false" title="Archived tickets and stops"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1.2"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4"/></svg></button><label class="route-mini-sort" for="journeyItinerarySort"><span class="sr-only">Sort itinerary</span><select id="journeyItinerarySort" aria-label="Sort itinerary"></select></label><button id="journeyAddStop" type="button" hidden>+ Add stop</button></div>
+      <div class="journey-content-head"><h3>Itinerary</h3><label class="route-mini-sort" for="journeyItinerarySort"><span class="sr-only">Sort itinerary</span><select id="journeyItinerarySort" aria-label="Sort itinerary"></select></label><button id="journeyAddStop" type="button" hidden>+ Add stop</button></div>
       <div class="seg route-itinerary-tabs" id="journeyItineraryTabs"><button type="button" data-v="tickets" class="on">Tickets</button><button type="button" data-v="stops">Stops</button></div>
       <div id="journeyStops" class="journey-stops"></div>
     </section>
@@ -382,30 +372,25 @@
     </section>
 </div>
 <div id="routeStopOverlay" class="modal-backdrop route-modal-overlay" hidden>
-  <section id="stopEditor" class="modal-card route-stop-card" hidden role="dialog" aria-modal="true" aria-labelledby="routeStopTitle">
-    <form id="stopForm" novalidate>
-      <h3 id="routeStopTitle">Add a Stop</h3>
-      <input id="stopId" type="hidden">
-      <div class="route-stop-fields-two">
-        <div><label class="lbl" for="stopType">Type</label><select id="stopType"><option value="place">Place</option><option value="transport">Transport</option><option value="activity">Activity</option><option value="stay">Stay</option><option value="food">Food</option></select></div>
-        <div><label class="lbl" for="stopTitle">Stop name</label><input id="stopTitle" maxlength="120" required placeholder="Arrive at station"></div>
-      </div>
-      <div class="route-stop-fields-two">
-        <div><label class="lbl" for="stopDate">Date</label><div class="route-stop-date-control"><input id="stopDate" type="date" aria-label="Date"><span class="route-stop-date-display" id="stopDateDisplay" aria-hidden="true">Select date</span></div></div>
-        <div><label class="lbl" for="stopCost">Estimated cost</label><input id="stopCost" type="number" min="0" max="999999999" step="0.01" inputmode="decimal" placeholder="0.00"></div>
-      </div>
-      <div class="route-stop-fields-two">
-        <div><label class="lbl" for="stopTime">Start time</label><input id="stopTime" type="time"></div>
-        <div><label class="lbl" for="stopEndTime">End time</label><input id="stopEndTime" type="time"></div>
-      </div>
-      <div><label class="lbl" for="stopLocation">Place / address</label><input id="stopLocation" maxlength="200" placeholder="Where is this stop?"></div>
-      <div><label class="lbl" for="stopTransport">Transportation / how to get there</label><input id="stopTransport" maxlength="120" placeholder="Bus, Grab, walking…"></div>
-      <div id="stopTravelersWrap" class="route-travelers-wrap" hidden><span class="lbl">Travelers at this stop</span><div id="stopTravelers" class="route-traveler-choices participant-select-grid"></div><small class="fine">Leave all unselected to include everyone.</small></div>
-      <div><label class="lbl" for="stopPhotoUrl">Photo link (HTTPS)</label><input id="stopPhotoUrl" type="url" placeholder="https://example.com/photo.jpg"><div id="stopPhotoGallery" class="route-gallery"></div></div>
-      <div><label class="lbl" for="stopNotes">Notes</label><textarea id="stopNotes" maxlength="1500" rows="2" placeholder="Tickets, reservations, reminders…"></textarea></div>
-      <div class="btnrow modal-actions"><button id="stopSave" type="submit" class="primary">Save Stop</button><button id="stopDelete" type="button" class="secondary danger">Delete Stop</button><button id="stopCancel" type="button" class="secondary">Cancel</button></div>
-    </form>
-  </section>
+  <section id="stopEditor" class="journey-edit-card route-modal-card" hidden role="dialog" aria-modal="true" aria-labelledby="routeStopTitle"><form id="stopForm"><h2 id="routeStopTitle">Add a Stop</h2><input id="stopId" type="hidden"><div class="journey-fields"><div><label for="stopType">Type</label><select id="stopType"><option value="place">Place</option><option value="transport">Transport</option><option value="activity">Activity</option><option value="stay">Stay</option><option value="food">Food</option></select></div><div><label for="stopTitle">Name</label><input id="stopTitle" maxlength="120" required placeholder="Arrive at station"></div></div><div class="journey-fields"><div><label for="stopDate">Date</label><input id="stopDate" type="date"></div><div><label for="stopTime">Start time</label><input id="stopTime" type="time"></div><div><label for="stopEndTime">End time</label><input id="stopEndTime" type="time"></div></div><label for="stopLocation">Place / address</label><input id="stopLocation" maxlength="200" placeholder="Where is this stop?"><div id="stopTravelersWrap" class="route-travelers-wrap" hidden><strong>Travelers at this stop</strong><div id="stopTravelers" class="route-traveler-choices"></div><small class="fine">Leave all unchecked to include everyone.</small></div><label for="stopTransport">Transportation / how to get there</label><input id="stopTransport" maxlength="120" placeholder="Bus, Grab, walking…"><label for="stopCost">Estimated cost</label><input id="stopCost" type="number" min="0" max="999999999" step="0.01" inputmode="decimal" placeholder="0.00"><label for="stopPhotoUrl">Destination photo (direct HTTPS image link)</label><input id="stopPhotoUrl" type="url" placeholder="https://example.com/photo.jpg"><div id="stopPhotoGallery" class="route-gallery"></div><label for="stopNotes">Notes</label><textarea id="stopNotes" maxlength="1500" rows="2" placeholder="Tickets, reservations, reminders…"></textarea><div class="journey-form-actions"><button type="button" id="stopDelete" class="journey-danger">Delete Stop</button><button type="button" id="stopCancel" class="secondary">Cancel</button><button type="submit" class="primary" id="stopSave">Save Stop</button></div></form></section>
+</div>
+<div id="routeCollabOverlay" class="modal-backdrop route-modal-overlay" hidden>
+      <section id="journeyCollab" role="dialog" aria-modal="true" aria-label="Travelers and files" class="journey-collab route-modal-card" hidden>
+        <div class="route-collab-header"><h2>Travelers & files</h2><button type="button" id="routeCollabClose" class="route-icon-btn" aria-label="Close travelers and files">×</button></div><div class="route-section-title"><div><h3>Sharing</h3><p class="fine" id="journeySharingStatus"></p></div><button class="secondary" type="button" id="journeyShareBtn">Share this Route</button></div>
+        <p class="fine" id="journeyShareHint"></p>
+        <div id="journeyMemberList" class="route-member-list"></div>
+        <form id="journeyInviteForm" class="route-invite"><label for="journeyInviteId">Add by Ledger ID</label><div class="route-inline"><input id="journeyInviteId" placeholder="ABC-123456" maxlength="16" required><button type="submit" class="primary">Add traveler</button></div></form>
+        
+        <div id="journeyFilesSection" hidden>
+          <div class="route-section-title"><h3>Trip files & tickets</h3></div>
+          <p class="fine">Upload a PDF, PowerPoint, exported Canva deck, pictures, or tickets. Private documents are visible only to the assigned traveler and route owner.</p>
+          <div id="journeyFiles" class="route-file-list"></div>
+          <div class="route-section-title"><h3>Useful links</h3></div>
+          <div id="journeyLinks" class="route-file-list"></div>
+          <form id="journeyLinkForm" class="route-upload"><label for="journeyLinkTitle">Link label</label><input id="journeyLinkTitle" maxlength="100" placeholder="Our Canva itinerary"><label for="journeyLinkUrl">HTTPS link</label><input type="url" id="journeyLinkUrl" placeholder="https://www.canva.com/..." required><button class="secondary" type="submit">Add link</button></form>
+        </div>
+      </section>
+
 </div>
 <div id="routeTicketOverlay" class="modal-backdrop route-modal-overlay" hidden>
   <div class="modal-card route-ticket-card" role="dialog" aria-modal="true" aria-labelledby="routeTicketTitle">
@@ -451,16 +436,6 @@
     </div>
   </div>
 </div>
-<div id="routeStopDetailOverlay" class="modal-backdrop route-modal-overlay" hidden>
-  <div class="modal-card route-stop-detail-card" role="dialog" aria-modal="true" aria-labelledby="routeStopDetailTitle">
-    <h3 id="routeStopDetailTitle">Stop details</h3>
-    <div id="routeStopDetailBody" class="route-stop-detail-body"></div>
-    <div class="btnrow modal-actions">
-      <button id="routeStopDetailEdit" type="button" class="primary">Edit stop details</button>
-      <button id="routeStopDetailClose" type="button" class="secondary">Close</button>
-    </div>
-  </div>
-</div>
 <div id="routeTicketDetailOverlay" class="modal-backdrop route-modal-overlay" hidden>
   <div class="modal-card route-ticket-detail-card" role="dialog" aria-modal="true" aria-labelledby="routeTicketDetailTitle">
     <h3 id="routeTicketDetailTitle">Ticket details</h3>
@@ -469,13 +444,6 @@
       <button id="routeTicketDetailEdit" type="button" class="primary">Edit ticket details</button>
       <button id="routeTicketDetailClose" type="button" class="secondary">Close</button>
     </div>
-  </div>
-</div>
-<div id="routeCostSummaryOverlay" class="modal-backdrop route-modal-overlay" hidden>
-  <div class="modal-card route-cost-modal" role="dialog" aria-modal="true" aria-labelledby="routeCostSummaryTitle">
-    <h3 id="routeCostSummaryTitle">Expected expenses</h3>
-    <div id="routeCostSummaryBody" class="route-cost-summary-body"></div>
-    <div class="btnrow modal-actions"><button id="routeCostSummaryClose" type="button" class="secondary">Close</button></div>
   </div>
 </div>
 <div id="routeOptionsOverlay" class="modal-backdrop route-modal-overlay" hidden>
@@ -705,13 +673,13 @@
         <label class="lbl" for="personNameInput">Bill Name</label>
         <div class="bill-header-row">
           <div class="emoji-picker-container">
-            <button type="button" id="emojiAvatarBtn" class="emoji-avatar-btn" title="Choose animal emoji avatar">🐶</button>
+            <button type="button" id="emojiAvatarBtn" class="emoji-avatar-btn" title="Choose bill sticker avatar">🐶</button>
             <input type="hidden" id="customEmojiInput" value="🐶">
             
             <div id="emojiPickerPopover" class="emoji-popover" role="dialog" aria-modal="true" aria-labelledby="emojiPickerTitle" hidden>
               <div class="emoji-picker-panel">
                 <div class="emoji-popover-header">
-                  <div><strong id="emojiPickerTitle">Choose an avatar</strong><span>Pick an animal or use your own emoji.</span></div>
+                  <div><strong id="emojiPickerTitle">Choose an avatar</strong><span>Pick a sticker avatar for this bill.</span></div>
                   <button type="button" id="closeEmojiPickerBtn" class="emoji-popover-close" aria-label="Close avatar picker"><svg class="ui-center-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
                 </div>
                 <div class="emoji-grid" id="emojiGrid" aria-label="Animal avatar choices"></div>
@@ -1119,9 +1087,6 @@
 </script>
 
 <script src="config.js" onerror="this.onerror=null;"></script>
-<script src="google-picker-config.js"></script>
-<script async src="https://apis.google.com/js/api.js" onload="window.dispatchEvent(new Event('ledger-gapi-ready'))"></script>
-<script async src="https://accounts.google.com/gsi/client"></script>
 <script src="app.js"></script>
 </body>
 </html>

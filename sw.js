@@ -1,6 +1,6 @@
-const CACHE='ledger-v113-1-slideshow-centered-arrows';
+const CACHE='ledger-v113-bill-stickers';
 const SHELL = [
-  'index.html', 'styles.css', 'app.js', 'config.js', 'google-picker-config.js', 'manifest.webmanifest',
+  'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'
 ];
 
