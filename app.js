@@ -23,6 +23,49 @@ const ROUTE_EMOJIS = ROUTE_STICKER_IDS;
 const LEGACY_BILL_AVATAR_MAP = Object.fromEntries(DEFAULT_AVATAR_EMOJIS.map((emoji, index) => [emoji, BILL_STICKER_IDS[index % BILL_STICKER_IDS.length]]));
 const LEGACY_ROUTE_AVATAR_MAP = Object.fromEntries(['🧭','🏕️','✈️','🏖️','🏔️','🌸','🚗','🚆','⛵','🌆','🎒','🌴','🌅','🗺️','🏛️','🎡'].map((emoji, index) => [emoji, ROUTE_STICKER_IDS[index % ROUTE_STICKER_IDS.length]]));
 
+const CAT_COLORS = {
+  'Food':      'var(--c-food)',
+  'Housing':   'var(--c-housing)',
+  'Transport': 'var(--c-transport)',
+  'Bills':     'var(--c-bills)',
+  'Health':    'var(--c-health)',
+  'Fun':       'var(--c-fun)',
+  'Shopping':  'var(--c-shopping)',
+  'Other':     'var(--c-other)'
+};
+
+// Custom expense categories use shades of the user's current pastel accent.
+// A stable hash keeps each category visually consistent when changing themes.
+const DYNAMIC_PALETTE = [
+  'color-mix(in srgb,var(--user-accent) 91%,white)',
+  'color-mix(in srgb,var(--user-accent) 76%,white)',
+  'color-mix(in srgb,var(--user-accent) 70%,#777)',
+  'color-mix(in srgb,var(--user-accent) 55%,white)',
+  'color-mix(in srgb,var(--user-accent) 82%,#888)',
+  'color-mix(in srgb,var(--user-accent) 60%,#aaa)',
+  'color-mix(in srgb,var(--user-accent) 48%,white)',
+  'color-mix(in srgb,var(--user-accent) 77%,#555)',
+  'color-mix(in srgb,var(--user-accent) 66%,#bbb)',
+  'color-mix(in srgb,var(--user-accent) 42%,#888)'
+];
+
+function getCategoryColor(catName) {
+  if (CAT_COLORS[catName]) return CAT_COLORS[catName];
+  let hash = 0;
+  for (let i = 0; i < catName.length; i++) {
+    hash = catName.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const idx = Math.abs(hash) % DYNAMIC_PALETTE.length;
+  return DYNAMIC_PALETTE[idx];
+}
+
+const METHOD_LABEL = { cash: 'Cash', debit: 'Debit card', card: 'Credit card' };
+const PAGES = ['home','expenses','split','journeys','settings'];
+
+const $  = id => document.getElementById(id);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+const esc = s => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
 function resolveBillStickerId(value) {
   const raw = String(value || '').trim();
   if (!raw) return BILL_STICKER_IDS[0];
