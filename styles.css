@@ -3713,3 +3713,69 @@ body.ledger-drive-picker-open #routeTicketOverlay{
     bottom:10px!important;
   }
 }
+
+/* v113 — precise slideshow arrows, ticket detail alignment, neutral itinerary icons */
+#page-journeys #journeyDetail .route-slide-arrow{
+  display:grid!important;
+  place-items:center!important;
+  padding:0!important;
+  line-height:0!important;
+  font-size:0!important;
+  text-align:center!important;
+}
+#page-journeys #journeyDetail .route-slide-arrow::before{
+  content:"";
+  display:block;
+  width:9px;
+  height:9px;
+  border-top:2px solid currentColor;
+  border-right:2px solid currentColor;
+  box-sizing:border-box;
+}
+#page-journeys #journeyDetail .route-slide-arrow.previous::before{
+  transform:translateX(2px) rotate(-135deg);
+}
+#page-journeys #journeyDetail .route-slide-arrow.next::before{
+  transform:translateX(-2px) rotate(45deg);
+}
+#routeTicketDetailBody .route-ticket-detail-hero{
+  display:grid!important;
+  grid-template-columns:44px minmax(0,1fr)!important;
+  gap:12px!important;
+  align-items:center!important;
+}
+#routeTicketDetailBody .route-ticket-detail-hero-icon{
+  display:grid!important;
+  place-items:center!important;
+  margin:0!important;
+  flex:none;
+}
+#routeTicketDetailBody .route-ticket-detail-hero-copy{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:flex-start!important;
+  justify-content:center!important;
+  text-align:left!important;
+  min-width:0;
+  gap:4px!important;
+}
+#routeTicketDetailBody .route-ticket-detail-hero-copy strong,
+#routeTicketDetailBody .route-ticket-detail-hero-copy small{
+  width:100%;
+  margin:0!important;
+  text-align:left!important;
+  display:block;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+/* No colored emoji tile behind the itinerary's ticket or stop icons. */
+#page-journeys #journeyDetail .route-ticket-icon,
+#page-journeys #journeyDetail .journey-type-dot{
+  background:transparent!important;
+  box-shadow:none!important;
+  border:0!important;
+}
+#page-journeys #journeyDetail .route-ticket-icon{
+  border-radius:0!important;
+}
