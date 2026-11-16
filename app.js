@@ -15,81 +15,6 @@ const DEFAULT_AVATAR_EMOJIS = [
   '🐴', '🦄', '🐝', '🐛', '🦋', '🐢'
 ];
 
-/* Ledger Originals v116: vector avatars, versioned IDs; legacy emoji values remain compatible. */
-const LEDGER_BILL_AVATARS = [
-  ['a:bud','Bud'],['a:pop','Pop'],['a:peb','Pebble'],['a:sol','Sunny'],
-  ['a:moo','Mochi'],['a:joy','Joy'],['a:sky','Sky'],['a:dot','Dot'],
-  ['a:gem','Gem'],['a:bun','Bunny'],['a:zip','Zippy'],['a:leaf','Leaf']
-];
-const LEDGER_ROUTE_AVATARS = [
-  ['r:map','Map'],['r:camp','Camping'],['r:air','Flight'],['r:sea','Beach'],
-  ['r:hill','Mountains'],['r:tree','Nature'],['r:car','Road trip'],['r:rail','Train'],
-  ['r:boat','Boat'],['r:city','City'],['r:bag','Backpack'],['r:sun','Sunset']
-];
-const LEDGER_OLD_ROUTE = ['🧭','🏕️','✈️','🏖️','🏔️','🌸','🚗','🚆','⛵','🌆','🎒','🌴','🌅','🗺️','🏛️','🎡'];
-const LEDGER_COLORS = [
-  ['#9CE4B8','#37205E'],['#FFB5C5','#352051'],['#AFCBFF','#342263'],
-  ['#FFCE82','#36235D'],['#CBB3F6','#35205C'],['#8ADCE5','#392059'],
-  ['#F6A9A6','#321D50'],['#B5E57E','#38215D'],['#FFDA9A','#38215E'],
-  ['#DAB9FF','#2B2458'],['#FFB1E1','#34205B'],['#A3E6B8','#37215A']
-];
-function ledgerAvatarId(value,type='bill'){
-  const v=String(value||'');
-  const opts=type==='route'?LEDGER_ROUTE_AVATARS:LEDGER_BILL_AVATARS;
-  if(opts.some(([id])=>id===v))return v;
-  const legacy=type==='route'?LEDGER_OLD_ROUTE:DEFAULT_AVATAR_EMOJIS;
-  const i=legacy.indexOf(v);
-  if(i>=0)return opts[i%opts.length][0];
-  // Stable mapping for users with custom emoji; do not change their saved values.
-  let hash=0;for(const ch of v)hash=(hash*31+ch.codePointAt(0))>>>0;
-  return opts[hash%opts.length][0];
-}
-function ledgerAvatarMarkup(value,type='bill'){
-  const opts=type==='route'?LEDGER_ROUTE_AVATARS:LEDGER_BILL_AVATARS;
-  const id=ledgerAvatarId(value,type);
-  const ix=Math.max(0,opts.findIndex(entry=>entry[0]===id));
-  const [bg,ink]=LEDGER_COLORS[ix];
-  const svg=(shape)=>`<svg class="ledger-vector-avatar ledger-vector-${type}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" role="img" aria-label="${opts[ix][1]} avatar"><rect width="48" height="48" rx="15" fill="${bg}"/>${shape}</svg>`;
-  if(type==='bill'){
-    const shapes=[
-      `<path d="M12 27C8 18 16 10 25 11C35 9 40 19 36 30C34 39 16 40 12 27Z" fill="${ink}"/><path d="M16 25h3m10 0h3" stroke="${bg}" stroke-width="3" stroke-linecap="round"/><path d="M22 31q3 3 6 0" stroke="${bg}" stroke-width="2" stroke-linecap="round"/>`,
-      `<path d="M14 18q1-10 10-7q11-3 11 8v12q-3 11-11 8q-11 2-11-9Z" fill="${ink}"/><circle cx="20" cy="25" r="2" fill="${bg}"/><circle cx="29" cy="25" r="2" fill="${bg}"/><path d="M22 32q2 2 5 0" stroke="${bg}" stroke-width="2" stroke-linecap="round"/>`,
-      `<circle cx="24" cy="24" r="16" fill="${ink}"/><path d="M16 21l3 2m10-2-2 2" stroke="${bg}" stroke-width="2.7" stroke-linecap="round"/><path d="M20 29q4 5 8 0" stroke="${bg}" stroke-width="2.2" stroke-linecap="round"/>`,
-      `<path d="M24 7l5 8 10 0-3 9 4 8-10 1-6 8-6-8-10-1 4-8-3-9 10 0Z" fill="${ink}"/><circle cx="19" cy="24" r="1.8" fill="${bg}"/><circle cx="29" cy="24" r="1.8" fill="${bg}"/><path d="M21 30q3 3 6 0" stroke="${bg}" stroke-width="2" stroke-linecap="round"/>`,
-      `<path d="M11 21q-3-9 5-10q5-1 8 5q4-6 9-5q8 1 5 10q6 15-8 18H18Q5 36 11 21Z" fill="${ink}"/><circle cx="19" cy="27" r="2" fill="${bg}"/><circle cx="29" cy="27" r="2" fill="${bg}"/><path d="M22 33q2 2 4 0" stroke="${bg}" stroke-width="2" stroke-linecap="round"/>`,
-      `<path d="M24 7c9 6 15 6 16 17q0 14-16 17Q8 38 8 24q0-11 16-17Z" fill="${ink}"/><circle cx="19" cy="24" r="2" fill="${bg}"/><circle cx="29" cy="24" r="2" fill="${bg}"/><path d="M19 30q5 6 10 0" stroke="${bg}" stroke-width="2.4" stroke-linecap="round"/>`,
-      `<path d="M14 15q7-11 16 0q13 10 6 20q-12 12-24-1Q7 25 14 15Z" fill="${ink}"/><path d="M18 24h2m8 0h2" stroke="${bg}" stroke-width="3" stroke-linecap="round"/><path d="M22 31q2-2 4 0" stroke="${bg}" stroke-width="2" stroke-linecap="round"/>`,
-      `<path d="M18 9h12l9 10v11L29 39H18L9 29V19Z" fill="${ink}"/><circle cx="19" cy="24" r="2" fill="${bg}"/><circle cx="29" cy="24" r="2" fill="${bg}"/><path d="M21 30h6" stroke="${bg}" stroke-width="2.3" stroke-linecap="round"/>`,
-      `<path d="M24 6L40 24 24 42 8 24Z" fill="${ink}"/><path d="M18 24h2m8 0h2" stroke="${bg}" stroke-width="3" stroke-linecap="round"/><path d="M22 31q2 2 4 0" stroke="${bg}" stroke-width="2" stroke-linecap="round"/>`,
-      `<path d="M13 19q-6-13 1-13q7 1 9 12q2-12 10-12q7 0 1 13q9 17-10 21Q5 36 13 19Z" fill="${ink}"/><circle cx="19" cy="26" r="2" fill="${bg}"/><circle cx="29" cy="26" r="2" fill="${bg}"/><path d="M21 33q3 2 6 0" stroke="${bg}" stroke-width="2" stroke-linecap="round"/>`,
-      `<path d="M9 16L24 8 39 17 35 35 24 40 13 35Z" fill="${ink}"/><path d="M18 24l2-2m8 2 2-2" stroke="${bg}" stroke-width="2.5" stroke-linecap="round"/><path d="M20 30h8" stroke="${bg}" stroke-width="2.3" stroke-linecap="round"/>`,
-      `<path d="M9 28C7 16 18 12 25 13q12-3 14 11q0 15-15 16Q10 41 9 28Z" fill="${ink}"/><path d="M24 13q0-8 7-7" stroke="${ink}" stroke-width="3" stroke-linecap="round"/><circle cx="19" cy="25" r="2" fill="${bg}"/><circle cx="29" cy="25" r="2" fill="${bg}"/><path d="M21 31q3 3 6 0" stroke="${bg}" stroke-width="2" stroke-linecap="round"/>`
-    ];
-    return svg(shapes[ix]);
-  }
-  const paths=[
-    `<path d="M11 15l12-6 14 5v19l-13 6-13-5Z M23 9v25M11 15v19"/>`,
-    `<path d="M8 34l16-23 16 23H8ZM24 11v23M18 34v-9h12v9"/>`,
-    `<path d="M7 25h34M24 7l4 15 12 3-12 4-4 12-4-12-12-4 12-3Z"/>`,
-    `<path d="M9 20q8-8 15 0t15 0M9 28q8-8 15 0t15 0M25 37V12M19 17q6-8 12 0"/>`,
-    `<path d="M7 35l12-18 7 10 6-9 9 17H7ZM18 18l4-5 4 5"/>`,
-    `<path d="M24 38V14M14 35l10-12 10 12M17 25l7-9 7 9M24 14V9"/>`,
-    `<rect x="9" y="18" width="30" height="15" rx="4"/><path d="M15 18l4-6h10l4 6M14 33v5m20-5v5M15 27h2m14 0h2"/>`,
-    `<path d="M11 12h26l-3 24H14l-3-24ZM11 24h26M18 17h12M17 36v4m14-4v4"/>`,
-    `<path d="M8 27l5 9h22l5-9H8ZM22 27V10l12 12H22ZM22 10v17"/>`,
-    `<path d="M10 37V19h9v18M19 37V9h11v28M30 37V23h8v14M7 37h34"/>`,
-    `<rect x="12" y="17" width="24" height="23" rx="5"/><path d="M18 17v-4a6 6 0 0 1 12 0v4M18 27h12"/>`,
-    `<circle cx="24" cy="22" r="11"/><path d="M7 37h34M15 34h18M24 8v3m16 11h-3M11 22H8"/>`
-  ];
-  return svg(`<g stroke="${ink}" stroke-width="3.3" stroke-linecap="round" stroke-linejoin="round">${paths[ix]}</g>`);
-}
-function ledgerSetAvatar(element,value,type){
-  if(!element)return;
-  element.innerHTML=ledgerAvatarMarkup(value,type);
-  element.setAttribute('aria-label', (type==='route'?'Route':'Bill')+' avatar');
-}
-const ledgerPinSvg = `<svg class="ledger-flat-control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3h8l-1 6 3 4v2H6v-2l3-4-1-6ZM12 15v6"/></svg>`;
-
 const CAT_COLORS = {
   'Food':      'var(--c-food)',
   'Housing':   'var(--c-housing)',
@@ -1444,7 +1369,7 @@ function renderPendingParticipants() {
 
 function updateModalEmojiDisplay(emojiVal) {
   const val = emojiVal || '🐶';
-  ledgerSetAvatar($('emojiAvatarBtn'),val,'bill');
+  if ($('emojiAvatarBtn')) $('emojiAvatarBtn').textContent = val;
   if ($('customEmojiInput')) $('customEmojiInput').value = val;
 }
 
@@ -1460,14 +1385,14 @@ function initEmojiPickerPopover() {
 
   // Move to the top-level document so tall content cannot be clipped by the scrolling bill modal.
   document.body.appendChild(popover);
+  const names = ['Dog','Cat','Mouse','Hamster','Rabbit','Fox','Bear','Panda','Koala','Tiger','Lion','Cow','Pig','Frog','Monkey','Chicken','Penguin','Bird','Duck','Eagle','Owl','Bat','Wolf','Boar','Horse','Unicorn','Bee','Bug','Butterfly','Turtle'];
   let pendingEmoji = '';
   let priorFocus = null;
   let activeAvatarTarget = 'bill';
   const renderChoices = () => {
-    const type=activeAvatarTarget;
-    const options=type==='route'?LEDGER_ROUTE_AVATARS:LEDGER_BILL_AVATARS;
-    const selectedId=ledgerAvatarId(pendingEmoji,type);
-    grid.innerHTML=options.map(([id,name])=>`<button type="button" class="emoji-grid-item${id===selectedId?' is-selected':''}" data-emoji="${id}" title="${esc(name)}" aria-label="${esc(name)}" aria-pressed="${id===selectedId}">${ledgerAvatarMarkup(id,type)}</button>`).join('');
+    grid.innerHTML = (activeAvatarTarget === 'route' ? ROUTE_EMOJIS : DEFAULT_AVATAR_EMOJIS).map((emoji, i) => ({emoji, name:activeAvatarTarget === 'route' ? 'Route avatar' : (names[i] || 'Animal')}))
+      .map(item => `<button type="button" class="emoji-grid-item${item.emoji === pendingEmoji ? ' is-selected' : ''}" data-emoji="${item.emoji}" aria-label="${item.name}" aria-pressed="${item.emoji === pendingEmoji}"><span>${item.emoji}</span></button>`).join('')
+;
   };
   const close = () => {
     popover.hidden = true;
@@ -1477,7 +1402,8 @@ function initEmojiPickerPopover() {
   const open = (target = 'bill') => {
     activeAvatarTarget = target;
     priorFocus = document.activeElement;
-    pendingEmoji = target === 'route' ? ($('journeyEmoji')?.value || '🧭') : (hiddenInput?.value || 'a:bud');
+    pendingEmoji = target === 'route' ? ($('journeyEmoji')?.value || '🧭') : (hiddenInput?.value || btn.textContent.trim() || '🐶');
+    if (typeInput) typeInput.value = '';
     renderChoices();
     popover.hidden = false;
     document.body.classList.add('emoji-picker-open');
@@ -1491,13 +1417,17 @@ function initEmojiPickerPopover() {
     const item = e.target.closest('.emoji-grid-item');
     if (!item) return;
     pendingEmoji = item.dataset.emoji;
+    if (typeInput) typeInput.value = '';
     renderChoices();
   });
-
+  typeInput?.addEventListener('input', () => {
+    const value = typeInput.value.trim();
+    if (value) { pendingEmoji = value; renderChoices(); }
+  });
   confirmBtn.addEventListener('click', () => {
-    const emoji = pendingEmoji || (activeAvatarTarget==='route'?'r:map':'a:bud');
+    const emoji = (typeInput?.value || '').trim() || pendingEmoji || '🐶';
     if (activeAvatarTarget === 'route') routeEmojiPicker(emoji);
-    else { ledgerSetAvatar(btn,emoji,'bill'); if (hiddenInput) hiddenInput.value = emoji; }
+    else { btn.textContent = emoji; if (hiddenInput) hiddenInput.value = emoji; }
     close();
   });
   document.addEventListener('keydown', e => {
@@ -1610,7 +1540,7 @@ function renderBillList() {
   const others=orderedBillSection(all.filter(g=>!pins.has(String(g.id))));
   const visible=[...pinned,...limited('bills',others)];
   el.innerHTML=visible.map(g=>`<div class="bill-card ${pins.has(String(g.id))?'is-pinned':''}" data-id="${esc(g.id)}">
-    <div class="bill-card-left"><span class="bill-emoji">${ledgerAvatarMarkup(g.emoji,'bill')}</span><div class="bill-card-info">
+    <div class="bill-card-left"><span class="bill-emoji">${esc(g.emoji)}</span><div class="bill-card-info">
       <div class="bill-name-row"><span class="bill-name">${esc(g.name)}</span></div>
       <div class="bill-card-meta">
         ${g.trip?'<span class="tag shared-tag">Detailed Split</span>':''}
@@ -1618,7 +1548,7 @@ function renderBillList() {
         <small class="muted fine">${g.participants.length} ${g.participants.length===1?'member':'members'}</small>
       </div>
     </div></div>
-    <button type="button" class="bill-pin-btn ${pins.has(String(g.id))?'on':''}" aria-label="${pins.has(String(g.id))?'Unpin':'Pin'} ${esc(g.name)}" aria-pressed="${pins.has(String(g.id))}" title="Pin to top">${ledgerPinSvg}</button>
+    <button type="button" class="bill-pin-btn ${pins.has(String(g.id))?'on':''}" aria-label="${pins.has(String(g.id))?'Unpin':'Pin'} ${esc(g.name)}" aria-pressed="${pins.has(String(g.id))}" title="Pin to top">📌</button>
     <button type="button" class="bill-drag-handle" aria-label="Move ${esc(g.name)} within ${pins.has(String(g.id))?'pinned':'unpinned'} bills" title="Drag to reorder" draggable="false"><svg class="bill-grip-icon" viewBox="0 0 20 24" aria-hidden="true" focusable="false" fill="currentColor"><circle cx="6" cy="5" r="1.6"/><circle cx="14" cy="5" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="14" cy="12" r="1.6"/><circle cx="6" cy="19" r="1.6"/><circle cx="14" cy="19" r="1.6"/></svg></button>
     <span class="bill-chevron">›</span></div>`).join('')+moreBtn('bills',others.length);
   $$('#billsList .bill-card').forEach(card=>{
@@ -1652,7 +1582,7 @@ function renderArchivedBillList() {
   el.innerHTML = limited('archived', archivedGroups).map(g => `
     <div class="bill-card" data-id="${esc(g.id)}">
       <div class="bill-card-left">
-        <span class="bill-emoji">${ledgerAvatarMarkup(g.emoji,'bill')}</span>
+        <span class="bill-emoji">${esc(g.emoji)}</span>
         <div class="bill-card-info">
           <div class="bill-name">${esc(g.name)}</div>
           <small class="muted fine">Archived · ${g.participants.length} members</small>
@@ -2127,7 +2057,7 @@ function renderBillDetail() {
   if (!group) { closeBillDetail(); return; }
   if (dueRecurringExpenses(group).length) queueMicrotask(() => syncBillRecurrences(group));
 
-  if ($('splitPersonAvatar')) ledgerSetAvatar($('splitPersonAvatar'),group.emoji || '🐶','bill');
+  if ($('splitPersonAvatar')) $('splitPersonAvatar').textContent = group.emoji || '🐶';
   if ($('splitPersonName')) $('splitPersonName').textContent = group.name;
   if ($('btnOpenAddSplitExpense')) $('btnOpenAddSplitExpense').textContent = group.trip ? '+ Add Trip Expense' : '+ Add Expense to Bill';
   if ($('tripSummary')) { $('tripSummary').hidden = !group.trip; if (group.trip) renderTripSummary(group); }
@@ -4087,7 +4017,7 @@ function showJourneyEditor(open){
 }
 function routeEmojiPicker(value='🧭'){
   $('journeyEmoji').value=value;
-  ledgerSetAvatar($('routeAvatarTrigger'),value,'route');
+  if($('routeAvatarTrigger'))$('routeAvatarTrigger').textContent=value;
 }
 function routeAvailableBills(selected=''){
   $('journeyLinkedBillSelect').innerHTML='<option value="">No linked bill</option>'+(state.billGroups||[]).filter(g=>!g.archived).map(g=>`<option value="${esc(g.id)}" ${String(g.id)===selected?'selected':''}>${esc(g.name)}</option>`).join('');
@@ -4667,13 +4597,13 @@ function paintRouteSummary(){
   const avatar=String(j.emoji||'🗺️'),title=String(j.title||'Untitled Route');
   const stops=(j.stops||[]).filter(p=>!p.archived).length;
   if($('journeyHeroTitle'))$('journeyHeroTitle').textContent=title;
-  
+  if($('journeyOverviewMain'))$('journeyOverviewMain').dataset.routeEmoji=avatar;
   if($('journeyHeroDate'))$('journeyHeroDate').textContent=routeCardDate(j.startDate)||'Date not set';
   if($('journeyDetailSubtitle'))$('journeyDetailSubtitle').textContent=String(j.destination||'Destination not set');
   if($('journeyTotal'))$('journeyTotal').textContent=money(routeCostTotal(j));
   if($('journeyStopsCount'))$('journeyStopsCount').textContent=`${stops} ${stops===1?'stop':'stops'}`;
   if($('journeyDetailTitle'))$('journeyDetailTitle').textContent=title;
-  ledgerSetAvatar($('journeyDetailAvatar'),avatar,'route');
+  if($('journeyDetailAvatar'))$('journeyDetailAvatar').textContent=avatar;
 }
 const ticketMoney=n=>(state.cur||'₱')+(Number(n)||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
 const ticketIcon=c=>c==='bus'?'🚌':c==='train'?'🚉':'✈️';
@@ -4696,7 +4626,7 @@ function renderJourneys(){
   if(!inDetail){
     if(routeArchiveView){
       const archived=journeys.filter(j=>j.archived);
-      $('routeArchivedList').innerHTML=archived.length?archived.map(j=>`<div class="bill-card route-archived-card" data-archived-route="${esc(j.id)}"><div class="bill-card-left"><span class="bill-emoji">${ledgerAvatarMarkup(j.emoji||'🧭','route')}</span><div class="bill-card-info"><div class="bill-name-row"><span class="bill-name">${esc(j.title)}</span></div><small class="muted fine">${esc(j.destination||'Archived route')}</small></div></div><button type="button" class="unarchive-btn secondary" data-restore-route="${esc(j.id)}">Restore</button>${journeyOwner(j)?`<button type="button" class="route-archive-delete secondary" data-delete-archived-route="${esc(j.id)}" aria-label="Delete ${esc(j.title)}">Delete</button>`:''}</div>`).join(''):'<div class="empty-card card">No archived routes yet.</div>';
+      $('routeArchivedList').innerHTML=archived.length?archived.map(j=>`<div class="bill-card route-archived-card" data-archived-route="${esc(j.id)}"><div class="bill-card-left"><span class="bill-emoji">${esc(j.emoji||'🧭')}</span><div class="bill-card-info"><div class="bill-name-row"><span class="bill-name">${esc(j.title)}</span></div><small class="muted fine">${esc(j.destination||'Archived route')}</small></div></div><button type="button" class="unarchive-btn secondary" data-restore-route="${esc(j.id)}">Restore</button>${journeyOwner(j)?`<button type="button" class="route-archive-delete secondary" data-delete-archived-route="${esc(j.id)}" aria-label="Delete ${esc(j.title)}">Delete</button>`:''}</div>`).join(''):'<div class="empty-card card">No archived routes yet.</div>';
       placeNotificationInHeader();return;
     }
     const pins=new Set(routePinnedIds()),visible=journeys.filter(j=>!j.archived);
@@ -4705,7 +4635,7 @@ function renderJourneys(){
     list.innerHTML=ordered.length?ordered.map(j=>{
       const pin=pins.has(String(j.id));
       const displayDate=routeCardDate(j.startDate);
-      return `<div class="bill-card journey-tile ${pin?'is-pinned':''}" data-journey-open="${esc(j.id)}" tabindex="0" role="button" aria-label="Open ${esc(j.title)}"><div class="bill-card-left"><span class="bill-emoji journey-tile-icon">${ledgerAvatarMarkup(j.emoji||'🧭','route')}</span><div class="bill-card-info journey-tile-info"><div class="bill-name-row"><span class="bill-name">${esc(j.title)}</span>${j.shared?'<span class="tag shared-tag">Shared</span>':''}</div><div class="route-card-address muted fine" title="${esc([j.destination,displayDate].filter(Boolean).join(' · '))}">${esc([j.destination,displayDate].filter(Boolean).join(' · ')||'No address added')}</div></div></div><button type="button" class="bill-pin-btn ${pin?'on':''}" aria-label="${pin?'Unpin':'Pin'} ${esc(j.title)}" aria-pressed="${pin}" title="${pin?'Unpin':'Pin Route'}">${ledgerPinSvg}</button><button type="button" class="bill-drag-handle" aria-label="Reorder ${esc(j.title)}" title="Drag to reorder"><svg class="bill-grip-icon" viewBox="0 0 20 24" aria-hidden="true" focusable="false" fill="currentColor"><circle cx="6" cy="5" r="1.6"/><circle cx="14" cy="5" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="14" cy="12" r="1.6"/><circle cx="6" cy="19" r="1.6"/><circle cx="14" cy="19" r="1.6"/></svg></button><span class="bill-chevron" aria-hidden="true">›</span></div>`;
+      return `<div class="bill-card journey-tile ${pin?'is-pinned':''}" data-journey-open="${esc(j.id)}" tabindex="0" role="button" aria-label="Open ${esc(j.title)}"><div class="bill-card-left"><span class="bill-emoji journey-tile-icon">${esc(j.emoji||'🧭')}</span><div class="bill-card-info journey-tile-info"><div class="bill-name-row"><span class="bill-name">${esc(j.title)}</span>${j.shared?'<span class="tag shared-tag">Shared</span>':''}</div><div class="route-card-address muted fine" title="${esc([j.destination,displayDate].filter(Boolean).join(' · '))}">${esc([j.destination,displayDate].filter(Boolean).join(' · ')||'No address added')}</div></div></div><button type="button" class="bill-pin-btn ${pin?'on':''}" aria-label="${pin?'Unpin':'Pin'} ${esc(j.title)}" aria-pressed="${pin}" title="${pin?'Unpin':'Pin Route'}">📌</button><button type="button" class="bill-drag-handle" aria-label="Reorder ${esc(j.title)}" title="Drag to reorder"><svg class="bill-grip-icon" viewBox="0 0 20 24" aria-hidden="true" focusable="false" fill="currentColor"><circle cx="6" cy="5" r="1.6"/><circle cx="14" cy="5" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="14" cy="12" r="1.6"/><circle cx="6" cy="19" r="1.6"/><circle cx="14" cy="19" r="1.6"/></svg></button><span class="bill-chevron" aria-hidden="true">›</span></div>`;
     }).join(''):'<div class="empty-card card">No routes yet. Tap + to plan one.</div>';
     list.querySelectorAll('.journey-tile').forEach(card=>{
       const j=journeyById(card.dataset.journeyOpen);if(!j)return;
@@ -4722,7 +4652,7 @@ function renderJourneys(){
   $('journeyOpenLinkedBillHeader').hidden=!(state.billGroups||[]).some(g=>String(g.id)===String(j.linkedBillId||''));
   const linked=(state.billGroups||[]).find(g=>String(g.id)===String(j.linkedBillId||''));
   const linkedPanel=$('journeyLinkedBill');linkedPanel.hidden=!linked;
-  if(linked)linkedPanel.innerHTML=`<span>Linked bill</span><strong>${ledgerAvatarMarkup(linked.emoji||'🐶','bill')} ${esc(linked.name)}</strong><button type="button" id="routeOpenLinkedBill">Open bill →</button>`;
+  if(linked)linkedPanel.innerHTML=`<span>Linked bill</span><strong>${esc(linked.emoji||'🧾')} ${esc(linked.name)}</strong><button type="button" id="routeOpenLinkedBill">Open bill →</button>`;
   linkedPanel.hidden=true; // Header link is now the only visible bill shortcut.
   $('journeyDetailNotes').textContent=j.notes||'';
   $('journeyDetailNotes').hidden=!j.notes;
