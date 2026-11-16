@@ -3973,16 +3973,26 @@ async function sendRouteInvitations(j){
     lsDel('ledger.route.pending.'+(user?.id||'local')+'.'+j.id);
     toast('Travelers invited. The Route will appear on their Routes page.');
   }
-  await loadJourneyExtras(j);
+  // Verify membership directly from Supabase instead of relying on legacy UI state.
   if(!failed.length){
-    const visible=new Set(journeyMembers.map(m=>String(m.ledger_code||'').toUpperCase()));
+    const check=await sb.from('ledger_route_members').select('ledger_code').eq('route_id',j.id);
+    if(check.error){
+      console.error('Route invitation verification failed',check.error);
+      toast('Travelers were invited, but Ledger could not verify membership: '+check.error.message);
+      return false;
+    }
+    const visible=new Set((check.data||[]).map(m=>parseLedgerId(m.ledger_code||'')).filter(Boolean));
     const missing=codes.filter(code=>!visible.has(code));
     if(missing.length){
       console.warn('Route invitations not visible after save:',missing);
-      toast('Could not verify membership for: '+missing.map(c=>'#'+c).join(', '));
+      j.inviteCodes=missing;
+      const key='ledger.route.pending.'+(user?.id||'local')+'.'+j.id;
+      lsSet(key,JSON.stringify(missing));
+      toast('Could not verify these Ledger IDs: '+missing.map(c=>'#'+c).join(', '));
       return false;
     }
   }
+  await loadJourneyExtras(j);
   return failed.length===0;
 }
 
@@ -4107,10 +4117,16 @@ function openJourneyForm(j=null){
   $('journeyModalTitle').textContent=j?'Edit Route':'Plan a Route';
   routeEmojiPicker(j?.emoji||'🧭');routeAvailableBills(j?.linkedBillId||'');
   routeTravelerDraft=Array.isArray(j?.travelers)?j.travelers.map(p=>({name:p.name||p.code||'Traveler',code:p.code||null})):(j?.inviteCodes||[]).map(code=>({name:'Ledger user',code}));
-  // Preserve the visible traveler list; retry an unsuccessful cloud invite on Save.
+  // v87: Only the travelers currently shown in the editor are eligible for invites.
+  // Older failed invite codes must not be silently re-added after the user removes/fixes them.
   if(j?.shared && user){
-    try{j.inviteCodes=[...new Set([...(j.inviteCodes||[]),...JSON.parse(lsGet('ledger.route.pending.'+user.id+'.'+j.id)||'[]')])];}
-    catch{ /* malformed old retry cache: ignore */ }
+    const currentCodes=new Set(routeTravelerDraft.map(p=>parseLedgerId(p.code||'')).filter(Boolean));
+    j.inviteCodes=(j.inviteCodes||[]).map(parseLedgerId).filter(code=>code&&currentCodes.has(code));
+    const retryKey='ledger.route.pending.'+user.id+'.'+j.id;
+    try{
+      const pending=JSON.parse(lsGet(retryKey)||'[]').map(parseLedgerId).filter(code=>code&&currentCodes.has(code));
+      if(pending.length)lsSet(retryKey,JSON.stringify([...new Set(pending)]));else lsDel(retryKey);
+    }catch{lsDel(retryKey);}
   }
   routeTravelerChips();$('routeParticipantInput').value='';
   const removeBtn=$('journeyDeleteFromEditor');
@@ -4366,13 +4382,17 @@ function initJourneys(){
     routeSaveInProgress=true;if(saveButton){saveButton.disabled=true;saveButton.textContent='Saving…';}
     try{
       const old=journeyById($('journeyId').value);
-      const newCodes=routeTravelerDraft.map(p=>p.code).filter(Boolean);
-      // Retry unconfirmed codes even if they were present when the form was last saved.
-      const pendingCodes=old?.inviteCodes||[];
+      const newCodes=[...new Set(routeTravelerDraft.map(p=>parseLedgerId(p.code||'')).filter(Boolean))];
+      // v87: Invite only Ledger IDs that are still present in this editor. Never carry
+      // stale failed IDs from a previous save after the user removes or corrects them.
       const confirmed=new Set((old?.shared?journeyMembers:[]).map(m=>parseLedgerId(m.ledger_code||'')).filter(Boolean));
       const toInvite=newCodes.filter(code=>!confirmed.has(code));
       const j={id:old?.id||uid(),title,destination:$('journeyDestination').value.trim(),startDate:$('journeyStartDate').value,notes:old?.notes||'',emoji:$('journeyEmoji').value||'🧭',linkedBillId:$('journeyLinkedBillSelect').value,
-        travelers:routeTravelerDraft.map(p=>({...p})),inviteCodes:[...new Set([...pendingCodes,...toInvite])],archived:!!old?.archived,createdAt:old?.createdAt||new Date().toISOString(),stops:old?.stops||[],tickets:old?.tickets||[],...(old?.shared?{shared:true,ownerId:old.ownerId}:{})};
+        travelers:routeTravelerDraft.map(p=>({...p})),inviteCodes:toInvite,archived:!!old?.archived,createdAt:old?.createdAt||new Date().toISOString(),stops:old?.stops||[],tickets:old?.tickets||[],...(old?.shared?{shared:true,ownerId:old.ownerId}:{})};
+      if(user){
+        const retryKey='ledger.route.pending.'+user.id+'.'+j.id;
+        if(toInvite.length)lsSet(retryKey,JSON.stringify(toInvite));else lsDel(retryKey);
+      }
       if(old)Object.assign(old,j);else state.journeys.push(j);
       // Keep this ID in the sheet so retrying cannot accidentally create a duplicate.
       $('journeyId').value=j.id;
@@ -4380,7 +4400,7 @@ function initJourneys(){
       if(j.shared){
         if(!await persistJourney(j))return;
         if(j.inviteCodes?.length && !await sendRouteInvitations(j)){
-          toast('Route saved, but some invitations failed. Fix the Ledger IDs and save again.');
+          toast('Route saved, but a traveler invitation failed. Check the message above and retry.');
           return;
         }
         if(j.linkedBillId)await syncRouteTravelersToLinkedBill(j);

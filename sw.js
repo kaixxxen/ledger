@@ -1,4 +1,4 @@
-const CACHE='ledger-v86-route-detail-display';
+const CACHE='ledger-v87-route-invite-retry-fix';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'
