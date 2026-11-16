@@ -1,4 +1,4 @@
-const CACHE = 'ledger-v83-route-tickets';
+const CACHE = 'ledger-v84-ticket-management';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'
