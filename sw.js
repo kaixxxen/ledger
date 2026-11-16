@@ -1,4 +1,4 @@
-const CACHE = 'ledger-v80-cartoon';
+const CACHE = 'ledger-v79-accent-consistency';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'
