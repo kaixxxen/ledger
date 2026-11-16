@@ -1,4 +1,4 @@
-const CACHE = 'ledger-v76-top-edge-fade';
+const CACHE = 'ledger-v77-dropdown-chevron';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'

@@ -2602,3 +2602,31 @@ body > #emojiPickerPopover{z-index:2500!important}
 }
 #topEdgeFade[hidden] { display: none !important; }
 @media (min-width: 900px) { #topEdgeFade { display: none !important; } }
+
+
+/* Ledger v77 — consistent, inset dropdown chevrons in every board/form.
+   Replace platform-native select arrows to prevent iOS Safari from placing
+   glyphs at the border. Reserve a dedicated tappable trailing gutter. */
+select:not([multiple]){
+  -webkit-appearance:none !important;
+  -moz-appearance:none !important;
+  appearance:none !important;
+  box-sizing:border-box;
+  padding-right:42px !important;
+  background-repeat:no-repeat !important;
+  background-position:right 14px center !important;
+  background-size:15px 15px !important;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23737A80' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+}
+:root[data-theme='dark'] select:not([multiple]){
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23B5B5B5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+}
+/* Sorting boxes are compact; keep the chevron well within the rounded edge. */
+.bill-sort-bar select:not([multiple]),
+#billSortSelect,#routeSortSelect{
+  padding-right:40px !important;
+  background-position:right 13px center !important;
+  background-size:14px 14px !important;
+}
+/* Keep route, bill, settings and currency selects compatible with narrow iPhones. */
+select:not([multiple]){max-width:100%;min-width:0;}
