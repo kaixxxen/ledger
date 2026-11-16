@@ -336,7 +336,7 @@
           <p id="journeyHeroDate" class="route-overview-date"></p>
         </div>
         <div class="route-overview-stats route-overview-stats-two">
-          <div><small>Estimated total cost</small><strong id="journeyTotal"></strong></div>
+          <button id="journeyCostSummaryOpen" type="button" class="route-cost-summary-trigger" aria-label="View estimated individual costs and expense breakdown"><small>Estimated total cost</small><strong id="journeyTotal"></strong></button>
           <div><small>Planned stops</small><strong id="journeyStopsCount"></strong></div>
         </div>
       </section>
@@ -444,6 +444,13 @@
       <button id="routeTicketDetailEdit" type="button" class="primary">Edit ticket details</button>
       <button id="routeTicketDetailClose" type="button" class="secondary">Close</button>
     </div>
+  </div>
+</div>
+<div id="routeCostSummaryOverlay" class="modal-backdrop route-modal-overlay" hidden>
+  <div class="modal-card route-cost-modal" role="dialog" aria-modal="true" aria-labelledby="routeCostSummaryTitle">
+    <h3 id="routeCostSummaryTitle">Expected expenses</h3>
+    <div id="routeCostSummaryBody" class="route-cost-summary-body"></div>
+    <div class="btnrow modal-actions"><button id="routeCostSummaryClose" type="button" class="secondary">Close</button></div>
   </div>
 </div>
 <div id="routeOptionsOverlay" class="modal-backdrop route-modal-overlay" hidden>
