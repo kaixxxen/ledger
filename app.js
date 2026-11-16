@@ -583,7 +583,7 @@ function placeNotificationInHeader() {
   if (!center) return;
   const splitVisible = currentPage === 'split';
   let target;
-  if(currentPage==='journeys'&&activeJourneyId){target=document.querySelector('#journeyDetail .journey-detail-head');}
+  if(currentPage==='journeys'&&activeJourneyId){target=document.querySelector('#journeyDetail .route-detail-actions');}
   else if(currentPage==='journeys'&&routeArchiveView){target=document.querySelector('#routeArchiveView > .top');}
   else
   if (splitVisible && $('splitDetailView') && !$('splitDetailView').hidden) {
@@ -3665,8 +3665,17 @@ async function signedFileOpen(id){
   else window.location.assign(data.signedUrl);
 }
 async function uploadJourneyFile(){
-  const j=journeyById(activeJourneyId),el=$('journeyDocFile'),file=el?.files?.[0];
-  if(!j?.shared||!file||!sb||!user){toast('Choose a file on a shared route');return;}
+  let j=journeyById(activeJourneyId),el=$('journeyDocFile'),file=el?.files?.[0];
+  if(!j){toast('Open a Route first');return;}
+  if(!file){toast('Choose a ticket file');return;}
+  if(!sb||!user){toast('Sign in to upload tickets');return;}
+  if(!j.shared){
+    if(!journeyOwner(j)){toast('Only the Route owner can enable ticket sharing');return;}
+    const shared=await shareJourney(j);
+    if(!shared)return;
+    j=journeyById(activeJourneyId)||journeyById(j.id);
+    if(!j?.shared){toast('Could not prepare this Route for secure ticket uploads');return;}
+  }
   if(file.size>CLOUD_FILE_LIMIT){toast('Maximum file size is 15 MB');return;}
   const ext=(file.name.split('.').pop()||'').toLowerCase();
   const allowedExt=['jpg','jpeg','png','webp','gif','pdf','pptx','ppt','docx','doc','txt','zip'];
@@ -3679,7 +3688,7 @@ async function uploadJourneyFile(){
   try{
     const up=await sb.storage.from(ROUTE_BUCKET).upload(path,file,{contentType:file.type||'application/octet-stream',upsert:false});
     if(up.error)throw up.error;
-    const row={route_id:j.id,stop_id:$('journeyDocStop').value||null,display_name:file.name.slice(0,180),mime_type:file.type||'application/octet-stream',storage_path:path,owner_id:user.id,assigned_user_id:assigned};
+    const row={route_id:j.id,stop_id:$('journeyDocStop').value||null,display_name:($('journeyDocLabel').value.trim()||file.name).slice(0,180),mime_type:file.type||'application/octet-stream',storage_path:path,owner_id:user.id,assigned_user_id:assigned};
     const ins=await sb.from('ledger_route_files').insert(row);
     if(ins.error){await sb.storage.from(ROUTE_BUCKET).remove([path]);throw ins.error;}
     el.value='';$('journeyDocLabel').value='';toast('Ticket uploaded');closeRouteOverlays();await loadJourneyExtras(j);
@@ -3720,11 +3729,19 @@ function journeyById(id){return journeysAll().find(j=>j.id===id);}
 function openRouteTicketForm(){
   const j=journeyById(activeJourneyId);
   if(!j){toast('Open a Route first');return;}
-  if(!j.shared){toast('Share this Route before uploading tickets');return;}
-  if(!sb||!user){toast('Sign in to upload tickets');return;}
   closeRouteOverlays();
   renderJourneyExtras();
   const stop=$('journeyDocStop');if(stop)stop.value='';
+  if($('journeyDocLabel'))$('journeyDocLabel').value='';
+  if($('journeyDocFile'))$('journeyDocFile').value='';
+  const hint=$('routeTicketHint');
+  if(hint){
+    hint.textContent=!sb||!user
+      ? 'Sign in to upload and share tickets securely.'
+      : (!j.shared
+        ? 'Choose a ticket file. Ledger will securely share this Route when you upload it.'
+        : 'Upload a ticket or booking document, and choose who can access it.');
+  }
   $('routeTicketOverlay').hidden=false;
 }
 function closeRouteOverlays(){
@@ -3981,6 +3998,11 @@ function openJourneyForm(j=null){
     catch{ /* malformed old retry cache: ignore */ }
   }
   routeTravelerChips();$('routeParticipantInput').value='';
+  const removeBtn=$('journeyDeleteFromEditor');
+  if(removeBtn){
+    removeBtn.hidden=!j;
+    if(j)removeBtn.textContent=j.shared&&!journeyOwner(j)?'Leave Route':'Delete Route';
+  }
   showJourneyEditor(true);
   $('journeyTitle').focus();
 }
@@ -4049,6 +4071,7 @@ function renderJourneys(){
   placeNotificationInHeader();
   const j=journeyById(activeJourneyId), total=j.stops.reduce((n,p)=>n+p.cost,0);
   $('journeyHeroTitle').textContent=j.title;
+  if($('journeyOverviewMain'))$('journeyOverviewMain').dataset.routeEmoji=j.emoji||'🧭';
   $('journeyHeroDate').textContent=routeCardDate(j.startDate)||'Date not set';
   const travelerKeys=new Set((j.travelers||[]).map(t=>t.code||t.name).filter(Boolean));
   const cloudCodes=new Set(journeyMembers.map(m=>m.ledger_code||m.user_id).filter(Boolean));
@@ -4077,6 +4100,17 @@ function renderJourneys(){
     return `${i===0||last?`<div class="journey-day-label">${esc(p.date||'Unscheduled')}</div>`:''}<article class="journey-stop" data-stop-id="${esc(p.id)}"><span class="journey-type-dot ${esc(p.type)}" aria-hidden="true"></span><div class="journey-stop-main"><div class="journey-stop-meta">${esc(JTYPE[p.type]||'Place')} · ${esc(dateLabel||'Time not set')}</div><strong>${esc(p.title)}</strong>${summary?`<small>${esc(summary)}</small>`:''}${p.notes?`<p>${esc(p.notes)}</p>`:''}${Array.isArray(p.travelerIds)&&p.travelerIds.length?`<small>👤 ${esc(p.travelerIds.map(id=>journeyMembers.find(m=>m.user_id===id)?.display_name||'Traveler').join(', '))}</small>`:''}${stopPhotoUrls(p).length?`<div class="route-stop-photos">${stopPhotoUrls(p).map(url=>`<img src="${esc(url)}" alt="${esc(p.title)}" loading="lazy">`).join('')}</div>`:''}${j.shared&&journeyFiles.some(f=>f.stop_id===p.id)?`<small>📎 ${journeyFiles.filter(f=>f.stop_id===p.id).length} attachment(s) · Open Edit to view</small>`:''}</div><div class="journey-stop-right"><strong>${money(p.cost)}</strong><button type="button" class="journey-stop-edit" data-stop-edit="${esc(p.id)}" aria-label="View ${esc(p.title)}">${journeyOwner(j)?'Details':'View'}</button></div></article>`;
   }).join(''):'<div class="journey-empty">No stops yet. Add your first place or transport.</div>';
 }
+function openLinkedBillFromRoute(){
+  const j=journeyById(activeJourneyId);
+  const billId=j?.linkedBillId;
+  if(!billId)return;
+  const exists=(state.billGroups||[]).some(g=>String(g.id)===String(billId));
+  if(!exists){toast('The linked Bill is no longer available');return;}
+  if(currentPage==='split'){openBillDetail(billId);return;}
+  const onHash=()=>{window.removeEventListener('hashchange',onHash);requestAnimationFrame(()=>openBillDetail(billId));};
+  window.addEventListener('hashchange',onHash);
+  location.hash='#split';
+}
 function initJourneys(){
   // Fixed dialogs must not be descendants of the animated/scrolled app root on iOS Safari.
   ['routeEditorOverlay','routeCollabOverlay','routeOptionsOverlay','routeTicketOverlay'].forEach(id => {
@@ -4088,6 +4122,12 @@ function initJourneys(){
   $('routeTicketCancel')?.addEventListener('click',closeRouteOverlays);
   $('routeTicketOverlay')?.addEventListener('click',e=>{if(e.target.id==='routeTicketOverlay')closeRouteOverlays();});
   $('journeyCancel')?.addEventListener('click',closeRouteOverlays);
+  $('journeyDeleteFromEditor')?.addEventListener('click',async()=>{
+    const j=journeyById($('journeyId').value||activeJourneyId);if(!j)return;
+    if(await deleteJourney(j))closeRouteOverlays();
+  });
+  $('globalRouteTicket')?.addEventListener('click',e=>{e.stopPropagation();closeGlobalActions(true);openRouteTicketForm();});
+  $('globalRouteStop')?.addEventListener('click',e=>{e.stopPropagation();closeGlobalActions(true);openStopForm();});
   $('routeParticipantAdd')?.addEventListener('click',addRouteTraveler);
   $('routeParticipantInput')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addRouteTraveler();}});
   $('routeParticipantChips')?.addEventListener('click',e=>{const b=e.target.closest('[data-remove-route-person]');if(!b)return;routeTravelerDraft.splice(Number(b.dataset.removeRoutePerson),1);routeTravelerChips();});
@@ -4163,9 +4203,9 @@ function initJourneys(){
   $('journeyList')?.addEventListener('click',async e=>{const b=e.target.closest('[data-journey-open]');if(!b||e.target.closest('.bill-pin-btn,.bill-drag-handle'))return;if(b._lpFired){b._lpFired=false;return;}routeArchiveView=false;activeJourneyId=b.dataset.journeyOpen;renderJourneys();const openedRoute=journeyById(activeJourneyId);await loadJourneyExtras(openedRoute);if(openedRoute?.shared&&openedRoute.linkedBillId&&journeyOwner(openedRoute))await syncRouteTravelersToLinkedBill(openedRoute,{quiet:true});renderJourneys();});
   $('journeyList')?.addEventListener('keydown',e=>{if(e.target.closest('.bill-pin-btn,.bill-drag-handle')||!['Enter',' '].includes(e.key))return;const b=e.target.closest('[data-journey-open]');if(!b)return;e.preventDefault();b.click();});
   $('journeyBack')?.addEventListener('click',()=>{activeJourneyId=null;$('stopEditor').hidden=true;renderJourneys();});
-  $('journeyOpenLinkedBillHeader')?.addEventListener('click',()=>{const j=journeyById(activeJourneyId);if(!j?.linkedBillId)return;location.hash='#split';route();openBillDetail(j.linkedBillId);});
-  $('journeyEdit')?.addEventListener('click',()=>{$('routeOptionsOverlay').hidden=false;});
-  $('journeyLinkedBill')?.addEventListener('click',e=>{if(!e.target.closest('#routeOpenLinkedBill'))return;const j=journeyById(activeJourneyId);if(!j?.linkedBillId)return;location.hash='#split';route();openBillDetail(j.linkedBillId);});
+  $('journeyOpenLinkedBillHeader')?.addEventListener('click',openLinkedBillFromRoute);
+  $('journeyEdit')?.addEventListener('click',()=>openJourneyForm(journeyById(activeJourneyId)));
+  $('journeyLinkedBill')?.addEventListener('click',e=>{if(e.target.closest('#routeOpenLinkedBill'))openLinkedBillFromRoute();});
   $('journeyDelete')?.addEventListener('click',()=>deleteJourney(journeyById(activeJourneyId)));
   $('journeyAddStop')?.addEventListener('click',()=>openStopForm());
   $('stopCancel')?.addEventListener('click',closeRouteOverlays);

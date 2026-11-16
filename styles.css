@@ -2739,3 +2739,161 @@ select:not([multiple]){max-width:100%;min-width:0;}
 :root[data-theme] .hero::after {background:radial-gradient(circle,rgba(var(--user-accent-rgb),.36),transparent 68%);}
 /* Do not tint primary reading text or semantic positive/negative balances:
    status needs to remain distinguishable and light-mode legibility matters. */
+
+/* v80 — Route detail uses the same header geometry as an open Bill. */
+#page-journeys #journeyDetail .route-detail-header{
+  width:100%!important;
+  padding-right:0!important;
+  display:flex!important;
+  flex-flow:row nowrap!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:8px!important;
+  min-height:48px!important;
+  margin:0 0 16px!important;
+}
+#page-journeys #journeyDetail .route-detail-left{
+  flex:1 1 0;
+  width:0;
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:7px;
+}
+#page-journeys #journeyDetail .route-detail-left #journeyBack{
+  flex:0 0 30px!important;
+  width:30px!important;
+  min-width:30px!important;
+  height:34px!important;
+  margin:0!important;
+  padding:0!important;
+  color:var(--text)!important;
+}
+#page-journeys #journeyDetail .journey-detail-avatar{
+  font-size:22px!important;
+  flex:0 0 auto!important;
+  color:var(--text)!important;
+}
+#page-journeys #journeyDetail .journey-detail-name{
+  flex:1 1 auto!important;
+  min-width:0!important;
+  overflow:hidden!important;
+}
+#page-journeys #journeyDetail .journey-detail-name h2{
+  margin:0!important;
+  color:var(--text)!important;
+  font-size:clamp(15px,4.3vw,20px)!important;
+  font-weight:700!important;
+  line-height:1.25!important;
+  letter-spacing:-.02em!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+#page-journeys #journeyDetail .route-detail-actions{
+  flex:0 0 auto;
+  width:max-content;
+  min-width:0;
+  margin-left:auto!important;
+  margin-right:0!important;
+  display:flex;
+  flex-flow:row nowrap;
+  align-items:center;
+  justify-content:flex-end;
+  gap:6px;
+}
+#page-journeys #journeyDetail .route-detail-actions > .route-icon-btn,
+#page-journeys #journeyDetail .route-detail-actions > .bill-detail-icon-button{
+  box-sizing:border-box;
+  flex:0 0 42px!important;
+  width:42px!important;
+  min-width:42px!important;
+  height:42px!important;
+  min-height:42px!important;
+  padding:0!important;
+  margin:0!important;
+  display:grid!important;
+  place-items:center!important;
+  border:1px solid var(--line)!important;
+  border-radius:14px!important;
+  background:var(--card)!important;
+  color:var(--text)!important;
+}
+#page-journeys #journeyDetail .route-detail-actions > .route-icon-btn svg,
+#page-journeys #journeyDetail .route-detail-actions > .bill-detail-icon-button svg{
+  width:20px!important;
+  height:20px!important;
+  stroke:currentColor!important;
+}
+#page-journeys #journeyDetail .route-detail-actions .notification-center{
+  flex:none!important;
+  margin:0!important;
+}
+@media(max-width:600px){
+  #page-journeys #journeyDetail .route-detail-header{gap:6px!important;}
+  #page-journeys #journeyDetail .route-detail-left{gap:5px;}
+  #page-journeys #journeyDetail .route-detail-actions{gap:5px;}
+  #page-journeys #journeyDetail .route-detail-actions > .route-icon-btn,
+  #page-journeys #journeyDetail .route-detail-actions > .bill-detail-icon-button{
+    flex-basis:38px!important;width:38px!important;min-width:38px!important;height:38px!important;min-height:38px!important;
+  }
+}
+
+/* Less empty, but still Ledger: a restrained accent wash and the Route emoji as a soft watermark. */
+#page-journeys #journeyDetail .route-overview-main{
+  position:relative;
+  isolation:isolate;
+  overflow:hidden;
+  padding:20px 16px 19px!important;
+  background:linear-gradient(145deg,
+    color-mix(in srgb,var(--user-accent) 16%,var(--card)) 0%,
+    color-mix(in srgb,var(--user-accent) 7%,var(--card)) 45%,
+    var(--card) 100%);
+}
+#page-journeys #journeyDetail .route-overview-main::after{
+  content:attr(data-route-emoji);
+  position:absolute;
+  z-index:-1;
+  right:18px;
+  top:50%;
+  transform:translateY(-50%) rotate(-7deg);
+  font-size:68px;
+  line-height:1;
+  opacity:.10;
+  filter:saturate(.75);
+  pointer-events:none;
+}
+#page-journeys #journeyDetail .route-overview-main h3,
+#page-journeys #journeyDetail .route-overview-main p{position:relative;z-index:1;}
+
+/* The sharing/files card is intentionally absent from Route details in v80. */
+#page-journeys #journeyDetail #journeyManageTravelers{display:none!important;}
+
+/* Route editor follows Edit Bill: primary save, destructive action, neutral cancel. */
+#routeEditorOverlay #journeyDeleteFromEditor{
+  width:100%;
+  min-height:47px;
+  border-radius:14px;
+  font-size:var(--fs-base)!important;
+  font-weight:650;
+}
+
+/* Dedicated Route action sheets stay compact and readable. */
+#routeTicketOverlay .route-ticket-card,
+#routeEditorOverlay #stopEditor{
+  width:min(100%,480px);
+}
+#routeTicketOverlay .route-upload label,
+#routeEditorOverlay #stopEditor label{
+  font-size:var(--fs-xs)!important;
+  font-weight:500!important;
+  color:var(--muted)!important;
+}
+#routeTicketOverlay .route-upload input,
+#routeTicketOverlay .route-upload select,
+#routeEditorOverlay #stopEditor input,
+#routeEditorOverlay #stopEditor select,
+#routeEditorOverlay #stopEditor textarea{
+  min-height:44px;
+  border-radius:var(--radius-md);
+}
