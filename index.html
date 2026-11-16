@@ -330,6 +330,15 @@
         </div>
       </div>
       <section class="route-overview-card" aria-label="Route overview">
+        <div id="routeDestinationSlideshow" class="route-destination-slideshow" hidden aria-label="Destination photo slideshow">
+          <div class="route-slide-viewport" aria-live="off">
+            <img id="routeSlideImage" class="route-slide-image" alt="Destination photograph" loading="lazy">
+            <button type="button" class="route-slide-arrow previous" data-route-slide="-1" aria-label="Previous destination photo">‹</button>
+            <button type="button" class="route-slide-arrow next" data-route-slide="1" aria-label="Next destination photo">›</button>
+            <span id="routeSlideCounter" class="route-slide-count"></span>
+          </div>
+          <div class="route-slide-caption"><span id="routeSlideLocation" class="route-slide-location"></span><span id="routeSlideCredit" class="route-slide-credit"></span></div>
+        </div>
         <div class="route-overview-main" id="journeyOverviewMain">
           <h3 id="journeyHeroTitle"></h3>
           <p id="journeyDetailSubtitle" class="route-overview-destination"></p>

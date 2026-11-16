@@ -4390,6 +4390,124 @@ function openRouteCostSummary(){
     ${result.unallocated>0.005?`<section class="route-cost-person"><div class="route-cost-person-top"><strong>Unallocated expenses</strong><b>${ticketMoney(result.unallocated)}</b></div><div class="route-cost-items">${itemList(result.unallocatedItems)}</div></section>`:''}`;
   showRouteOverlay('routeCostSummaryOverlay');
 }
+/* Destination slideshow — displays hosted Unsplash images only; no file storage. */
+const routePhotoResults = new Map();
+let routeSlideshowState = { key:'', photos:[], index:0 };
+let routeSlideshowTimer = null;
+let routeSlideTouchStart = null;
+const routePhotoCreditBase = 'https://unsplash.com/?utm_source=ledger&utm_medium=referral';
+function routePhotoSearchKey(route){
+  // A year in a route title is not part of the place name.
+  const title=String(route?.title||'').replace(/\b20\d{2}\b/g,'').trim();
+  const destination=String(route?.destination||'').trim();
+  const titleWords=title.toLowerCase(),destWords=destination.toLowerCase();
+  return [title && !destWords.includes(titleWords)?title:'',destination].filter(Boolean).join(', ').slice(0,120);
+}
+function validUnsplashPhoto(photo){
+  if(!photo||typeof photo!=='object')return null;
+  const source=String(photo.url||'');
+  const profile=String(photo.photographerUrl||'');
+  const link=String(photo.photoUrl||'');
+  try {
+    if(new URL(source).hostname!=='images.unsplash.com')return null;
+    if(profile && !/(^|\.)unsplash\.com$/.test(new URL(profile).hostname))return null;
+    if(link && !/(^|\.)unsplash\.com$/.test(new URL(link).hostname))return null;
+  }catch{return null;}
+  const attr=(url)=>{if(!url)return routePhotoCreditBase;try{const u=new URL(url);u.searchParams.set('utm_source','ledger');u.searchParams.set('utm_medium','referral');return u.toString();}catch{return routePhotoCreditBase;}};
+  return {id:String(photo.id||''),url:source,description:String(photo.description||'').slice(0,220),photographer:String(photo.photographer||'Photographer').slice(0,100),photographerUrl:attr(profile),photoUrl:attr(link)};
+}
+function stopRouteSlideshow(){
+  if(routeSlideshowTimer!==null){clearInterval(routeSlideshowTimer);routeSlideshowTimer=null;}
+}
+function showRouteSlide(){
+  const host=$('routeDestinationSlideshow'),imageEl=$('routeSlideImage');
+  if(!host||!imageEl||!routeSlideshowState.photos.length)return;
+  const photos=routeSlideshowState.photos;
+  const i=((routeSlideshowState.index%photos.length)+photos.length)%photos.length;
+  routeSlideshowState.index=i;
+  const photo=photos[i];
+  imageEl.src=photo.url;
+  imageEl.alt=photo.description||'Photo associated with this route destination';
+  $('routeSlideCounter').textContent=photos.length>1?`${i+1} / ${photos.length}`:'';
+  const j=journeyById(activeJourneyId);
+  $('routeSlideLocation').textContent=j?.destination||'Destination inspiration';
+  // The route destination is the search query, not a claim about the image's precise location.
+  $('routeSlideLocation').title='Photos based on your destination search; locations may vary';
+  $('routeSlideCredit').innerHTML=`Photo by <a target="_blank" rel="noopener noreferrer" href="${esc(photo.photographerUrl)}">${esc(photo.photographer)}</a> on <a target="_blank" rel="noopener noreferrer" href="${routePhotoCreditBase}">Unsplash</a>`;
+  host.querySelectorAll('.route-slide-arrow').forEach(b=>b.hidden=photos.length<2);
+}
+function advanceRouteSlide(amount){
+  if(routeSlideshowState.photos.length<2)return;
+  routeSlideshowState.index=(routeSlideshowState.index+amount+routeSlideshowState.photos.length)%routeSlideshowState.photos.length;
+  showRouteSlide();
+  startRouteSlideAutoAdvance();
+}
+function startRouteSlideAutoAdvance(){
+  stopRouteSlideshow();
+  if(routeSlideshowState.photos.length<2||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  routeSlideshowTimer=setInterval(()=>{
+    if(document.hidden||currentPage!=='journeys'||!activeJourneyId||$('journeyDetail')?.hidden)return;
+    advanceRouteSlideAuto();
+  },5000);
+}
+function advanceRouteSlideAuto(){
+  if(routeSlideshowState.photos.length<2)return;
+  routeSlideshowState.index=(routeSlideshowState.index+1)%routeSlideshowState.photos.length;
+  showRouteSlide();
+}
+function paintRoutePhotos(route){
+  const host=$('routeDestinationSlideshow');if(!host)return;
+  const key=route?.id+'|'+routePhotoSearchKey(route);
+  if(routeSlideshowState.key!==key){
+    stopRouteSlideshow();
+    routeSlideshowState={key,photos:[],index:0};
+  }
+  const cached=routePhotoResults.get(key);
+  if(cached?.photos?.length){
+    routeSlideshowState.photos=cached.photos;
+    host.hidden=false;
+    showRouteSlide();
+    if(!routeSlideshowTimer)startRouteSlideAutoAdvance();
+    return;
+  }
+  host.hidden=true;
+  stopRouteSlideshow();
+  if(!route||!routePhotoSearchKey(route)||cached||!sb||mode!=='cloud'||!user)return;
+  // Mark as loading before invoking to avoid duplicate requests during rerenders.
+  const routeId=String(route.id),search=routePhotoSearchKey(route);
+  routePhotoResults.set(key,{pending:true});
+  sb.functions.invoke('route-photos',{body:{destination:search}}).then(({data,error})=>{
+    if(error)throw error;
+    if(data?.error)throw Error(String(data.error));
+    const photos=(Array.isArray(data?.photos)?data.photos:[]).map(validUnsplashPhoto).filter(Boolean).slice(0,5);
+    routePhotoResults.set(key,{photos,at:Date.now()});
+    if(activeJourneyId===routeId&&routeSlideshowState.key===key){
+      routeSlideshowState.photos=photos;
+      if(photos.length){host.hidden=false;routeSlideshowState.index=0;showRouteSlide();startRouteSlideAutoAdvance();}
+      else host.hidden=true;
+    }
+  }).catch(err=>{
+    console.warn('Route destination photos unavailable:',err?.message||err);
+    routePhotoResults.set(key,{photos:[],error:true,at:Date.now()});
+    if(activeJourneyId===routeId&&routeSlideshowState.key===key)host.hidden=true;
+  });
+}
+function initializeRouteSlideshow(){
+  const host=$('routeDestinationSlideshow');if(!host||host.dataset.initialized)return;
+  host.dataset.initialized='true';
+  host.addEventListener('click',event=>{
+    const button=event.target.closest('[data-route-slide]');
+    if(button){advanceRouteSlide(Number(button.dataset.routeSlide)||1);}
+  });
+  const viewport=host.querySelector('.route-slide-viewport');
+  viewport?.addEventListener('touchstart',event=>{routeSlideTouchStart=event.touches[0]?.clientX??null;},{passive:true});
+  viewport?.addEventListener('touchend',event=>{
+    if(routeSlideTouchStart===null)return;
+    const delta=(event.changedTouches[0]?.clientX??routeSlideTouchStart)-routeSlideTouchStart;
+    routeSlideTouchStart=null;
+    if(Math.abs(delta)>45)advanceRouteSlide(delta>0?-1:1);
+  },{passive:true});
+}
 function paintRouteSummary(){
   const j=journeyById(activeJourneyId);if(!j)return;
   const avatar=String(j.emoji||'🗺️'),title=String(j.title||'Untitled Route');
@@ -4420,6 +4538,7 @@ function renderJourneys(){
   $('journeyOverview').hidden=inDetail||routeArchiveView;
   $('routeArchiveView').hidden=!routeArchiveView||inDetail;
   detail.hidden=!inDetail;
+  if(!inDetail)stopRouteSlideshow();
   if(!inDetail){
     if(routeArchiveView){
       const archived=journeys.filter(j=>j.archived);
@@ -4444,6 +4563,8 @@ function renderJourneys(){
   placeNotificationInHeader();
   const j=journeyById(activeJourneyId), stopTotal=(j.stops||[]).filter(p=>!p.archived).reduce((n,p)=>n+(Number(p.cost)||0),0), ticketTotal=(j.tickets||[]).reduce((n,t)=>{const vals=t&&t.travelerPrices&&typeof t.travelerPrices==='object'?Object.values(t.travelerPrices).map(Number).filter(Number.isFinite):[];const v=vals.length?vals.reduce((a,b)=>a+b,0):Number(t?.cost);return n+(Number.isFinite(v)&&v>=0?v:0);},0), total=stopTotal+ticketTotal;
   paintRouteSummary();
+  initializeRouteSlideshow();
+  paintRoutePhotos(j);
   $('journeyOpenLinkedBillHeader').hidden=!(state.billGroups||[]).some(g=>String(g.id)===String(j.linkedBillId||''));
   const linked=(state.billGroups||[]).find(g=>String(g.id)===String(j.linkedBillId||''));
   const linkedPanel=$('journeyLinkedBill');linkedPanel.hidden=!linked;
