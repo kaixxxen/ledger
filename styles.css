@@ -3241,3 +3241,50 @@ body.ledger-drive-picker-open #routeTicketOverlay{
 #routeCostSummaryOverlay .route-cost-item small{color:var(--muted);font-size:var(--fs-xs);}
 #routeCostSummaryOverlay .route-cost-item strong{white-space:nowrap;font-weight:650;}
 #page-journeys #journeyDetail .route-overview-stats>.route-cost-summary-trigger+div{border-left:1px solid var(--line);}
+
+
+/* v103 — Compact Add a Stop and image-forward itinerary cards */
+#routeStopOverlay{overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;}
+#routeStopOverlay #stopEditor{
+  width:min(100%,440px)!important;max-width:calc(100vw - 28px);
+  max-height:min(88dvh,780px);margin:0;padding:18px;
+  border-radius:22px;background:var(--card);border:1px solid var(--line);
+  overflow-x:hidden!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+}
+#routeStopOverlay #stopForm{display:grid;gap:12px;min-width:0;}
+#routeStopOverlay #routeStopTitle{font-size:var(--fs-lg);font-weight:700;line-height:1.3;letter-spacing:-.01em;text-transform:none;margin:0 0 4px;color:var(--text);}
+#routeStopOverlay #stopForm>div{min-width:0;}
+#routeStopOverlay .lbl{display:block;margin:0 0 6px!important;line-height:1.3;font-size:var(--fs-xs);font-weight:500;color:var(--muted);text-transform:none;letter-spacing:normal;}
+#routeStopOverlay .route-stop-fields-two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+#routeStopOverlay .route-stop-fields-two>div{min-width:0;}
+#routeStopOverlay input:not([type=checkbox]):not([type=hidden]),#routeStopOverlay select{
+  width:100%;max-width:100%;min-width:0;height:44px;min-height:44px;
+  box-sizing:border-box;border-radius:12px;background:var(--bg);color:var(--text);
+  padding:0 11px;font-size:var(--fs-sm);line-height:1.3;margin:0;
+}
+#routeStopOverlay input[type=date],#routeStopOverlay input[type=time]{-webkit-appearance:none;appearance:none;text-align:left;}
+#routeStopOverlay input[type=date]::-webkit-date-and-time-value,#routeStopOverlay input[type=time]::-webkit-date-and-time-value{text-align:left;min-height:1.2em;}
+#routeStopOverlay textarea{width:100%;min-width:0;max-width:100%;min-height:76px;resize:vertical;border-radius:12px;padding:11px 12px;font-size:var(--fs-sm);line-height:1.45;background:var(--bg);color:var(--text);}
+#routeStopOverlay .route-travelers-wrap{gap:8px;padding:11px;border-radius:12px;min-width:0;}
+#routeStopOverlay .route-traveler-choices{max-width:100%;}
+#routeStopOverlay .route-traveler-choice{min-height:36px;padding:6px 8px;font-size:var(--fs-xs);}
+#routeStopOverlay .route-traveler-choice input{width:16px;height:16px;flex:none;}
+#routeStopOverlay #stopPhotoGallery{margin-top:8px;max-width:100%;}
+#routeStopOverlay .modal-actions{display:grid;gap:8px;margin-top:4px;}
+#routeStopOverlay .modal-actions button{width:100%;height:44px;min-height:44px;border-radius:12px;padding:0 12px;font-size:var(--fs-base);font-weight:600;}
+#routeStopOverlay #stopDelete{color:var(--bad);background:transparent;border:1px solid var(--line);}
+#routeStopOverlay button[hidden],#routeStopOverlay div[hidden]{display:none!important;}
+
+#page-journeys .journey-stop{display:block!important;overflow:hidden;padding:0!important;border:1px solid var(--line);border-radius:18px;background:var(--card);min-width:0;box-shadow:none;}
+#page-journeys .journey-stop .route-stop-cover{position:relative;display:block;width:100%;height:clamp(150px,45vw,220px);overflow:hidden;background:var(--bar);}
+#page-journeys .journey-stop .route-stop-cover img{display:block;width:100%;height:100%;object-fit:cover;}
+#page-journeys .journey-stop .route-stop-photo-count{position:absolute;right:12px;bottom:10px;background:rgba(20,20,20,.66);color:white;border-radius:999px;padding:3px 9px;font-size:var(--fs-xs);font-weight:600;}
+#page-journeys .journey-stop .route-stop-card-content{display:flex;align-items:flex-start;gap:10px;padding:13px 14px;min-width:0;}
+#page-journeys .journey-stop .journey-type-dot{margin-top:6px;}
+#page-journeys .journey-stop .journey-stop-main{gap:4px;min-width:0;}
+#page-journeys .journey-stop .journey-stop-main strong{font-size:var(--fs-md);line-height:1.3;font-weight:650;}
+#page-journeys .journey-stop .journey-stop-main small,#page-journeys .journey-stop .journey-stop-main p{overflow-wrap:anywhere;}
+#page-journeys .journey-stop .journey-stop-right{flex:0 0 auto;max-width:35%;font-size:var(--fs-sm);}
+#page-journeys .journey-stop .journey-stop-edit{text-decoration:none;color:var(--muted);font-weight:500;}
+#page-journeys .journey-stop:focus-visible{outline:2px solid var(--user-accent);outline-offset:2px;}
