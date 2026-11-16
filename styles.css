@@ -3779,3 +3779,38 @@ body.ledger-drive-picker-open #routeTicketOverlay{
 #page-journeys #journeyDetail .route-ticket-icon{
   border-radius:0!important;
 }
+
+
+/* v113.1 — centered, identically sized SVG slideshow chevrons (no glyph alignment drift) */
+#page-journeys #journeyDetail .route-slide-arrow{
+  display:grid!important;
+  place-items:center!important;
+  position:absolute;
+  padding:0!important;
+  font-size:0!important;
+  line-height:0!important;
+  text-indent:-9999px;
+  overflow:hidden;
+}
+#page-journeys #journeyDetail .route-slide-arrow::before{
+  content:""!important;
+  display:block!important;
+  width:20px!important;
+  height:20px!important;
+  position:absolute!important;
+  left:50%!important;
+  top:50%!important;
+  margin:0!important;
+  box-sizing:border-box!important;
+  border:0!important;
+  background-repeat:no-repeat!important;
+  background-position:center center!important;
+  background-size:20px 20px!important;
+  transform:translate(-50%,-50%)!important;
+}
+#page-journeys #journeyDetail .route-slide-arrow.previous::before{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M15.5 4.5 8 12l7.5 7.5' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")!important;
+}
+#page-journeys #journeyDetail .route-slide-arrow.next::before{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M8.5 4.5 16 12l-7.5 7.5' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")!important;
+}
