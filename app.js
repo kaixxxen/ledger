@@ -3709,6 +3709,16 @@ function updateDriveRow(row,url,name){
   if(info)info.hidden=!url;
   if(label){label.textContent=name||'';label.title=name||'';}
 }
+// Google Picker is a Google-owned iframe. The ticket overlay has a higher z-index
+// than that iframe, so visually suspend (never destroy) the ticket form until
+// the user selects a file or cancels. All unsaved fields remain in the DOM.
+function suspendTicketModalForPicker(){
+  const modal=$('routeTicketOverlay');
+  if(modal&&!modal.hidden)document.body.classList.add('ledger-drive-picker-open');
+}
+function resumeTicketModalAfterPicker(){
+  document.body.classList.remove('ledger-drive-picker-open');
+}
 function openGoogleDrivePicker(key){
   const row=[...document.querySelectorAll('#routeTicketTravelerFiles [data-ticket-person-row]')].find(r=>r.dataset.ticketPersonRow===key);
   if(!row)return;
@@ -3730,36 +3740,53 @@ function openGoogleDrivePicker(key){
       });
     }
     ledgerDriveTokenClient.callback=(response)=>{
-      if(response?.error||!response?.access_token){toast('Google Drive authorization was not completed.');return;}
+      if(response?.error||!response?.access_token){resumeTicketModalAfterPicker();toast('Google Drive authorization was not completed.');return;}
       ledgerDriveAccessToken=response.access_token;
+      let picker=null;
       try{
-        const picker=new google.picker.PickerBuilder()
+        picker=new google.picker.PickerBuilder()
           .addView(google.picker.ViewId.DOCS)
           .setOAuthToken(ledgerDriveAccessToken)
           .setDeveloperKey(api)
           .setAppId(project)
           .setOrigin(window.location.protocol+'//'+window.location.host)
           .setCallback(data=>{
-            if(data?.action!==google.picker.Action.PICKED)return;
+            const action=data?.[google.picker.Response.ACTION]||data?.action;
+            if(action!==google.picker.Action.PICKED&&action!==google.picker.Action.CANCEL)return;
+            // Close the picker before bringing Ledger's modal back above the page.
+            try{picker?.setVisible(false);}catch(_){}
+            resumeTicketModalAfterPicker();
+            if(action!==google.picker.Action.PICKED)return;
             const doc=data[google.picker.Response.DOCUMENTS]?.[0];
-            if(!doc)return;
+            if(!doc){toast('No Drive file was selected.');return;}
             const id=String(doc[google.picker.Document.ID]||'');
             const url=String(doc[google.picker.Document.URL]||'') || (id?'https://drive.google.com/open?id='+encodeURIComponent(id):'');
             const name=String(doc[google.picker.Document.NAME]||'Google Drive file').slice(0,180);
             if(!validDriveAttachmentUrl(url)){toast('Google Drive returned an invalid file link.');return;}
+            if(!row.isConnected){toast('Ticket form changed. Please select the file again.');return;}
             updateDriveRow(row,url,name);
-            toast('Drive file linked. Save the ticket to keep it.');
+            toast('Drive file linked. Tap Add ticket/s to save.');
           })
           .build();
+        suspendTicketModalForPicker();
         picker.setVisible(true);
-      }catch(e){console.error('Google Picker',e);toast('Could not open Google Drive Picker. Check API key restrictions.');}
+      }catch(e){
+        resumeTicketModalAfterPicker();
+        console.error('Google Picker',e);
+        toast('Could not open Google Drive Picker. Check API key restrictions.');
+      }
     };
     ledgerDriveTokenClient.error_callback=err=>{
+      resumeTicketModalAfterPicker();
       if(err?.type!=='popup_closed')toast('Google authorization popup was blocked or could not open.');
     };
-    // Invoked directly from a user click for iOS Safari popup compatibility.
+    // Must be called synchronously from the button click for Safari popups.
     ledgerDriveTokenClient.requestAccessToken({prompt:ledgerDriveAccessToken?'':'consent'});
-  }catch(e){console.error('Google authorization',e);toast('Could not start Google Drive sign-in.');}
+  }catch(e){
+    resumeTicketModalAfterPicker();
+    console.error('Google authorization',e);
+    toast('Could not start Google Drive sign-in.');
+  }
 }
 async function uploadJourneyFile(){
   let j=journeyById(activeJourneyId);if(!j){toast('Open a Route first');return;}
@@ -3901,6 +3928,7 @@ function openRouteTicketForm(ticket=null){
   }catch(err){console.error('openRouteTicketForm failed',err);toast('Could not open Ticket form: '+(err?.message||'Unknown error'));}
 }
 function closeRouteOverlays(){
+  resumeTicketModalAfterPicker();
   hideRouteOverlay('routeEditorOverlay');
   hideRouteOverlay('routeStopOverlay');
   hideRouteOverlay('routeOptionsOverlay');

@@ -29,3 +29,13 @@ IMPORTANT
   key restricted; NEVER put a client secret or service account key in web code.
 - Legacy manually pasted HTTPS attachments and old Supabase uploaded files
   remain visible in Ticket Details when available.
+
+PICKER VISIBILITY FIX (v95)
+---------------------------
+The Add a Ticket modal is temporarily hidden while the Google-owned file picker
+is open, then restored on Select or Cancel. Unsaved ticket fields are preserved.
+After selecting a file, check the attachment name and tap Add ticket/s to
+commit the link in Ledger. Closing the ticket modal without saving will not
+commit the attachment. If an OAuth popup is blocked, retry in Safari/Chrome.
+Google Picker is an in-browser file selector, not a native Google Drive app
+launcher. Google Drive sharing permissions still control access to linked files.

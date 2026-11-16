@@ -3122,3 +3122,10 @@ select:not([multiple]){max-width:100%;min-width:0;}
 #routeTicketOverlay .route-drive-selected[hidden]{display:none!important;}
 #routeTicketOverlay .route-drive-file-name{display:block;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:var(--fs-xs);}
 #routeTicketOverlay .route-drive-remove{display:grid;place-items:center;flex:none;width:24px;height:24px;border-radius:7px;background:var(--bar);color:var(--text);font-size:20px;line-height:1;}
+
+/* Google Picker owns its own iframe; never let Ledger's high-z modal cover it.
+   Hide visually only, retaining all form inputs and their unsaved values. */
+body.ledger-drive-picker-open #routeTicketOverlay{
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
