@@ -3744,22 +3744,37 @@ function hideRouteOverlay(id){
   overlay.hidden=true;
 }
 function openRouteTicketForm(){
-  const j=journeyById(activeJourneyId);
-  if(!j){toast('Open a Route first');return;}
-  closeRouteOverlays();
-  renderJourneyExtras();
-  const stop=$('journeyDocStop');if(stop)stop.value='';
-  if($('journeyDocLabel'))$('journeyDocLabel').value='';
-  if($('journeyDocFile'))$('journeyDocFile').value='';
-  const hint=$('routeTicketHint');
-  if(hint){
-    hint.textContent=!sb||!user
-      ? 'Sign in to upload and share tickets securely.'
-      : (!j.shared
-        ? 'Choose a ticket file. Ledger will securely share this Route when you upload it.'
-        : 'Upload a ticket or booking document, and choose who can access it.');
+  try{
+    const j=journeyById(activeJourneyId);
+    if(!j){toast('Open a Route first');return;}
+    closeRouteOverlays();
+    // This sheet must be able to open independently of the old Travelers & files renderer.
+    const stop=$('journeyDocStop');
+    if(stop){
+      stop.innerHTML='<option value="">General Route / documents</option>'+(j.stops||[]).map(p=>`<option value="${esc(p.id)}">${esc(p.title)}</option>`).join('');
+      stop.value='';
+    }
+    const traveler=$('journeyDocTraveler');
+    if(traveler){
+      traveler.innerHTML='<option value="">All Route members</option>'+journeyMembers.map(m=>`<option value="${esc(m.user_id)}">${esc(m.display_name||'Traveler')}${m.user_id===j.ownerId?' (owner)':''}</option>`).join('');
+      traveler.value='';
+      if(!journeyOwner(j))Array.from(traveler.options).forEach(o=>{if(o.value&&o.value!==user?.id)o.remove();});
+    }
+    if($('journeyDocLabel'))$('journeyDocLabel').value='';
+    if($('journeyDocFile'))$('journeyDocFile').value='';
+    const hint=$('routeTicketHint');
+    if(hint){
+      hint.textContent=!sb||!user
+        ? 'Sign in to upload and share tickets securely.'
+        : (!j.shared
+          ? 'Choose a ticket file. Ledger will securely share this Route when you upload it.'
+          : 'Upload a ticket or booking document, and choose who can access it.');
+    }
+    if(!showRouteOverlay('routeTicketOverlay'))toast('Could not open Add a Ticket');
+  }catch(err){
+    console.error('openRouteTicketForm failed',err);
+    toast('Could not open Add a Ticket: '+(err?.message||'Unknown error'));
   }
-  showRouteOverlay('routeTicketOverlay');
 }
 
 function closeRouteOverlays(){
@@ -4029,30 +4044,32 @@ function openJourneyForm(j=null){
   $('journeyTitle').focus();
 }
 function openStopForm(stop=null){
-  const j=journeyById(activeJourneyId);if(!j)return;
-  $('stopId').value=stop?.id||'';
-  $('stopType').value=stop?.type||'place';
-  $('stopTitle').value=stop?.title||'';
-  $('stopDate').value=stop?.date||j.startDate||today();
-  $('stopTime').value=stop?.time||'';
-  $('stopEndTime').value=stop?.endTime||'';
-  $('stopLocation').value=stop?.location||'';
-  $('stopTransport').value=stop?.transport||'';
-  $('stopCost').value=stop?.cost??'';
-  $('stopNotes').value=stop?.notes||'';
-  $('stopPhotoUrl').value='';
-  $('stopTravelersWrap').hidden=!j.shared;
-  const assigned=Array.isArray(stop?.travelerIds)?stop.travelerIds:[];
-  $('stopTravelers').innerHTML=journeyMembers.map(m=>`<label class="route-traveler-choice"><input type="checkbox" value="${esc(m.user_id)}" ${assigned.includes(m.user_id)?'checked':''} ${!journeyOwner(j)?'disabled':''}><span>${esc(m.display_name||'Traveler')}</span></label>`).join('');
-  $('stopForm').querySelectorAll('input,textarea,select').forEach(el=>{if(!['stopId','stopPhotoUrl'].includes(el.id))el.disabled=!journeyOwner(j);});
-  $('stopSave').hidden=!journeyOwner(j);$('stopDelete').hidden=!journeyOwner(j);
-  renderJourneyExtras();
-  if($('journeyEditor'))$('journeyEditor').hidden=true;
-  hideRouteOverlay('routeEditorOverlay');
-  hideRouteOverlay('routeOptionsOverlay');
-  if($('routeStopTitle'))$('routeStopTitle').textContent=stop?'Edit Stop':'Add a Stop';
-  showRouteOverlay('routeStopOverlay','stopEditor');
-  setTimeout(()=>$('stopTitle')?.focus(),0);
+  try{
+    const j=journeyById(activeJourneyId);if(!j){toast('Open a Route first');return;}
+    closeRouteOverlays();
+    $('stopId').value=stop?.id||'';
+    $('stopType').value=stop?.type||'place';
+    $('stopTitle').value=stop?.title||'';
+    $('stopDate').value=stop?.date||j.startDate||today();
+    $('stopTime').value=stop?.time||'';
+    $('stopEndTime').value=stop?.endTime||'';
+    $('stopLocation').value=stop?.location||'';
+    $('stopTransport').value=stop?.transport||'';
+    $('stopCost').value=stop?.cost??'';
+    $('stopNotes').value=stop?.notes||'';
+    $('stopPhotoUrl').value='';
+    $('stopTravelersWrap').hidden=!j.shared;
+    const assigned=Array.isArray(stop?.travelerIds)?stop.travelerIds:[];
+    $('stopTravelers').innerHTML=journeyMembers.map(m=>`<label class="route-traveler-choice"><input type="checkbox" value="${esc(m.user_id)}" ${assigned.includes(m.user_id)?'checked':''} ${!journeyOwner(j)?'disabled':''}><span>${esc(m.display_name||'Traveler')}</span></label>`).join('');
+    $('stopForm').querySelectorAll('input,textarea,select').forEach(el=>{if(!['stopId','stopPhotoUrl'].includes(el.id))el.disabled=!journeyOwner(j);});
+    $('stopSave').hidden=!journeyOwner(j);$('stopDelete').hidden=!journeyOwner(j);
+    if($('routeStopTitle'))$('routeStopTitle').textContent=stop?'Edit Stop':'Add a Stop';
+    if(!showRouteOverlay('routeStopOverlay','stopEditor')){toast('Could not open Add a Stop');return;}
+    setTimeout(()=>$('stopTitle')?.focus(),0);
+  }catch(err){
+    console.error('openStopForm failed',err);
+    toast('Could not open Add a Stop: '+(err?.message||'Unknown error'));
+  }
 }
 // Date-only strings must not be interpreted in the device's time zone.
 function routeCardDate(iso){
@@ -4152,8 +4169,6 @@ function initJourneys(){
     const j=journeyById($('journeyId').value||activeJourneyId);if(!j)return;
     if(await deleteJourney(j))closeRouteOverlays();
   });
-  $('globalRouteTicket')?.addEventListener('click',e=>{e.stopPropagation();closeGlobalActions(true);openRouteTicketForm();});
-  $('globalRouteStop')?.addEventListener('click',e=>{e.stopPropagation();closeGlobalActions(true);openStopForm();});
   $('routeParticipantAdd')?.addEventListener('click',addRouteTraveler);
   $('routeParticipantInput')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addRouteTraveler();}});
   $('routeParticipantChips')?.addEventListener('click',e=>{const b=e.target.closest('[data-remove-route-person]');if(!b)return;routeTravelerDraft.splice(Number(b.dataset.removeRoutePerson),1);routeTravelerChips();});
