@@ -3207,3 +3207,41 @@ select:not([multiple]){max-width:100%;min-width:0;}
   .emoji-grid-item.sticker-grid-item .sticker-avatar-thumb{width:84% !important;height:84% !important;}
   .emoji-grid-item.sticker-grid-item.is-selected::after{width:20px !important;height:20px !important;line-height:20px !important;font-size:12px !important;right:5px !important;top:5px !important;}
 }
+
+
+/* v113 SVG sticker/avatar refresh */
+:root{--avatar-stroke-shadow:drop-shadow(0 1px 0 rgba(255,255,255,.35)) drop-shadow(0 0 0.6px rgba(255,255,255,.6));}
+.bill-sticker-avatar,.route-sticker-avatar,.sticker-avatar-thumb,.route-avatar-thumb,.picker-button-sticker,.route-avatar-trigger-img,.journey-detail-avatar-img{image-rendering:auto;object-fit:contain;display:block;filter:var(--avatar-stroke-shadow);}
+.bill-sticker-avatar{background:transparent !important;}
+.emoji-avatar-btn{overflow:hidden;display:grid;place-items:center;background:var(--bg) !important;}
+.emoji-avatar-btn .picker-button-sticker{width:34px;height:34px;}
+#splitPersonAvatar .bill-sticker-avatar{width:100%;height:100%;}
+#routeAvatarTrigger{display:grid;place-items:center;padding:0 !important;overflow:hidden;}
+#routeAvatarTrigger .route-avatar-trigger-img{width:28px;height:28px;}
+.route-avatar-badge{width:42px;height:42px;min-width:42px;flex:0 0 42px;border-radius:999px;border:1px solid rgba(255,255,255,.08);background:transparent;display:grid;place-items:center;overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.03);}
+.route-avatar-badge .route-sticker-avatar{width:27px;height:27px;}
+#page-journeys .journey-tile-icon.route-avatar-badge{width:42px !important;height:42px !important;border-radius:999px !important;background:transparent !important;}
+#page-journeys .route-archived-card .route-avatar-badge{width:38px;height:38px;min-width:38px;}
+#page-journeys .route-archived-card .route-avatar-badge .route-sticker-avatar{width:24px;height:24px;}
+#page-journeys .journey-detail-avatar{display:grid;place-items:center;width:39px;height:39px;border-radius:999px;background:transparent !important;border:1px solid rgba(255,255,255,.08);overflow:hidden;}
+#page-journeys .journey-detail-avatar .journey-detail-avatar-img{width:26px;height:26px;}
+#page-journeys #journeyDetail .route-overview-main::after{content:none !important;}
+.emoji-grid{grid-template-columns:repeat(4,minmax(0,1fr)) !important;gap:14px !important;padding:6px !important;}
+.emoji-grid-item{width:100%;display:grid;place-items:center;}
+.emoji-grid-item.sticker-grid-item,.emoji-grid-item.route-grid-item{aspect-ratio:1/1 !important;min-height:76px !important;border-radius:18px !important;padding:10px !important;border:1px solid rgba(255,255,255,.08) !important;background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01)), var(--card-2) !important;box-shadow:inset 0 1px 0 rgba(255,255,255,.03) !important;overflow:hidden;}
+.emoji-grid-item.sticker-grid-item:hover,.emoji-grid-item.route-grid-item:hover{border-color:rgba(169,214,243,.65) !important;background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015)), var(--bar) !important;transform:none !important;}
+.emoji-grid-item.sticker-grid-item.is-selected,.emoji-grid-item.route-grid-item.is-selected{border:2px solid #b6def5 !important;background:linear-gradient(180deg, rgba(182,222,245,.18), rgba(182,222,245,.08)), var(--card-2) !important;box-shadow:0 0 0 1px rgba(182,222,245,.14) inset !important;}
+.emoji-grid-item.sticker-grid-item.is-selected::after,.emoji-grid-item.route-grid-item.is-selected::after{content:'✓';position:absolute;right:6px;top:6px;width:22px;height:22px;line-height:22px;text-align:center;border-radius:50%;background:#b6def5;color:#10202d;font-family:var(--font-ui);font-size:13px;font-weight:800;}
+.emoji-grid-item .sticker-avatar-thumb{width:84%;height:84%;}
+.emoji-grid-item .route-avatar-thumb{width:72%;height:72%;}
+@media (max-width:430px){
+  .emoji-picker-panel{padding:16px !important;border-radius:22px !important;}
+  .emoji-grid{gap:10px !important;padding:4px !important;}
+  .emoji-grid-item.sticker-grid-item,.emoji-grid-item.route-grid-item{min-height:68px !important;border-radius:16px !important;padding:8px !important;}
+  .emoji-grid-item .sticker-avatar-thumb{width:82%;height:82%;}
+  .emoji-grid-item .route-avatar-thumb{width:70%;height:70%;}
+  .emoji-avatar-btn .picker-button-sticker{width:32px;height:32px;}
+  .route-avatar-badge{width:38px;height:38px;min-width:38px;}
+  .route-avatar-badge .route-sticker-avatar{width:24px;height:24px;}
+  #page-journeys .journey-detail-avatar .journey-detail-avatar-img{width:24px;height:24px;}
+}
