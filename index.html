@@ -393,7 +393,7 @@
 </div>
 <div id="routeTicketOverlay" class="modal-backdrop route-modal-overlay" hidden>
   <section class="route-modal-card route-ticket-card" role="dialog" aria-modal="true" aria-labelledby="routeTicketTitle">
-    <h2 id="routeTicketTitle">Add a Ticket</h2>
+    <h2 id="routeTicketTitle">Add a ticket</h2>
     <input id="routeTicketId" type="hidden">
     <div class="route-ticket-fields">
       <label for="journeyDocLabel">Ticket name</label><input id="journeyDocLabel" maxlength="120" placeholder="e.g. Manila to Legazpi">
@@ -402,16 +402,16 @@
       <div class="route-ticket-two"><div><label id="routeTicketRouteLabel" for="routeTicketRoute">Flight route</label><input id="routeTicketRoute" maxlength="80" placeholder="LEG-MNL"></div><div><label for="routeTicketTime">Time</label><input id="routeTicketTime" type="time"></div></div>
       <label for="routeTicketCost">Total ticket price</label><input id="routeTicketCost" type="number" min="0" max="999999999" step="0.01" inputmode="decimal" placeholder="0.00">
       <div class="route-ticket-attachments"><span class="route-ticket-section-label">Traveler tickets</span><div id="routeTicketTravelerFiles"></div></div>
-      <button type="button" class="primary" id="journeyUploadBtn">Add Ticket/s</button>
+      <button type="button" class="primary" id="journeyUploadBtn">Add ticket/s</button>
       <button id="routeTicketCancel" type="button" class="secondary route-ticket-cancel">Cancel</button>
     </div>
   </section>
 </div>
 <div id="routeTicketDetailOverlay" class="modal-backdrop route-modal-overlay" hidden>
   <section class="route-modal-card route-ticket-detail-card" role="dialog" aria-modal="true" aria-labelledby="routeTicketDetailTitle">
-    <h2 id="routeTicketDetailTitle">Ticket Details</h2>
+    <h2 id="routeTicketDetailTitle">Ticket details</h2>
     <div id="routeTicketDetailBody" class="route-ticket-detail-body"></div>
-    <button id="routeTicketDetailEdit" type="button" class="primary">Edit Ticket Details</button>
+    <button id="routeTicketDetailEdit" type="button" class="primary">Edit ticket details</button>
     <button id="routeTicketDetailClose" type="button" class="secondary">Close</button>
   </section>
 </div>
@@ -1002,7 +1002,7 @@
     
     <button type="button" role="menuitem" data-create="journey"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15M15 6v15"/></svg><span>Plan a Route</span></button>
     <button type="button" role="menuitem" data-create="in-bill" id="globalAddToBill" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Add expense to this bill</span></button>
-    <button type="button" role="menuitem" data-create="route-ticket" id="globalRouteTicket" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4V7Z"/><path d="M12 7v10" stroke-dasharray="2 2"/></svg><span>Add a Ticket</span></button>
+    <button type="button" role="menuitem" data-create="route-ticket" id="globalRouteTicket" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4V7Z"/><path d="M12 7v10" stroke-dasharray="2 2"/></svg><span>Add a ticket</span></button>
     <button type="button" role="menuitem" data-create="route-stop" id="globalRouteStop" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6 7-12a7 7 0 1 0-14 0c0 6 7 12 7 12Z"/><path d="M12 7v6M9 10h6"/></svg><span>Add a Stop</span></button>
     <button type="button" role="menuitem" data-create="payment" id="globalRecordPayment" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h18v11H3z"/><path d="M3 11h18M7 15h4"/></svg><span>Record payment</span></button>
   </div>

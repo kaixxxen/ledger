@@ -2975,3 +2975,37 @@ select:not([multiple]){max-width:100%;min-width:0;}
   .route-ticket-detail-grid{grid-template-columns:1fr;}
   .route-ticket-detail-grid>div+div{border-left:0;border-top:1px solid var(--line);}
 }
+
+
+/* v85 — Ticket form parity with Ledger modals */
+#routeTicketOverlay .route-ticket-card{
+  width:min(100%,470px)!important;
+  max-height:min(86dvh,760px)!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  overscroll-behavior:contain!important;
+  touch-action:pan-y!important;
+  box-sizing:border-box!important;
+}
+#routeTicketOverlay .route-ticket-fields,
+#routeTicketOverlay .route-ticket-two,
+#routeTicketOverlay .route-ticket-two>div{min-width:0!important;max-width:100%!important;}
+#routeTicketOverlay input:not([type="file"]),
+#routeTicketOverlay select{
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  height:46px!important;
+  min-height:46px!important;
+  box-sizing:border-box!important;
+  border-radius:14px!important;
+  font:inherit!important;
+  font-size:var(--fs-sm)!important;
+  color:var(--text)!important;
+}
+#routeTicketOverlay .route-ticket-two{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;}
+#routeTicketOverlay #journeyUploadBtn,
+#routeTicketOverlay .route-ticket-cancel{height:46px!important;min-height:46px!important;width:100%!important;box-sizing:border-box!important;}
+#routeTicketOverlay .route-ticket-person{width:100%!important;box-sizing:border-box!important;overflow:hidden!important;}
+#routeTicketOverlay .route-ticket-file-button{max-width:48%!important;white-space:nowrap!important;text-overflow:ellipsis!important;overflow:hidden!important;}
+@media(max-width:360px){#routeTicketOverlay .route-ticket-two{grid-template-columns:1fr!important;}}

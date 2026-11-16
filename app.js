@@ -3675,7 +3675,6 @@ async function signedFileOpen(id){
 async function uploadJourneyFile(){
   let j=journeyById(activeJourneyId);
   if(!j){toast('Open a Route first');return;}
-  if(!sb||!user){toast('Sign in to add shared tickets');return;}
   const ticketId=$('routeTicketId')?.value||'';
   const existing=ticketId?(j.tickets||[]).find(t=>String(t.id)===String(ticketId)):null;
   const name=$('journeyDocLabel')?.value.trim();
@@ -3689,47 +3688,80 @@ async function uploadJourneyFile(){
   if(!place){toast(category==='plane'?'Enter the airport':'Enter the terminal or station');return;}
   if(!date||!time){toast('Add the ticket date and time');return;}
   if(!Number.isFinite(cost)||cost<0){toast('Enter a valid ticket price');return;}
+
   const inputs=[...document.querySelectorAll('#routeTicketTravelerFiles input[type=file][data-ticket-traveler]')];
   const selected=inputs.map(input=>({input,file:input.files?.[0],label:input.dataset.ticketTraveler||'Traveler'})).filter(x=>x.file);
-  if(!existing&&!selected.length){toast('Choose at least one traveler ticket file');return;}
   for(const x of selected){
     if(x.file.size>CLOUD_FILE_LIMIT){toast(`${x.label}: maximum file size is 15 MB`);return;}
     const ext=(x.file.name.split('.').pop()||'').toLowerCase();
     const allowedExt=['jpg','jpeg','png','webp','gif','pdf','pptx','ppt','docx','doc','txt','zip'];
     if(!allowedExt.includes(ext)||(!uploadMime.has(x.file.type)&&x.file.type!=='')){toast(`${x.label}: unsupported file type`);return;}
   }
-  if(selected.length&&!j.shared){
-    if(!journeyOwner(j)){toast('Only the Route owner can enable ticket sharing');return;}
-    const shared=await shareJourney(j);if(!shared)return;
-    j=journeyById(activeJourneyId)||journeyById(j.id);
-    if(!j?.shared){toast('Could not prepare this Route for secure ticket uploads');return;}
-  }
-  if(j.shared)await loadJourneyExtras(j);
+
   const ticket=existing||{id:uid(),archived:false,travelerLabels:[]};
   Object.assign(ticket,{name:name.slice(0,120),category,place:place.slice(0,160),route:route.slice(0,80),date,time,cost:Math.round(cost*100)/100});
   ticket.travelerLabels=[...new Set([...(ticket.travelerLabels||[]),...selected.map(x=>x.label)])];
-  const btn=$('journeyUploadBtn');if(btn){btn.disabled=true;btn.textContent=existing?'Saving…':'Adding…';}
-  const uploaded=[];
+
+  // Save the Ticket metadata first. File attachments must never prevent the Ticket card from being created.
+  j.tickets ||= [];
+  if(!existing)j.tickets.push(ticket);
+  const btn=$('journeyUploadBtn');
+  if(btn){btn.disabled=true;btn.textContent=existing?'Saving…':'Adding…';}
+  let metadataSaved=false;
   try{
-    for(const x of selected){
-      const ext=(x.file.name.split('.').pop()||'').toLowerCase();
-      const path=`${j.id}/shared/tickets/${ticket.id}/${uid()}.${ext}`;
-      const up=await sb.storage.from(ROUTE_BUCKET).upload(path,x.file,{contentType:x.file.type||'application/octet-stream',upsert:false});
-      if(up.error)throw up.error;
-      uploaded.push(path);
-      const row={route_id:j.id,stop_id:ticket.id,display_name:`${x.label} — ${ticket.name}`.slice(0,180),mime_type:x.file.type||'application/octet-stream',storage_path:path,owner_id:user.id,assigned_user_id:null};
-      const ins=await sb.from('ledger_route_files').insert(row);if(ins.error)throw ins.error;
-    }
-    j.tickets ||= [];
-    if(!existing)j.tickets.push(ticket);
     if(!await persistJourney(j))throw Error('Ticket details could not be saved');
-    toast(existing?'Ticket updated':(selected.length===1?'Ticket added':'Tickets added'));
-    closeRouteOverlays();if(j.shared)await loadJourneyExtras(j);renderJourneys();
+    metadataSaved=true;
+
+    if(selected.length){
+      if(!sb||!user){
+        toast(existing?'Ticket updated. Sign in to attach files.':'Ticket added. Sign in to attach files.');
+      }else{
+        if(!j.shared){
+          if(!journeyOwner(j)){
+            toast('Ticket saved. Only the Route owner can enable shared file uploads.');
+          }else{
+            const shared=await shareJourney(j);
+            if(shared!==false){j=journeyById(activeJourneyId)||journeyById(j.id)||j;}
+          }
+        }
+        if(j?.shared){
+          await loadJourneyExtras(j);
+          let attached=0;
+          const failed=[];
+          for(const x of selected){
+            let path='';
+            try{
+              const ext=(x.file.name.split('.').pop()||'').toLowerCase();
+              path=`${j.id}/shared/tickets/${ticket.id}/${uid()}.${ext}`;
+              const up=await sb.storage.from(ROUTE_BUCKET).upload(path,x.file,{contentType:x.file.type||'application/octet-stream',upsert:false});
+              if(up.error)throw up.error;
+              const row={route_id:j.id,stop_id:ticket.id,display_name:`${x.label} — ${ticket.name}`.slice(0,180),mime_type:x.file.type||'application/octet-stream',storage_path:path,owner_id:user.id,assigned_user_id:null};
+              const ins=await sb.from('ledger_route_files').insert(row);
+              if(ins.error)throw ins.error;
+              attached++;
+            }catch(err){
+              console.error('Ticket attachment failed',x.label,err);
+              failed.push(x.label);
+              if(path)await sb.storage.from(ROUTE_BUCKET).remove([path]).catch(()=>{});
+            }
+          }
+          if(attached)await loadJourneyExtras(j);
+          if(failed.length)toast(`Ticket saved. Could not attach: ${failed.join(', ')}`);
+          else toast(existing?'Ticket updated':'Ticket added');
+        }
+      }
+    }else{
+      toast(existing?'Ticket updated':'Ticket added');
+    }
+
+    closeRouteOverlays();renderJourneys();
   }catch(e){
     console.error(e);
-    if(uploaded.length)await sb.storage.from(ROUTE_BUCKET).remove(uploaded);
-    toast('Upload failed: '+String(e?.message||e||'Unknown error'));
-  }finally{if(btn){btn.disabled=false;btn.textContent=existing?'Save Ticket':'Add Ticket/s';}}
+    if(!metadataSaved&&!existing){j.tickets=(j.tickets||[]).filter(t=>t!==ticket);}
+    toast('Could not save ticket: '+String(e?.message||e||'Unknown error'));
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent=existing?'Save changes':'Add ticket/s';}
+  }
 }
 async function shareJourney(j){
   if(mode!=='cloud'||!sb||!user){toast('Sign in first to share a route');return;}
@@ -3800,7 +3832,7 @@ function openRouteTicketForm(ticket=null){
     const j=journeyById(activeJourneyId);if(!j){toast('Open a Route first');return;}
     closeRouteOverlays();
     if($('routeTicketId'))$('routeTicketId').value=ticket?.id||'';
-    if($('routeTicketTitle'))$('routeTicketTitle').textContent=ticket?'Edit Ticket':'Add a Ticket';
+    if($('routeTicketTitle'))$('routeTicketTitle').textContent=ticket?'Edit ticket':'Add a ticket';
     if($('journeyDocLabel'))$('journeyDocLabel').value=ticket?.name||'';
     if($('routeTicketCategory'))$('routeTicketCategory').value=ticket?.category||'plane';
     if($('routeTicketPlace'))$('routeTicketPlace').value=ticket?.place||'';
@@ -3808,14 +3840,14 @@ function openRouteTicketForm(ticket=null){
     if($('routeTicketDate'))$('routeTicketDate').value=ticket?.date||j.startDate||today();
     if($('routeTicketTime'))$('routeTicketTime').value=ticket?.time||'';
     if($('routeTicketCost'))$('routeTicketCost').value=ticket?.cost?String(ticket.cost):'';
-    if($('journeyUploadBtn'))$('journeyUploadBtn').textContent=ticket?'Save Ticket':'Add Ticket/s';
+    if($('journeyUploadBtn'))$('journeyUploadBtn').textContent=ticket?'Save changes':'Add ticket/s';
     updateRouteTicketLabels();
     const host=$('routeTicketTravelerFiles');
     if(host){
       const people=routeTicketTravelers(j);
       host.innerHTML=people.length?people.map(p=>`<label class="route-ticket-person"><span>${esc(p.label)}</span><span class="route-ticket-file-button">Choose file<input type="file" data-ticket-traveler="${esc(p.label)}" accept="image/*,.pdf,.ppt,.pptx,.doc,.docx,.txt,.zip"></span></label>`).join(''):'<p class="fine">Add travelers to this Route first.</p>';
     }
-    if(!showRouteOverlay('routeTicketOverlay'))toast(`Could not open ${ticket?'Edit Ticket':'Add a Ticket'}`);
+    if(!showRouteOverlay('routeTicketOverlay'))toast(`Could not open ${ticket?'Edit ticket':'Add a ticket'}`);
     setTimeout(()=>$('journeyDocLabel')?.focus(),0);
   }catch(err){console.error('openRouteTicketForm failed',err);toast('Could not open Ticket form: '+(err?.message||'Unknown error'));}
 }
@@ -4192,7 +4224,7 @@ function renderJourneys(){
     return `${i===0||last?`<div class="journey-day-label">${esc(p.date||'Unscheduled')}</div>`:''}<article class="journey-stop" data-stop-id="${esc(p.id)}"><span class="journey-type-dot ${esc(p.type)}" aria-hidden="true"></span><div class="journey-stop-main"><div class="journey-stop-meta">${esc(JTYPE[p.type]||'Place')} · ${esc(dateLabel||'Time not set')}</div><strong>${esc(p.title)}</strong>${summary?`<small>${esc(summary)}</small>`:''}${p.notes?`<p>${esc(p.notes)}</p>`:''}${Array.isArray(p.travelerIds)&&p.travelerIds.length?`<small>👤 ${esc(p.travelerIds.map(id=>journeyMembers.find(m=>m.user_id===id)?.display_name||'Traveler').join(', '))}</small>`:''}${stopPhotoUrls(p).length?`<div class="route-stop-photos">${stopPhotoUrls(p).map(url=>`<img src="${esc(url)}" alt="${esc(p.title)}" loading="lazy">`).join('')}</div>`:''}</div><div class="journey-stop-right"><strong>${money(p.cost)}</strong><button type="button" class="journey-stop-edit" data-stop-edit="${esc(p.id)}" aria-label="View ${esc(p.title)}">${journeyOwner(j)?'Details':'View'}</button></div></article>`;
   }).join(''):'<div class="journey-empty route-subempty">No stops yet.</div>';
   const ticketMode=lsGet(ticketSortKey())||'date',stopMode=lsGet(stopSortKey())||'date';
-  $('journeyStops').innerHTML=`<section class="route-itinerary-group"><div class="route-itinerary-group-head"><h4>${ticketMode==='archived'?'Archived Tickets':'Tickets'}</h4><label class="route-mini-sort"><span>Sort</span><select data-route-ticket-sort><option value="date" ${ticketMode==='date'?'selected':''}>Date</option><option value="name" ${ticketMode==='name'?'selected':''}>Name</option><option value="price" ${ticketMode==='price'?'selected':''}>Price</option><option value="archived" ${ticketMode==='archived'?'selected':''}>Archived</option></select></label></div>${ticketHtml}</section><section class="route-itinerary-group"><div class="route-itinerary-group-head"><h4>Stops</h4><label class="route-mini-sort"><span>Sort</span><select data-route-stop-sort><option value="date" ${stopMode==='date'?'selected':''}>Date</option><option value="name" ${stopMode==='name'?'selected':''}>Name</option><option value="price" ${stopMode==='price'?'selected':''}>Price</option></select></label></div>${stopHtml}</section>`;
+  $('journeyStops').innerHTML=`<section class="route-itinerary-group"><div class="route-itinerary-group-head"><h4>${ticketMode==='archived'?'Archived tickets':'Tickets'}</h4><label class="route-mini-sort"><span>Sort</span><select data-route-ticket-sort><option value="date" ${ticketMode==='date'?'selected':''}>Date</option><option value="name" ${ticketMode==='name'?'selected':''}>Name</option><option value="price" ${ticketMode==='price'?'selected':''}>Price</option><option value="archived" ${ticketMode==='archived'?'selected':''}>Archived</option></select></label></div>${ticketHtml}</section><section class="route-itinerary-group"><div class="route-itinerary-group-head"><h4>Stops</h4><label class="route-mini-sort"><span>Sort</span><select data-route-stop-sort><option value="date" ${stopMode==='date'?'selected':''}>Date</option><option value="name" ${stopMode==='name'?'selected':''}>Name</option><option value="price" ${stopMode==='price'?'selected':''}>Price</option></select></label></div>${stopHtml}</section>`;
   $$('#journeyStops .route-ticket-itinerary').forEach(card=>{const t=routeTicketById(card.dataset.ticketId);if(!t)return;attachLongPress(card,e=>routeTicketActionMenu(t));});
 }
 const ticketSortKey=()=>`ledger.route.ticketSort.${activeJourneyId||'none'}`;
@@ -4218,7 +4250,7 @@ function openRouteTicketDetail(t){
   const icon=t.category==='bus'?'🚌':'✈︎', files=ticketFilesFor(t);
   const when=[routeCardDate(t.date),t.time?routeClockTime(t.time):''].filter(Boolean).join(' • ');
   const fileRows=files.length?files.map(f=>`<button type="button" class="route-ticket-detail-file" data-route-file-open="${esc(f.id)}"><span>${esc(f.display_name||'Ticket file')}</span><span>Open</span></button>`).join(''):'<p class="fine">No files attached.</p>';
-  $('routeTicketDetailTitle').textContent=t.name||'Ticket Details';
+  $('routeTicketDetailTitle').textContent=t.name||'Ticket details';
   $('routeTicketDetailBody').innerHTML=`<div class="route-ticket-detail-hero"><span>${icon}</span><div><strong>${esc(t.place||'')}</strong><small>${esc(t.route||'')}</small></div></div><div class="route-ticket-detail-grid"><div><small>Date & time</small><strong>${esc(when||'Not set')}</strong></div><div><small>Total price</small><strong>${money(t.cost||0)}</strong></div><div><small>Category</small><strong>${t.category==='bus'?'Bus':'Plane'}</strong></div></div><div class="route-ticket-detail-files"><small>Traveler ticket files</small>${fileRows}</div>`;
   $('routeTicketDetailEdit').hidden=!journeyOwner(journeyById(activeJourneyId));
   $('routeTicketDetailEdit').dataset.ticketEdit=t.id;
@@ -4247,9 +4279,9 @@ function routeTicketActionMenu(t){
   if(!t)return;
   const archived=!!t.archived;
   showActionSheet(t.name||'Ticket',[t.place,t.route].filter(Boolean).join(' · '),[
-    {text:archived?'📁 Unarchive Ticket':'📁 Archive Ticket',action:()=>archiveRouteTicket(t,!archived)},
-    {text:'✏️ Edit Ticket Details',action:()=>openRouteTicketForm(t)},
-    {text:'🗑️ Delete Ticket',danger:true,action:()=>deleteRouteTicket(t)}
+    {text:archived?'📁 Unarchive ticket':'📁 Archive ticket',action:()=>archiveRouteTicket(t,!archived)},
+    {text:'✏️ Edit ticket details',action:()=>openRouteTicketForm(t)},
+    {text:'🗑️ Delete ticket',danger:true,action:()=>deleteRouteTicket(t)}
   ]);
 }
 function openLinkedBillFromRoute(){
