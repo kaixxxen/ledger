@@ -3018,3 +3018,84 @@ select:not([multiple]){max-width:100%;min-width:0;}
 #routeTicketOverlay input#routeTicketDateTime::-webkit-datetime-edit-fields-wrapper{
   display:flex;align-items:center;height:100%;padding:0;
 }
+
+
+/* --- Stable chart/category colors + improved route ticket cards --- */
+:root{
+  --c-food:#e76f51;
+  --c-housing:#2a9d8f;
+  --c-transport:#e9c46a;
+  --c-bills:#f4a261;
+  --c-health:#43aa8b;
+  --c-fun:#90be6d;
+  --c-shopping:#577590;
+  --c-other:#8d99ae;
+  --c-cash:#2f7d5b;
+  --c-debit:#3b6ea5;
+  --c-card:#c9822f;
+  --chart-bar-current-start:#97a3b6;
+  --chart-bar-current-end:#5c6f88;
+  --ticket-dash:rgba(132,132,140,.34);
+  --ticket-icon-bg:rgba(99,108,124,.10);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --chart-bar-current-start:#aeb9ca;
+    --chart-bar-current-end:#7287a5;
+    --ticket-dash:rgba(154,154,164,.34);
+    --ticket-icon-bg:rgba(255,255,255,.06);
+  }
+}
+:root[data-theme="dark"]{
+  --chart-bar-current-start:#aeb9ca;
+  --chart-bar-current-end:#7287a5;
+  --ticket-dash:rgba(154,154,164,.34);
+  --ticket-icon-bg:rgba(255,255,255,.06);
+}
+.route-ticket-itinerary{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  padding:14px 16px;
+  margin:0 0 12px;
+  border-radius:20px;
+  background:var(--card)!important;
+  border:1px dashed var(--ticket-dash)!important;
+  box-shadow:none;
+  color:var(--text);
+}
+.route-ticket-itinerary::after{display:none!important;}
+.route-ticket-icon{
+  flex:0 0 44px;
+  width:44px;
+  height:44px;
+  border-radius:14px;
+  display:grid;
+  place-items:center;
+  font-size:22px;
+  background:var(--ticket-icon-bg)!important;
+}
+.route-ticket-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;}
+.route-ticket-main strong{
+  font-size:var(--fs-base)!important;
+  line-height:1.35;
+  font-weight:650;
+  color:var(--text);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.route-ticket-main small{
+  font-size:var(--fs-sm)!important;
+  line-height:1.35;
+  color:var(--muted);
+  opacity:1;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.route-ticket-price{display:none!important;}
+#page-journeys .journey-detail-name h2{
+  font-size:16px!important;
+  line-height:1.25;
+}

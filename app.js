@@ -29,16 +29,16 @@ const CAT_COLORS = {
 // Custom expense categories use shades of the user's current pastel accent.
 // A stable hash keeps each category visually consistent when changing themes.
 const DYNAMIC_PALETTE = [
-  'color-mix(in srgb,var(--user-accent) 91%,white)',
-  'color-mix(in srgb,var(--user-accent) 76%,white)',
-  'color-mix(in srgb,var(--user-accent) 70%,#777)',
-  'color-mix(in srgb,var(--user-accent) 55%,white)',
-  'color-mix(in srgb,var(--user-accent) 82%,#888)',
-  'color-mix(in srgb,var(--user-accent) 60%,#aaa)',
-  'color-mix(in srgb,var(--user-accent) 48%,white)',
-  'color-mix(in srgb,var(--user-accent) 77%,#555)',
-  'color-mix(in srgb,var(--user-accent) 66%,#bbb)',
-  'color-mix(in srgb,var(--user-accent) 42%,#888)'
+  '#6f88a8',
+  '#c57a61',
+  '#6fa183',
+  '#c5a34f',
+  '#8c78c2',
+  '#5f95aa',
+  '#b77897',
+  '#7d9660',
+  '#c66d6d',
+  '#6f7fb0'
 ];
 
 function getCategoryColor(catName) {
@@ -1077,7 +1077,7 @@ function renderHome() {
   if (holder) {
     holder.innerHTML = `<div class="bars"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Spending over six months">
       <defs>
-        <linearGradient id="gBarCur" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--gold)" /><stop offset="1" style="stop-color:var(--blue-strong)" /></linearGradient>
+        <linearGradient id="gBarCur" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--chart-bar-current-start,#8d98aa)" /><stop offset="1" style="stop-color:var(--chart-bar-current-end,#5d6f86)" /></linearGradient>
         <linearGradient id="gBarPast" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--muted);stop-opacity:.5" /><stop offset="1" style="stop-color:var(--muted);stop-opacity:.14" /></linearGradient>
       </defs>
       ${gridLines}${bars}</svg></div>`;
@@ -4216,8 +4216,8 @@ function renderJourneys(){
   const tickets=sortedRouteTickets(j);
   const ticketHtml=tickets.length?tickets.map(t=>{
     const top=[t.place,t.route?`(${t.route})`:''].filter(Boolean).join(' ')||t.name;
-    const when=[routeCardDate(t.date),t.time?routeClockTime(t.time):''].filter(Boolean).join(' · ');
-    return `<article class="route-ticket-itinerary${t.archived?' is-archived':''}" data-ticket-id="${esc(t.id)}" tabindex="0" role="button" aria-label="Ticket ${esc(top)}"><span class="route-ticket-icon" aria-hidden="true">${ticketIcon(t.category)}</span><div class="route-ticket-main"><strong title="${esc(top)}">${esc(top)}</strong><small title="${esc(when)}">${esc(when||'Schedule not set')}</small></div><span class="route-ticket-price">${money(t.cost||0)}</span></article>`;
+    const subtitle=[routeCardDate(t.date),t.time?routeClockTime(t.time):'',money(t.cost||0)].filter(Boolean).join(' · ');
+    return `<article class="route-ticket-itinerary${t.archived?' is-archived':''}" data-ticket-id="${esc(t.id)}" tabindex="0" role="button" aria-label="Ticket ${esc(top)}"><span class="route-ticket-icon" aria-hidden="true">${ticketIcon(t.category)}</span><div class="route-ticket-main"><strong title="${esc(top)}">${esc(top)}</strong><small title="${esc(subtitle)}">${esc(subtitle||'Schedule not set')}</small></div></article>`;
   }).join(''):`<div class="journey-empty route-subempty">${(lsGet(ticketSortKey())||'date')==='archived'?'No archived tickets.':'No tickets yet. Tap + to add one.'}</div>`;
   const stopHtml=ordered.length?ordered.map((p,i)=>{
     const dateLabel=[p.date,p.time+(p.endTime?`–${p.endTime}`:'')].filter(Boolean).join(' · ');
