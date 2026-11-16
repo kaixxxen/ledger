@@ -3099,3 +3099,18 @@ select:not([multiple]){max-width:100%;min-width:0;}
   font-size:16px!important;
   line-height:1.25;
 }
+
+
+/* v93: ticket attachment links, label alignment, vertically centered card copy */
+#routeTicketOverlay .route-place-row{align-items:end;}
+#routeTicketOverlay #routeTicketPlaceLabel{margin-left:0!important;text-indent:0!important;}
+#routeTicketOverlay .route-place-row>div:nth-child(2){min-width:0;}
+#routeTicketOverlay .route-ticket-person input[type=url]{height:44px;min-height:44px;font-size:var(--fs-sm);padding:0 11px;}
+#routeTicketOverlay .route-ticket-person input[type=url]::placeholder{font-size:var(--fs-sm);}
+.route-ticket-itinerary{align-items:center!important;min-height:72px;}
+.route-ticket-main{justify-content:center;align-self:stretch;}
+.route-ticket-detail-file{color:var(--text);text-decoration:none!important;}
+
+#routeTicketOverlay .route-place-row{position:relative;padding-top:22px;}
+#routeTicketOverlay #routeTicketPlaceLabel{position:absolute;top:0;left:0;width:auto;line-height:1.3;}
+.route-ticket-main small{font-size:var(--fs-sm)!important;letter-spacing:-.02em;}
