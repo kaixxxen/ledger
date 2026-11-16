@@ -3087,3 +3087,32 @@ select:not([multiple]){max-width:100%;min-width:0;}
   #page-journeys #journeyDetail .route-detail-left{grid-template-columns:28px auto minmax(0,1fr)!important;gap:5px!important;}
   #page-journeys #journeyDetail .route-detail-actions{gap:5px!important;}
 }
+
+/* v88 — compact, bill-style ticket editor */
+#routeTicketOverlay .route-ticket-card{width:min(100%,480px)!important;max-height:min(88dvh,780px)!important;overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain;touch-action:pan-y;padding:22px 20px!important;}
+#routeTicketOverlay .route-ticket-card h2{text-transform:none!important;font-size:var(--fs-xl)!important;font-weight:750!important;line-height:1.2!important;letter-spacing:-.03em!important;color:var(--text)!important;margin:0 0 18px!important;}
+#routeTicketOverlay .route-ticket-fields{display:grid;gap:10px;min-width:0;max-width:100%;}
+#routeTicketOverlay .route-ticket-top-row{display:grid;grid-template-columns:74px minmax(0,1fr);gap:10px;align-items:end;min-width:0;}
+#routeTicketOverlay .route-ticket-category-field,#routeTicketOverlay .route-ticket-place-field,#routeTicketOverlay .route-ticket-route-field,#routeTicketOverlay .route-ticket-date-total>div{display:grid;gap:7px;min-width:0;}
+#routeTicketOverlay .route-ticket-category-wrap{position:relative;min-width:0;}
+#routeTicketOverlay .route-ticket-category-btn{width:74px;height:47px;min-height:47px;border:1px solid var(--line);border-radius:13px;background:var(--bar);display:grid;place-items:center;font-size:23px;padding:0;color:var(--text);}
+#routeTicketOverlay .route-ticket-category-menu{position:absolute;left:0;top:53px;z-index:5;width:170px;padding:6px;border:1px solid var(--line);border-radius:14px;background:var(--card);box-shadow:var(--shadow-lg);}
+#routeTicketOverlay .route-ticket-category-menu[hidden]{display:none!important;}
+#routeTicketOverlay .route-ticket-category-menu button{width:100%;height:42px;border:0;background:transparent;color:var(--text);display:flex;align-items:center;gap:10px;padding:0 10px;border-radius:10px;font:inherit;text-align:left;}
+#routeTicketOverlay .route-ticket-category-menu button:active{background:var(--bar);}
+#routeTicketOverlay input:not([type="file"]){height:47px!important;min-height:47px!important;max-height:47px!important;width:100%!important;box-sizing:border-box!important;border-radius:13px!important;padding:11px 13px!important;font-size:var(--fs-base)!important;}
+#routeTicketOverlay .route-ticket-two{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr)!important;gap:10px!important;min-width:0;}
+#routeTicketOverlay .route-ticket-total{border-style:dashed!important;border-color:var(--accent)!important;background:color-mix(in srgb,var(--accent) 7%,var(--bar))!important;font-weight:700!important;}
+#routeTicketTravelerFiles{display:grid;gap:7px;min-width:0;}
+#routeTicketOverlay .route-ticket-person{display:grid!important;grid-template-columns:minmax(0,1fr) 88px 106px;align-items:center;gap:8px;width:100%;box-sizing:border-box;padding:8px 9px;border:1px solid var(--line);border-radius:14px;background:var(--bg);min-width:0;overflow:hidden;}
+#routeTicketOverlay .route-ticket-person-name{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:var(--fs-sm);font-weight:600;color:var(--text);}
+#routeTicketOverlay .route-ticket-person-name small{font-size:var(--fs-xs);font-weight:500;color:var(--muted);}
+#routeTicketOverlay .route-ticket-person-price{height:36px!important;min-height:36px!important;max-height:36px!important;padding:7px 8px!important;border-radius:10px!important;text-align:right;font-size:var(--fs-xs)!important;}
+#routeTicketOverlay .route-ticket-file-button{min-width:0!important;width:106px!important;max-width:106px!important;height:36px!important;border-radius:10px!important;}
+#routeTicketOverlay #journeyUploadBtn,#routeTicketOverlay .route-ticket-cancel{height:47px!important;min-height:47px!important;width:100%!important;box-sizing:border-box!important;border-radius:14px!important;}
+@media(max-width:380px){#routeTicketOverlay .route-ticket-person{grid-template-columns:minmax(0,1fr) 78px 96px;gap:6px}#routeTicketOverlay .route-ticket-file-button{width:96px!important;max-width:96px!important}.route-ticket-card{padding-left:16px!important;padding-right:16px!important}}
+.route-ticket-detail-prices{display:grid;gap:7px;}
+.route-ticket-detail-prices>small{font-size:var(--fs-xs);font-weight:600;color:var(--muted);}
+.route-ticket-detail-price{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 11px;border:1px solid var(--line);border-radius:12px;background:var(--bar);font-size:var(--fs-sm);}
+.route-ticket-detail-price span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.route-ticket-detail-price strong{flex:none;}

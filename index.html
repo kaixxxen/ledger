@@ -393,14 +393,29 @@
 </div>
 <div id="routeTicketOverlay" class="modal-backdrop route-modal-overlay" hidden>
   <section class="route-modal-card route-ticket-card" role="dialog" aria-modal="true" aria-labelledby="routeTicketTitle">
-    <h2 id="routeTicketTitle">Add a ticket</h2>
+    <h2 id="routeTicketTitle">Add a Ticket</h2>
     <input id="routeTicketId" type="hidden">
     <div class="route-ticket-fields">
-      <label for="journeyDocLabel">Ticket name</label><input id="journeyDocLabel" maxlength="120" placeholder="e.g. Manila to Legazpi">
-      <div class="route-ticket-two"><div><label for="routeTicketCategory">Category</label><select id="routeTicketCategory"><option value="plane">Plane</option><option value="bus">Bus</option></select></div><div><label for="routeTicketDate">Date</label><input id="routeTicketDate" type="date"></div></div>
-      <label id="routeTicketPlaceLabel" for="routeTicketPlace">Airport</label><input id="routeTicketPlace" maxlength="160" placeholder="Bicol International Airport">
-      <div class="route-ticket-two"><div><label id="routeTicketRouteLabel" for="routeTicketRoute">Flight route</label><input id="routeTicketRoute" maxlength="80" placeholder="LEG-MNL"></div><div><label for="routeTicketTime">Time</label><input id="routeTicketTime" type="time"></div></div>
-      <label for="routeTicketCost">Total ticket price</label><input id="routeTicketCost" type="number" min="0" max="999999999" step="0.01" inputmode="decimal" placeholder="0.00">
+      <div class="route-ticket-top-row">
+        <div class="route-ticket-category-field">
+          <label>Category</label>
+          <div class="route-ticket-category-wrap">
+            <button id="routeTicketCategoryBtn" class="route-ticket-category-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Choose ticket category"><span id="routeTicketCategoryIcon" aria-hidden="true">✈️</span></button>
+            <input id="routeTicketCategory" type="hidden" value="plane">
+            <div id="routeTicketCategoryMenu" class="route-ticket-category-menu" role="menu" hidden>
+              <button type="button" role="menuitem" data-ticket-category="plane">✈️ <span>Airplane</span></button>
+              <button type="button" role="menuitem" data-ticket-category="bus">🚌 <span>Bus</span></button>
+              <button type="button" role="menuitem" data-ticket-category="train">🚆 <span>Train</span></button>
+            </div>
+          </div>
+        </div>
+        <div class="route-ticket-place-field"><label id="routeTicketPlaceLabel" for="routeTicketPlace">Airport</label><input id="routeTicketPlace" maxlength="160" placeholder="Bicol International Airport"></div>
+      </div>
+      <div class="route-ticket-route-field"><label id="routeTicketRouteLabel" for="routeTicketRoute">Flight route</label><input id="routeTicketRoute" maxlength="80" placeholder="LEG-MNL"></div>
+      <div class="route-ticket-two route-ticket-date-total">
+        <div><label for="routeTicketDateTime">Date and time</label><input id="routeTicketDateTime" type="datetime-local"></div>
+        <div><label for="routeTicketCost">Total ticket price</label><input id="routeTicketCost" class="route-ticket-total" type="text" value="₱0.00" readonly aria-readonly="true"></div>
+      </div>
       <div class="route-ticket-attachments"><span class="route-ticket-section-label">Traveler tickets</span><div id="routeTicketTravelerFiles"></div></div>
       <button type="button" class="primary" id="journeyUploadBtn">Add ticket/s</button>
       <button id="routeTicketCancel" type="button" class="secondary route-ticket-cancel">Cancel</button>
