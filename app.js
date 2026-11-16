@@ -292,6 +292,10 @@ function normalize(raw) {
     emoji: String(j.emoji || '🧭').slice(0,8),
     linkedBillId: String(j.linkedBillId || ''),
     inviteCodes: Array.isArray(j.inviteCodes)?j.inviteCodes.map(x=>String(x)).slice(0,20):[],
+    travelers: (Array.isArray(j.travelers)?j.travelers:[]).filter(Boolean).map(t=>({name:String(t.name||t.code||'Traveler').slice(0,80),code:t.code?String(t.code).toUpperCase():null})).slice(0,40),
+    links: (Array.isArray(j.links)?j.links:[]).filter(l=>l&&imageHttpUrl(l.url)).map(l=>({id:String(l.id||uid()),title:String(l.title||'Link').slice(0,100),url:imageHttpUrl(l.url)})).slice(0,40),
+    archived: !!j.archived,
+    createdAt: String(j.createdAt||''),
     stops: (Array.isArray(j.stops) ? j.stops : []).filter(Boolean).map(p => ({
       id: String(p.id || uid()), type: ['place','transport','activity','stay','food'].includes(p.type) ? p.type : 'place',
       title: String(p.title || 'Stop').slice(0,120),
@@ -302,14 +306,16 @@ function normalize(raw) {
       transport: String(p.transport||'').slice(0,120),
       cost: Math.max(0,Math.round((Number(p.cost)||0)*100)/100),
       notes: String(p.notes||'').slice(0,1500),
-      photoUrls: (Array.isArray(p.photoUrls)?p.photoUrls:[]).map(imageHttpUrl).filter(Boolean).slice(0,12)
+      photoUrls: (Array.isArray(p.photoUrls)?p.photoUrls:[]).map(imageHttpUrl).filter(Boolean).slice(0,12),
+      travelerIds: (Array.isArray(p.travelerIds)?p.travelerIds:[]).map(String).slice(0,30)
     })),
     tickets: (Array.isArray(j.tickets)?j.tickets:[]).filter(Boolean).map(t => ({
       id: String(t.id||uid()), name: String(t.name||'Ticket').slice(0,120),
-      category: t.category==='bus'?'bus':'plane', place: String(t.place||'').slice(0,160),
+      category: ['bus','train'].includes(t.category)?t.category:'plane', place: String(t.place||'').slice(0,160),
       route: String(t.route||'').slice(0,80), date: isIsoDate(t.date)?t.date:'',
       time: /^([01]\d|2[0-3]):[0-5]\d$/.test(String(t.time||''))?t.time:'',
       cost: Math.max(0,Math.round((Number(t.cost)||0)*100)/100), archived: !!t.archived,
+      travelerPrices: (t.travelerPrices&&typeof t.travelerPrices==='object')?Object.fromEntries(Object.entries(t.travelerPrices).slice(0,30).map(([k,v])=>[String(k).slice(0,80),Math.max(0,Math.round((Number(v)||0)*100)/100)])):{},
       travelerLabels: Array.isArray(t.travelerLabels)?t.travelerLabels.map(x=>String(x).slice(0,100)).slice(0,30):[]
     }))
   }));
@@ -1773,6 +1779,8 @@ function openBillEditor(group) {
     $('btnDeleteGroup').textContent = others ? 'Leave Bill' : 'Delete Bill';
   }
   pendingParticipants = group ? group.participants.map(p => ({ ...p })) : [meParticipant()];
+  { const meKey = group ? myKeyFor(group) : meParticipant().key; const isMe = p => isMeParticipant(p) || p.key === meKey;
+    pendingParticipants = [...pendingParticipants.filter(isMe), ...pendingParticipants.filter(p => !isMe(p))]; }
   renderPendingParticipants();
   $('addPersonModal').hidden = false;
   if (!group) $('personNameInput').focus();
@@ -3756,12 +3764,20 @@ function hideRouteOverlay(id){
 }
 function routeTicketTravelers(j){
   const out=[],seen=new Set();
-  const add=(label,key,isOwner=false)=>{label=String(label||'').trim();key=String(key||label).trim().toUpperCase();if(!label||seen.has(key))return;seen.add(key);out.push({label,key,isOwner});};
+  const add=(label,key,isOwner=false)=>{label=String(label||'').trim();key=String(key||label).trim().toUpperCase();if(!label||seen.has(key))return;seen.add(key);out.push({label,key,isOwner,isSelf:!!user&&String(key)===String(user.id).toUpperCase()});};
   const owner=journeyMembers.find(m=>m.user_id===j.ownerId);
-  const ownerName=owner?.display_name||displayName()||state.nickname||'Owner';
+  const ownerName=owner?.display_name||(journeyOwner(j)?displayName():'')||'Owner';
   add(ownerName,j.ownerId||profile?.code||'owner',true);
   (journeyMembers||[]).forEach(m=>add(m.display_name||'Traveler',m.user_id,m.user_id===j.ownerId));
-  (j.travelers||[]).forEach(t=>add(t.name||t.code||'Traveler',t.code||t.name,false));
+  const memberCodes=new Set((journeyMembers||[]).map(m=>parseLedgerId(m.ledger_code||'')).filter(Boolean));
+  (j.travelers||[]).forEach(t=>{
+    const code=parseLedgerId(t.code||'');
+    if(code&&(memberCodes.has(code)||code===profile?.code))return;
+    if(!code&&String(t.name||'').trim().toLowerCase()===ownerName.toLowerCase())return;
+    add(t.name||t.code||'Traveler',t.code||t.name,false);
+  });
+  const me=out.findIndex(p=>p.isSelf);
+  if(me>0)out.unshift(...out.splice(me,1));
   return out;
 }
 const ticketCategoryMeta={plane:{icon:'✈️',label:'Airplane',place:'Airport',placePh:'Bicol International Airport',route:'Flight route',routePh:'LEG-MNL'},bus:{icon:'🚌',label:'Bus',place:'Terminal',placePh:'PITX',route:'Bus route',routePh:'CUBAO-SAGADA'},train:{icon:'🚆',label:'Train',place:'Station',placePh:'Tokyo Station',route:'Train route',routePh:'TOKYO-KYOTO'}};
@@ -3772,7 +3788,6 @@ function routeTicketTotalFromInputs(){
 }
 function updateRouteTicketLabels(){
   const cat=$('routeTicketCategory')?.value||'plane',m=ticketCategoryMeta[cat]||ticketCategoryMeta.plane;
-  if($('routeTicketCategoryIcon'))$('routeTicketCategoryIcon').textContent=m.icon;
   if($('routeTicketPlaceLabel'))$('routeTicketPlaceLabel').textContent=m.place;
   if($('routeTicketPlace'))$('routeTicketPlace').placeholder=m.placePh;
   if($('routeTicketRouteLabel'))$('routeTicketRouteLabel').textContent=m.route;
@@ -3794,7 +3809,7 @@ function openRouteTicketForm(ticket=null){
     const host=$('routeTicketTravelerFiles');
     if(host){
       const people=routeTicketTravelers(j),prices=ticket?.travelerPrices||{};
-      host.innerHTML=people.length?people.map(p=>`<div class="route-ticket-person"><span class="route-ticket-person-name">${esc(p.label)}${p.isOwner?' <small>(Owner)</small>':''}</span><input class="route-ticket-person-price" type="number" min="0" max="999999999" step="0.01" inputmode="decimal" placeholder="₱0.00" data-ticket-price="${esc(p.key)}" value="${esc(prices[p.key]??'')}"><span class="route-ticket-file-button">Choose file<input type="file" data-ticket-traveler="${esc(p.label)}" data-ticket-key="${esc(p.key)}" accept="image/*,.pdf,.ppt,.pptx,.doc,.docx,.txt,.zip"></span></div>`).join(''):'<p class="fine">Add travelers to this Route first.</p>';
+      host.innerHTML=people.length?people.map(p=>`<div class="route-ticket-person"><div class="route-ticket-person-name">${esc(p.label)}${p.isSelf?' <small>(You)</small>':p.isOwner?' <small>(Owner)</small>':''}</div><div class="row2"><input type="number" min="0" max="999999999" step="0.01" inputmode="decimal" placeholder="0.00" aria-label="Ticket price for ${esc(p.label)}" data-ticket-price="${esc(p.key)}" value="${esc(prices[p.key]??'')}"><label class="secondary receipt-picker route-ticket-file-button">Choose file<input type="file" hidden data-ticket-traveler="${esc(p.label)}" data-ticket-key="${esc(p.key)}" accept="image/*,.pdf,.ppt,.pptx,.doc,.docx,.txt,.zip"></label></div></div>`).join(''):'<p class="fine">Add travelers to this Route first.</p>';
     }
     routeTicketTotalFromInputs();
     if(!showRouteOverlay('routeTicketOverlay'))toast(`Could not open ${ticket?'Edit Ticket':'Add a Ticket'}`);
@@ -4029,7 +4044,7 @@ function routeActionMenu(j){
 }
 function routeTravelerChips(){
   const el=$('routeParticipantChips');if(!el)return;
-  el.innerHTML=routeTravelerDraft.map((p,i)=>`<span class="route-person-chip"><span>${esc(p.name)}${p.code?' (#'+esc(p.code)+')':''}</span><button type="button" aria-label="Remove ${esc(p.name)}" data-remove-route-person="${i}">×</button></span>`).join('');
+  el.innerHTML=routeTravelerDraft.map((p,i)=>`<span class="route-person-chip"><span>${esc(p.name)}${p.code?' (#'+esc(p.code)+')':''}</span>${isSelfTraveler(p)?'':`<button type="button" aria-label="Remove ${esc(p.name)}" data-remove-route-person="${i}">×</button>`}</span>`).join('');
 }
 async function addRouteTraveler(){
   const el=$('routeParticipantInput'),button=$('routeParticipantAdd');if(!el)return;
@@ -4063,6 +4078,7 @@ function openJourneyForm(j=null){
   $('journeyModalTitle').textContent=j?'Edit Route':'Plan a Route';
   routeEmojiPicker(j?.emoji||'🧭');routeAvailableBills(j?.linkedBillId||'');
   routeTravelerDraft=Array.isArray(j?.travelers)?j.travelers.map(p=>({name:p.name||p.code||'Traveler',code:p.code||null})):(j?.inviteCodes||[]).map(code=>({name:'Ledger user',code}));
+  routeTravelerDraft=ensureSelfFirst(routeTravelerDraft);
   // v87: Only the travelers currently shown in the editor are eligible for invites.
   // Older failed invite codes must not be silently re-added after the user removes/fixes them.
   if(j?.shared && user){
@@ -4124,6 +4140,34 @@ function routeCardDate(iso){
   if(date.getUTCFullYear()!==year||date.getUTCMonth()!==month-1||date.getUTCDate()!==day)return '';
   return `${String(day).padStart(2,'0')} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][month-1]} ${year}`;
 }
+function routeCostTotal(j){
+  const stops=(j.stops||[]).reduce((n,p)=>n+(Number(p.cost)||0),0);
+  const tickets=(j.tickets||[]).reduce((n,t)=>{
+    const vals=t&&t.travelerPrices&&typeof t.travelerPrices==='object'?Object.values(t.travelerPrices).map(Number).filter(Number.isFinite):[];
+    const v=vals.length?vals.reduce((a,b)=>a+b,0):Number(t?.cost);
+    return n+(Number.isFinite(v)&&v>0?v:0);
+  },0);
+  return stops+tickets;
+}
+function paintRouteSummary(){
+  const j=journeyById(activeJourneyId);if(!j)return;
+  const avatar=String(j.emoji||'🗺️'),title=String(j.title||'Untitled Route');
+  const stops=(j.stops||[]).length;
+  if($('journeyHeroTitle'))$('journeyHeroTitle').textContent=title;
+  if($('journeyOverviewMain'))$('journeyOverviewMain').dataset.routeEmoji=avatar;
+  if($('journeyHeroDate'))$('journeyHeroDate').textContent=routeCardDate(j.startDate)||'Date not set';
+  if($('journeyDetailSubtitle'))$('journeyDetailSubtitle').textContent=String(j.destination||'Destination not set');
+  if($('journeyTotal'))$('journeyTotal').textContent=money(routeCostTotal(j));
+  if($('journeyStopsCount'))$('journeyStopsCount').textContent=`${stops} ${stops===1?'stop':'stops'}`;
+  if($('journeyDetailTitle'))$('journeyDetailTitle').textContent=title;
+  if($('journeyDetailAvatar'))$('journeyDetailAvatar').textContent=avatar;
+}
+const ticketIcon=c=>c==='bus'?'🚌':c==='train'?'🚆':'✈️';
+const itineraryTab=()=>lsGet('ledger.route.itineraryTab')==='stops'?'stops':'tickets';
+// The signed-in user is always the first traveler / participant shown.
+const selfTraveler=()=>({name:displayName(),code:(mode==='cloud'&&profile)?profile.code:null});
+const isSelfTraveler=p=>{const me=selfTraveler();return !!p&&(me.code?p.code===me.code:(!p.code&&String(p.name||'').toLowerCase()===me.name.toLowerCase()));};
+function ensureSelfFirst(list){const me=selfTraveler();return [{name:me.name,code:me.code},...list.filter(p=>!isSelfTraveler(p))];}
 function renderJourneys(){
   const list=$('journeyList'),detail=$('journeyDetail');if(!list||!detail)return;
   const journeys=journeysAll();
@@ -4156,20 +4200,6 @@ function renderJourneys(){
   }
   placeNotificationInHeader();
   const j=journeyById(activeJourneyId), stopTotal=(j.stops||[]).reduce((n,p)=>n+(Number(p.cost)||0),0), ticketTotal=(j.tickets||[]).reduce((n,t)=>{const vals=t&&t.travelerPrices&&typeof t.travelerPrices==='object'?Object.values(t.travelerPrices).map(Number).filter(Number.isFinite):[];const v=vals.length?vals.reduce((a,b)=>a+b,0):Number(t?.cost);return n+(Number.isFinite(v)&&v>=0?v:0);},0), total=stopTotal+ticketTotal;
-  const routeAvatar=String(j.emoji||'🗺️');
-  const routeTitle=String(j.title||'Untitled Route');
-  const routeDestination=String(j.destination||'Destination not set');
-  const routeDate=routeCardDate(j.startDate)||'Date not set';
-  const paintRouteSummary=()=>{
-    if($('journeyHeroTitle'))$('journeyHeroTitle').textContent=routeTitle;
-    if($('journeyOverviewMain'))$('journeyOverviewMain').dataset.routeEmoji=routeAvatar;
-    if($('journeyHeroDate'))$('journeyHeroDate').textContent=routeDate;
-    if($('journeyDetailSubtitle'))$('journeyDetailSubtitle').textContent=routeDestination;
-    if($('journeyTotal'))$('journeyTotal').textContent=money(total);
-    if($('journeyStopsCount'))$('journeyStopsCount').textContent=`${j.stops.length} ${j.stops.length===1?'stop':'stops'}`;
-    if($('journeyDetailTitle'))$('journeyDetailTitle').textContent=routeTitle;
-    if($('journeyDetailAvatar'))$('journeyDetailAvatar').textContent=routeAvatar;
-  };
   paintRouteSummary();
   $('journeyOpenLinkedBillHeader').hidden=!(state.billGroups||[]).some(g=>String(g.id)===String(j.linkedBillId||''));
   const linked=(state.billGroups||[]).find(g=>String(g.id)===String(j.linkedBillId||''));
@@ -4184,19 +4214,25 @@ function renderJourneys(){
   const ordered=sortedRouteStops(j);
   const tickets=sortedRouteTickets(j);
   const ticketHtml=tickets.length?tickets.map(t=>{
-    const icon=t.category==='bus'?'🚌':t.category==='train'?'🚆':'✈︎';
-    const top=[t.place,t.route?`(${t.route})`:''].filter(Boolean).join(' ');
-    const when=[routeCardDate(t.date),t.time?routeClockTime(t.time):'',money(t.cost||0)].filter(Boolean).join(' • ');
-    return `<article class="route-ticket-itinerary" data-ticket-id="${esc(t.id)}" tabindex="0"><strong title="${esc(top)}">${icon} ${esc(top||t.name)}</strong><small title="${esc(when)}">${esc(when||'Schedule not set')}</small></article>`;
-  }).join(''):'<div class="journey-empty route-subempty">No tickets yet.</div>';
+    const top=[t.place,t.route?`(${t.route})`:''].filter(Boolean).join(' ')||t.name;
+    const when=[routeCardDate(t.date),t.time?routeClockTime(t.time):''].filter(Boolean).join(' · ');
+    return `<article class="route-ticket-itinerary${t.archived?' is-archived':''}" data-ticket-id="${esc(t.id)}" tabindex="0" role="button" aria-label="Ticket ${esc(top)}"><span class="route-ticket-icon" aria-hidden="true">${ticketIcon(t.category)}</span><div class="route-ticket-main"><strong title="${esc(top)}">${esc(top)}</strong><small title="${esc(when)}">${esc(when||'Schedule not set')}</small></div><span class="route-ticket-price">${money(t.cost||0)}</span></article>`;
+  }).join(''):`<div class="journey-empty route-subempty">${(lsGet(ticketSortKey())||'date')==='archived'?'No archived tickets.':'No tickets yet. Tap + to add one.'}</div>`;
   const stopHtml=ordered.length?ordered.map((p,i)=>{
     const dateLabel=[p.date,p.time+(p.endTime?`–${p.endTime}`:'')].filter(Boolean).join(' · ');
     const summary=[p.location,p.transport].filter(Boolean).join(' · ');
     const last=i>0&&ordered[i-1].date!==p.date;
     return `${i===0||last?`<div class="journey-day-label">${esc(p.date||'Unscheduled')}</div>`:''}<article class="journey-stop" data-stop-id="${esc(p.id)}"><span class="journey-type-dot ${esc(p.type)}" aria-hidden="true"></span><div class="journey-stop-main"><div class="journey-stop-meta">${esc(JTYPE[p.type]||'Place')} · ${esc(dateLabel||'Time not set')}</div><strong>${esc(p.title)}</strong>${summary?`<small>${esc(summary)}</small>`:''}${p.notes?`<p>${esc(p.notes)}</p>`:''}${Array.isArray(p.travelerIds)&&p.travelerIds.length?`<small>👤 ${esc(p.travelerIds.map(id=>journeyMembers.find(m=>m.user_id===id)?.display_name||'Traveler').join(', '))}</small>`:''}${stopPhotoUrls(p).length?`<div class="route-stop-photos">${stopPhotoUrls(p).map(url=>`<img src="${esc(url)}" alt="${esc(p.title)}" loading="lazy">`).join('')}</div>`:''}</div><div class="journey-stop-right"><strong>${money(p.cost)}</strong><button type="button" class="journey-stop-edit" data-stop-edit="${esc(p.id)}" aria-label="View ${esc(p.title)}">${journeyOwner(j)?'Details':'View'}</button></div></article>`;
-  }).join(''):'<div class="journey-empty route-subempty">No stops yet.</div>';
-  const ticketMode=lsGet(ticketSortKey())||'date',stopMode=lsGet(stopSortKey())||'date';
-  $('journeyStops').innerHTML=`<section class="route-itinerary-group"><div class="route-itinerary-group-head"><h4>${ticketMode==='archived'?'Archived tickets':'Tickets'}</h4><label class="route-mini-sort"><span>Sort</span><select data-route-ticket-sort><option value="date" ${ticketMode==='date'?'selected':''}>Date</option><option value="name" ${ticketMode==='name'?'selected':''}>Name</option><option value="price" ${ticketMode==='price'?'selected':''}>Price</option><option value="archived" ${ticketMode==='archived'?'selected':''}>Archived</option></select></label></div>${ticketHtml}</section><section class="route-itinerary-group"><div class="route-itinerary-group-head"><h4>Stops</h4><label class="route-mini-sort"><span>Sort</span><select data-route-stop-sort><option value="date" ${stopMode==='date'?'selected':''}>Date</option><option value="name" ${stopMode==='name'?'selected':''}>Name</option><option value="price" ${stopMode==='price'?'selected':''}>Price</option></select></label></div>${stopHtml}</section>`;
+  }).join(''):'<div class="journey-empty route-subempty">No stops yet. Tap + to add one.</div>';
+  const tab=itineraryTab();
+  const sortOpts=tab==='tickets'?[['date','Date'],['name','Name'],['price','Price'],['archived','Archived']]:[['date','Date'],['name','Name'],['price','Price']];
+  const savedSort=lsGet(tab==='tickets'?ticketSortKey():stopSortKey())||'date';
+  const activeSort=sortOpts.some(o=>o[0]===savedSort)?savedSort:'date';
+  if($('journeyItinerarySort'))$('journeyItinerarySort').innerHTML=sortOpts.map(([v,l])=>`<option value="${v}"${v===activeSort?' selected':''}>${l}</option>`).join('');
+  const tabCounts={tickets:(j.tickets||[]).filter(t=>!t.archived).length,stops:(j.stops||[]).length};
+  $$('#journeyItineraryTabs button').forEach(b=>{b.textContent=`${b.dataset.v==='tickets'?'Tickets':'Stops'} (${tabCounts[b.dataset.v]})`;});
+  setSeg('journeyItineraryTabs',tab);
+  $('journeyStops').innerHTML=tab==='tickets'?ticketHtml:stopHtml;
   $$('#journeyStops .route-ticket-itinerary').forEach(card=>{const t=routeTicketById(card.dataset.ticketId);if(!t)return;attachLongPress(card,e=>routeTicketActionMenu(t));});
 }
 const ticketSortKey=()=>`ledger.route.ticketSort.${activeJourneyId||'none'}`;
@@ -4219,7 +4255,7 @@ function routeTicketById(id){const j=journeyById(activeJourneyId);return j?.tick
 function ticketFilesFor(t){return (journeyFiles||[]).filter(f=>String(f.stop_id||'')===String(t?.id||''));}
 function openRouteTicketDetail(t){
   if(!t)return;closeRouteOverlays();
-  const icon=t.category==='bus'?'🚌':t.category==='train'?'🚆':'✈︎', files=ticketFilesFor(t);
+  const icon=ticketIcon(t.category), files=ticketFilesFor(t);
   const when=[routeCardDate(t.date),t.time?routeClockTime(t.time):''].filter(Boolean).join(' • ');
   const fileRows=files.length?files.map(f=>`<button type="button" class="route-ticket-detail-file" data-route-file-open="${esc(f.id)}"><span>${esc(f.display_name||'Ticket file')}</span><span>Open</span></button>`).join(''):'<p class="fine">No files attached.</p>';
   const priceRows=Object.entries(t.travelerPrices||{}).map(([k,v])=>{const person=routeTicketTravelers(journeyById(activeJourneyId)).find(p=>p.key===k);return `<div class="route-ticket-detail-price"><span>${esc(person?.label||'Traveler')}${person?.isOwner?' (Owner)':''}</span><strong>${money(v||0)}</strong></div>`;}).join('');
@@ -4278,8 +4314,7 @@ function initJourneys(){
   if(ticketHost&&existingUpload)ticketHost.appendChild(existingUpload);
   $('routeTicketCancel')?.addEventListener('click',closeRouteOverlays);
 
-  $('routeTicketCategoryBtn')?.addEventListener('click',()=>{const m=$('routeTicketCategoryMenu');if(!m)return;m.hidden=!m.hidden;$('routeTicketCategoryBtn').setAttribute('aria-expanded',String(!m.hidden));});
-  $('routeTicketCategoryMenu')?.addEventListener('click',e=>{const b=e.target.closest('[data-ticket-category]');if(!b)return;$('routeTicketCategory').value=b.dataset.ticketCategory;$('routeTicketCategoryMenu').hidden=true;$('routeTicketCategoryBtn').setAttribute('aria-expanded','false');updateRouteTicketLabels();});
+  $('routeTicketCategory')?.addEventListener('change',updateRouteTicketLabels);
   $('routeTicketTravelerFiles')?.addEventListener('input',e=>{if(e.target.matches('[data-ticket-price]'))routeTicketTotalFromInputs();});
   
   $('routeTicketTravelerFiles')?.addEventListener('change',e=>{
@@ -4333,7 +4368,7 @@ function initJourneys(){
     routeSaveInProgress=true;if(saveButton){saveButton.disabled=true;saveButton.textContent='Saving…';}
     try{
       const old=journeyById($('journeyId').value);
-      const newCodes=[...new Set(routeTravelerDraft.map(p=>parseLedgerId(p.code||'')).filter(Boolean))];
+      const newCodes=[...new Set(routeTravelerDraft.map(p=>parseLedgerId(p.code||'')).filter(code=>code&&code!==profile?.code))];
       // v87: Invite only Ledger IDs that are still present in this editor. Never carry
       // stale failed IDs from a previous save after the user removes or corrects them.
       const confirmed=new Set((old?.shared?journeyMembers:[]).map(m=>parseLedgerId(m.ledger_code||'')).filter(Boolean));
@@ -4402,10 +4437,9 @@ function initJourneys(){
     const ticket=e.target.closest('[data-ticket-id]');if(ticket){if(ticket._lpFired){ticket._lpFired=false;return;}const t=routeTicketById(ticket.dataset.ticketId);if(t)openRouteTicketDetail(t);return;}
     const b=e.target.closest('[data-stop-id]');if(!b)return;const j=journeyById(activeJourneyId);const p=j?.stops.find(x=>x.id===b.dataset.stopId);if(p)openStopForm(p);
   });
-  $('journeyStops')?.addEventListener('change',e=>{
-    if(e.target.matches('[data-route-ticket-sort]')){lsSet(ticketSortKey(),e.target.value);renderJourneys();return;}
-    if(e.target.matches('[data-route-stop-sort]')){lsSet(stopSortKey(),e.target.value);renderJourneys();}
-  });
+  $('journeyItinerarySort')?.addEventListener('change',e=>{lsSet(itineraryTab()==='tickets'?ticketSortKey():stopSortKey(),e.target.value);renderJourneys();});
+  $('journeyItineraryTabs')?.addEventListener('click',e=>{const b=e.target.closest('button[data-v]');if(!b)return;lsSet('ledger.route.itineraryTab',b.dataset.v);renderJourneys();});
+  $('journeyStops')?.addEventListener('keydown',e=>{if(!['Enter',' '].includes(e.key))return;const c=e.target.closest('[data-ticket-id]');if(!c)return;e.preventDefault();const t=routeTicketById(c.dataset.ticketId);if(t)openRouteTicketDetail(t);});
   $('stopDelete')?.addEventListener('click',async()=>{const j=journeyById(activeJourneyId),id=$('stopId').value;if(!j||!id)return;if(!confirm('Delete this stop?'))return;j.stops=j.stops.filter(p=>p.id!==id);await persistJourney(j);closeRouteOverlays();renderJourneys();toast('Stop deleted');});
   $('journeyShareBtn')?.addEventListener('click',()=>{const j=journeyById(activeJourneyId);if(j)shareJourney(j);});
   $('journeyInviteForm')?.addEventListener('submit',async e=>{

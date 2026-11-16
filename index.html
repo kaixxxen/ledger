@@ -342,7 +342,8 @@
       </section>
       <div class="route-linked-bill" id="journeyLinkedBill" hidden></div>
       <p id="journeyDetailNotes" class="fine" hidden></p>
-      <div class="journey-content-head"><h3>Itinerary</h3><button id="journeyAddStop" type="button" hidden>+ Add stop</button></div>
+      <div class="journey-content-head"><h3>Itinerary</h3><label class="route-mini-sort" for="journeyItinerarySort"><span class="sr-only">Sort itinerary</span><select id="journeyItinerarySort" aria-label="Sort itinerary"></select></label><button id="journeyAddStop" type="button" hidden>+ Add stop</button></div>
+      <div class="seg route-itinerary-tabs" id="journeyItineraryTabs"><button type="button" data-v="tickets" class="on">Tickets</button><button type="button" data-v="stops">Stops</button></div>
       <div id="journeyStops" class="journey-stops"></div>
     </section>
   </section>
@@ -392,43 +393,54 @@
 
 </div>
 <div id="routeTicketOverlay" class="modal-backdrop route-modal-overlay" hidden>
-  <section class="route-modal-card route-ticket-card" role="dialog" aria-modal="true" aria-labelledby="routeTicketTitle">
-    <h2 id="routeTicketTitle">Add a Ticket</h2>
+  <div class="modal-card route-ticket-card" role="dialog" aria-modal="true" aria-labelledby="routeTicketTitle">
+    <h3 id="routeTicketTitle">Add a Ticket</h3>
     <input id="routeTicketId" type="hidden">
-    <div class="route-ticket-fields">
-      <div class="route-ticket-top-row">
-        <div class="route-ticket-category-field">
-          <label>Category</label>
-          <div class="route-ticket-category-wrap">
-            <button id="routeTicketCategoryBtn" class="route-ticket-category-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Choose ticket category"><span id="routeTicketCategoryIcon" aria-hidden="true">✈️</span></button>
-            <input id="routeTicketCategory" type="hidden" value="plane">
-            <div id="routeTicketCategoryMenu" class="route-ticket-category-menu" role="menu" hidden>
-              <button type="button" role="menuitem" data-ticket-category="plane">✈️ <span>Airplane</span></button>
-              <button type="button" role="menuitem" data-ticket-category="bus">🚌 <span>Bus</span></button>
-              <button type="button" role="menuitem" data-ticket-category="train">🚆 <span>Train</span></button>
-            </div>
-          </div>
-        </div>
-        <div class="route-ticket-place-field"><label id="routeTicketPlaceLabel" for="routeTicketPlace">Airport</label><input id="routeTicketPlace" maxlength="160" placeholder="Bicol International Airport"></div>
+    <div class="form">
+      <div>
+        <label class="lbl" for="routeTicketCategory">Category</label>
+        <select id="routeTicketCategory">
+          <option value="plane">✈️ Airplane</option>
+          <option value="bus">🚌 Bus</option>
+          <option value="train">🚆 Train</option>
+        </select>
       </div>
-      <div class="route-ticket-route-field"><label id="routeTicketRouteLabel" for="routeTicketRoute">Flight route</label><input id="routeTicketRoute" maxlength="80" placeholder="LEG-MNL"></div>
-      <div class="route-ticket-two route-ticket-date-total">
-        <div><label for="routeTicketDateTime">Date and time</label><input id="routeTicketDateTime" type="datetime-local"></div>
-        <div><label for="routeTicketCost">Total ticket price</label><input id="routeTicketCost" class="route-ticket-total" type="text" value="₱0.00" readonly aria-readonly="true"></div>
+      <div>
+        <label class="lbl" id="routeTicketPlaceLabel" for="routeTicketPlace">Airport</label>
+        <input id="routeTicketPlace" type="text" maxlength="160" placeholder="Bicol International Airport">
       </div>
-      <div class="route-ticket-attachments"><span class="route-ticket-section-label">Traveler tickets</span><div id="routeTicketTravelerFiles"></div></div>
-      <button type="button" class="primary" id="journeyUploadBtn">Add ticket/s</button>
-      <button id="routeTicketCancel" type="button" class="secondary route-ticket-cancel">Cancel</button>
+      <div>
+        <label class="lbl" id="routeTicketRouteLabel" for="routeTicketRoute">Flight route</label>
+        <input id="routeTicketRoute" type="text" maxlength="80" placeholder="LEG-MNL">
+      </div>
+      <div>
+        <label class="lbl" for="routeTicketDateTime">Date and time</label>
+        <input id="routeTicketDateTime" type="datetime-local">
+      </div>
+      <div>
+        <label class="lbl" for="routeTicketCost">Total ticket price</label>
+        <input id="routeTicketCost" class="route-ticket-total" type="text" value="₱0.00" readonly aria-readonly="true">
+      </div>
+      <div>
+        <span class="lbl">Traveler tickets</span>
+        <div id="routeTicketTravelerFiles" class="route-ticket-travelers"></div>
+      </div>
+      <div class="btnrow modal-actions">
+        <button type="button" class="primary" id="journeyUploadBtn">Add ticket/s</button>
+        <button id="routeTicketCancel" type="button" class="secondary">Cancel</button>
+      </div>
     </div>
-  </section>
+  </div>
 </div>
 <div id="routeTicketDetailOverlay" class="modal-backdrop route-modal-overlay" hidden>
-  <section class="route-modal-card route-ticket-detail-card" role="dialog" aria-modal="true" aria-labelledby="routeTicketDetailTitle">
-    <h2 id="routeTicketDetailTitle">Ticket details</h2>
+  <div class="modal-card route-ticket-detail-card" role="dialog" aria-modal="true" aria-labelledby="routeTicketDetailTitle">
+    <h3 id="routeTicketDetailTitle">Ticket details</h3>
     <div id="routeTicketDetailBody" class="route-ticket-detail-body"></div>
-    <button id="routeTicketDetailEdit" type="button" class="primary">Edit ticket details</button>
-    <button id="routeTicketDetailClose" type="button" class="secondary">Close</button>
-  </section>
+    <div class="btnrow modal-actions">
+      <button id="routeTicketDetailEdit" type="button" class="primary">Edit ticket details</button>
+      <button id="routeTicketDetailClose" type="button" class="secondary">Close</button>
+    </div>
+  </div>
 </div>
 <div id="routeOptionsOverlay" class="modal-backdrop route-modal-overlay" hidden>
   <section class="route-options-card route-modal-card" role="dialog" aria-modal="true" aria-labelledby="routeOptionsTitle">
