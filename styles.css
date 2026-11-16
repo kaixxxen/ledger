@@ -4162,3 +4162,354 @@ input:focus,select:focus,textarea:focus{
   .bill-emoji .ledger-vector-avatar,.journey-tile-icon .ledger-vector-avatar{width:36px;height:36px;}
   .emoji-grid-item>.ledger-vector-avatar{max-width:48px;max-height:48px;}
 }
+
+
+/* ============================================================================
+   v117 — LEDGER STUDIO — complete visual language redesign (layout-safe)
+   Typography: Outfit display + DM Sans body; colorful flat icon dock; graphic
+   dashboard; pill segments; tactile cards and playful modal surfaces.
+   We do NOT touch DOM targets, data schema, display hidden, grid widths, or field
+   height invariants, so all existing Ledger actions continue to work.
+   ============================================================================ */
+:root{
+  --studio-ink:#222027;
+  --studio-cream:#faf7f0;
+  --studio-lime:#d9f596;
+  --studio-blue:#add9ff;
+  --studio-rose:#ffbfce;
+  --studio-lav:#d9c5fc;
+  --studio-orange:#ffd7ad;
+  --studio-mint:#b6f0d4;
+  --studio-outline:rgba(34,32,39,.10);
+  --studio-soft-shadow:0 5px 0 rgba(34,32,39,.025),0 12px 24px rgba(34,32,39,.035);
+  --bg:var(--studio-cream);
+  --card:#fffefa;
+  --card-2:#fffaf1;
+  --bar:#f0eadf;
+  --line:#eae4d8;
+  --text:#222027;
+  --muted:#6c6671;
+  --font-ui:'DM Sans',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  --font-num:'DM Sans',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  --font-display:'Outfit','DM Sans',-apple-system,system-ui,sans-serif;
+  --radius-md:14px;
+  --radius-lg:20px;
+}
+:root[data-theme="dark"]{
+  --bg:#15141c;
+  --card:#211f2b;
+  --card-2:#272532;
+  --bar:#34313f;
+  --line:#393542;
+  --text:#fcfaf7;
+  --muted:#b7b1c2;
+  --studio-outline:rgba(255,255,255,.10);
+  --studio-soft-shadow:0 8px 30px rgba(0,0,0,.18);
+}
+/* Intentional typography shift, including iOS: existing text-size accessibility
+   setting is still honored through all the --fs-* variables. */
+:root[data-apple-font="true"]{
+  --font-ui:'DM Sans',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  --font-num:'DM Sans',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+}
+body{
+  background:var(--bg)!important;
+  font-family:var(--font-ui)!important;
+  letter-spacing:-.008em;
+}
+main{position:relative;isolation:isolate;}
+.page{min-width:0;}
+.page > .top{position:relative;min-width:0;gap:10px;align-items:center;margin-bottom:16px;}
+.page > .top h1,
+.top h1,
+#page-home #homeGreeting{
+  font-family:var(--font-display)!important;
+  font-weight:800!important;
+  font-size:clamp(22px,calc(25px * var(--fs-scale)),33px)!important;
+  letter-spacing:-.055em!important;
+  line-height:1.12!important;
+  overflow:hidden;text-overflow:ellipsis;
+}
+.card h2,.card-head h2,.journey-content-head h3,
+.route-overview-main h3,.modal-card h3,.settings-fold-label strong,
+#page-split .bill-name,#page-journeys .bill-name{
+  font-family:var(--font-display)!important;
+  font-weight:750!important;
+  letter-spacing:-.032em!important;
+}
+.card h2{font-size:clamp(15px,calc(16px * var(--fs-scale)),22px);}
+.muted,small,.fine{letter-spacing:0;}
+/* A distinct editorial month selector rather than standard grey controls */
+.mnav{
+  background:var(--card)!important;
+  border:1px solid var(--studio-outline)!important;
+  border-radius:15px!important;
+  min-height:40px;
+  padding:4px!important;
+  box-shadow:var(--studio-soft-shadow)!important;
+  min-width:0;
+}
+.mnav .monthLabel{font-family:var(--font-display);font-size:12px;font-weight:650;min-width:84px;max-width:128px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mnav .icon{width:30px;height:30px;border-radius:11px!important;background:var(--bar);color:var(--text);}
+/* Hero becomes a striking graphic editorial card instead of a conventional
+   centered gradient. The amount remains readable and has identical content. */
+#page-home .hero{
+  text-align:left!important;
+  border:1px solid rgba(17,17,17,.05)!important;
+  border-radius:27px!important;
+  padding:23px 22px 24px!important;
+  background:#d9f596!important;
+  color:#222027!important;
+  box-shadow:var(--studio-soft-shadow)!important;
+  isolation:isolate;
+}
+#page-home .hero::after{
+  content:""!important;
+  position:absolute!important;
+  width:130px!important;height:130px!important;
+  border:23px solid #222027!important;
+  border-radius:50%!important;
+  background:none!important;
+  opacity:.12!important;
+  top:auto!important;bottom:-70px!important;right:-30px!important;
+  pointer-events:none;
+}
+#page-home .hero::before{
+  content:"✳";
+  position:absolute;right:28px;top:4px;
+  font-size:54px;line-height:1;color:#222027;opacity:.55;
+  transform:rotate(-12deg);
+}
+#page-home .hero small{
+  color:#434339!important;
+  font-size:11px!important;font-weight:800!important;
+  letter-spacing:.10em!important;
+}
+#page-home .hero .big{
+  color:#1e2320!important;
+  font-family:var(--font-display)!important;
+  font-weight:800!important;
+  font-size:clamp(29px,calc(37px * var(--fs-scale)),54px)!important;
+  letter-spacing:-.065em!important;
+  line-height:1.13!important;
+  overflow-wrap:anywhere;
+  max-width:100%;
+}
+#page-home .hero .big.neg{color:#772f44!important;}
+/* Bigger visual changes to summary blocks, but no change to their grid */
+#page-home .stats .stat,
+#page-expenses .minis .mini{
+  border:1px solid rgba(34,32,39,.04)!important;
+  border-radius:19px!important;
+  box-shadow:none!important;
+  min-width:0;
+  padding:12px 11px!important;
+}
+#page-home .stats .stat:nth-child(1),#page-expenses .mini:nth-child(1){background:#cde9ff!important;color:#222027!important;}
+#page-home .stats .stat:nth-child(2),#page-expenses .mini:nth-child(2){background:#ffcbd3!important;color:#222027!important;}
+#page-home .stats .stat:nth-child(3),#page-expenses .mini:nth-child(3){background:#e1d0ff!important;color:#222027!important;}
+#page-home .stats .stat small,#page-expenses .mini small{color:#4d4953!important;font-weight:700;}
+#page-home .stats .stat b,#page-expenses .mini b{
+  color:#222027!important;
+  font-family:var(--font-display)!important;
+  font-weight:800!important;
+  font-size:clamp(12px,calc(14px * var(--fs-scale)),20px)!important;
+  letter-spacing:-.045em!important;
+}
+/* Card grammar: rounder but flatter, pastel edge blocks, no bulky shadow */
+.card,.bill-card,.bill-expense-card,
+#page-journeys #journeyList .journey-tile,
+#page-journeys .journey-stop,
+#page-journeys .route-ticket-itinerary,
+.settings-fold{
+  border:1px solid var(--studio-outline)!important;
+  border-radius:22px!important;
+  box-shadow:var(--studio-soft-shadow)!important;
+  min-width:0;
+}
+.card{background:var(--card);}
+#page-home .home-col .card:nth-of-type(3n + 1){background:color-mix(in srgb,var(--studio-blue) 18%,var(--card))!important;}
+#page-home .home-col .card:nth-of-type(3n + 2){background:color-mix(in srgb,var(--studio-orange) 22%,var(--card))!important;}
+#page-home .home-col .card:nth-of-type(3n + 3){background:color-mix(in srgb,var(--studio-lav) 16%,var(--card))!important;}
+.card-head,.expenses-section-header,.journey-content-head{min-width:0;}
+.card-head h2,.card-head strong{min-width:0;}
+#page-split #billsList .bill-card:nth-child(odd){background:color-mix(in srgb,var(--studio-rose) 17%,var(--card))!important;}
+#page-split #billsList .bill-card:nth-child(even){background:color-mix(in srgb,var(--studio-blue) 20%,var(--card))!important;}
+#page-journeys #journeyList .journey-tile:nth-child(3n + 1){background:color-mix(in srgb,var(--studio-mint) 23%,var(--card))!important;}
+#page-journeys #journeyList .journey-tile:nth-child(3n + 2){background:color-mix(in srgb,var(--studio-orange) 23%,var(--card))!important;}
+#page-journeys #journeyList .journey-tile:nth-child(3n + 3){background:color-mix(in srgb,var(--studio-lav) 22%,var(--card))!important;}
+#page-split #billsList .bill-name,#page-journeys #journeyList .bill-name{font-size:clamp(13px,calc(14px * var(--fs-scale)),19px)!important;font-weight:800!important;}
+.bill-card-left,.bill-card-info,.bill-name-row{min-width:0;}
+.bill-card .bill-emoji,.journey-tile-icon{filter:drop-shadow(0 2px 0 rgba(0,0,0,.06));}
+/* CTA and segmentation change silhouette as well as colors */
+.primary,.secondary,.secondary.cta{
+  border-radius:16px!important;
+  font-family:var(--font-display)!important;
+  font-weight:750!important;
+  letter-spacing:-.018em!important;
+}
+.primary{
+  background:#222027!important;color:#fff!important;
+  border:1px solid rgba(255,255,255,.08)!important;
+  box-shadow:0 3px 0 rgba(0,0,0,.13)!important;
+}
+.secondary:not(.danger){background:color-mix(in srgb,var(--studio-lav) 32%,var(--card))!important;}
+.secondary.danger{background:color-mix(in srgb,#ff939c 18%,var(--card))!important;}
+.seg,.route-itinerary-tabs{
+  background:color-mix(in srgb,var(--studio-lav) 22%,var(--card))!important;
+  border:1px solid var(--studio-outline)!important;
+  border-radius:17px!important;
+  padding:4px!important;
+}
+.seg button,.route-itinerary-tabs button{border-radius:12px!important;font-family:var(--font-display);font-weight:650!important;}
+.seg button.on,.route-itinerary-tabs button.on{
+  background:var(--card)!important;
+  box-shadow:0 2px 6px rgba(0,0,0,.065)!important;
+}
+.chip,.shared-tag,.bill-sort-bar select{border-radius:999px!important;}
+.chip.on{background:#222027!important;color:#fff!important;border-color:#222027!important;}
+/* Inputs remain at their exact existing heights; only surfaces/focus change. */
+input:not([type="checkbox"]):not([type="radio"]),select,textarea{
+  border-radius:14px!important;
+  border-color:var(--studio-outline)!important;
+  background:var(--card-2)!important;
+  min-width:0;
+}
+input:focus,select:focus,textarea:focus{
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--studio-blue) 60%,transparent)!important;
+  border-color:#85b9e8!important;
+}
+.lbl,.modal-card label{font-weight:700!important;letter-spacing:.003em;}
+/* Dock: five independent pastel icon tiles, compact labels, organic floating
+   shell. Same buttons/data-go identifiers and hit areas as before. */
+@media(max-width:899px){
+  .dock{
+    width:calc(100% - 24px)!important;
+    max-width:480px!important;
+    bottom:calc(12px + env(safe-area-inset-bottom))!important;
+    height:73px!important;
+    gap:2px!important;
+    padding:7px 7px!important;
+    background:color-mix(in srgb,var(--card) 94%,transparent)!important;
+    border:1.5px solid var(--studio-outline)!important;
+    border-radius:27px!important;
+    box-shadow:0 8px 0 rgba(34,32,39,.04),0 18px 36px rgba(34,32,39,.14)!important;
+    backdrop-filter:blur(24px);
+    -webkit-backdrop-filter:blur(24px);
+  }
+  .dock button{
+    flex:1 1 0!important;
+    min-width:0!important;
+    height:60px!important;
+    padding:3px 1px!important;
+    gap:3px!important;
+    border-radius:18px!important;
+    color:var(--text)!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    overflow:hidden;
+  }
+  .dock button svg{
+    width:31px!important;height:31px!important;
+    padding:6px!important;
+    border-radius:11px!important;
+    stroke:#28232f!important;
+    stroke-width:2.05!important;
+    flex:none!important;
+    background:var(--studio-blue);
+  }
+  .dock button[data-go="home"] svg{background:var(--studio-lime)!important;}
+  .dock button[data-go="expenses"] svg{background:var(--studio-orange)!important;}
+  .dock button[data-go="split"] svg{background:var(--studio-lav)!important;}
+  .dock button[data-go="journeys"] svg{background:var(--studio-rose)!important;}
+  .dock button[data-go="settings"] svg{background:var(--studio-mint)!important;}
+  .dock button span{
+    display:block!important;
+    font-family:var(--font-display)!important;
+    font-weight:650!important;
+    font-size:clamp(9px,calc(10px * var(--fs-scale)),12px)!important;
+    color:var(--muted)!important;
+    line-height:1.12!important;
+    letter-spacing:-.025em;
+    white-space:nowrap;
+  }
+  .dock button.on{
+    background:var(--bar)!important;
+    border-radius:17px!important;
+  }
+  .dock button.on svg{transform:translateY(-1px);stroke:#211e28!important;}
+  .dock button.on span{color:var(--text)!important;font-weight:850!important;}
+}
+@media(min-width:900px){
+  .dock{
+    background:var(--card)!important;
+    border-right:1px solid var(--studio-outline)!important;
+    box-shadow:none!important;
+  }
+  .dock-brand{font-family:var(--font-display)!important;font-weight:850!important;font-size:23px!important;letter-spacing:-.05em!important;}
+  .dock button{
+    border-radius:16px!important;
+    min-height:48px!important;
+    font-family:var(--font-display);
+    font-size:14px!important;
+    font-weight:650!important;
+    gap:14px!important;
+  }
+  .dock button svg{width:28px!important;height:28px!important;padding:5px!important;border-radius:10px;stroke:#27232c!important;}
+  .dock button[data-go="home"] svg{background:var(--studio-lime)!important;}
+  .dock button[data-go="expenses"] svg{background:var(--studio-orange)!important;}
+  .dock button[data-go="split"] svg{background:var(--studio-lav)!important;}
+  .dock button[data-go="journeys"] svg{background:var(--studio-rose)!important;}
+  .dock button[data-go="settings"] svg{background:var(--studio-mint)!important;}
+  .dock button.on{background:var(--bar)!important;color:var(--text)!important;}
+}
+/* Distinct popover / form presentation: header bar, rounded sheet, unchanged
+   width and height constraints. */
+.modal-card,.route-modal-card,.auth-card,
+.action-sheet-card,.route-options-card{
+  border:1px solid var(--studio-outline)!important;
+  border-radius:25px!important;
+  background:var(--card)!important;
+  box-shadow:0 22px 65px rgba(12,9,19,.21)!important;
+  min-width:0;
+}
+.modal-card h3,.route-modal-card h3{
+  font-family:var(--font-display)!important;
+  font-size:clamp(17px,calc(19px * var(--fs-scale)),27px)!important;
+  font-weight:850!important;
+  letter-spacing:-.045em!important;
+}
+.modal-card .btnrow button,.route-modal-card .btnrow button{max-width:100%;}
+.settings-fold{background:color-mix(in srgb,var(--studio-blue) 11%,var(--card))!important;}
+.settings-fold:nth-of-type(2n){background:color-mix(in srgb,var(--studio-lav) 13%,var(--card))!important;}
+.settings-fold-head .settings-fold-icon{background:var(--studio-mint)!important;color:#24232b!important;border-radius:13px!important;}
+.settings-fold:nth-of-type(2n) .settings-fold-icon{background:var(--studio-rose)!important;}
+/* Graphic quick actions, no extra action size */
+.home-quick-action{border-radius:18px!important;border-color:var(--studio-outline)!important;box-shadow:var(--studio-soft-shadow)!important;}
+.home-quick-action:nth-child(3n + 1){background:color-mix(in srgb,var(--studio-mint) 37%,var(--card))!important;}
+.home-quick-action:nth-child(3n + 2){background:color-mix(in srgb,var(--studio-orange) 38%,var(--card))!important;}
+.home-quick-action:nth-child(3n){background:color-mix(in srgb,var(--studio-lav) 37%,var(--card))!important;}
+/* Preserve legibility in dark mode even for pastel cards */
+:root[data-theme="dark"] #page-home .hero{background:#c5e58a!important;}
+:root[data-theme="dark"] .dock button svg{stroke:#28232f!important;}
+:root[data-theme="dark"] .dock button.on svg{stroke:#28232f!important;}
+:root[data-theme="dark"] .primary{background:#eee4ff!important;color:#27222e!important;}
+:root[data-theme="dark"] .chip.on{background:#e0d0ff!important;color:#231e2e!important;border-color:#e0d0ff!important;}
+:root[data-theme="dark"] #page-home .stats .stat b,
+:root[data-theme="dark"] #page-home .stats .stat small,
+:root[data-theme="dark"] #page-expenses .mini b,
+:root[data-theme="dark"] #page-expenses .mini small{color:#24202c!important;}
+/* Accessibility + strict mobile overflow limits */
+.page,.card,.bill-card,.journey-tile,.modal-card{max-width:100%;}
+.page input,.page select,.modal-card input,.modal-card select{max-width:100%;}
+@media(max-width:390px){
+  .page > .top h1{font-size:clamp(20px,calc(22px * var(--fs-scale)),29px)!important;}
+  .mnav .monthLabel{min-width:72px;max-width:94px;font-size:11px;}
+  #page-home .stats .stat{padding:10px 8px!important;}
+  .dock{width:calc(100% - 18px)!important;padding:6px 5px!important;}
+  .dock button{padding:2px 0!important;}
+  .dock button span{font-size:9px!important;}
+}
+@media(prefers-reduced-motion:reduce){
+  .dock button svg,.dock button,.home-quick-action{transition:none!important;}
+}
