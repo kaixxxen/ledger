@@ -397,29 +397,38 @@
     <h3 id="routeTicketTitle">Add a Ticket</h3>
     <input id="routeTicketId" type="hidden">
     <div class="form">
-      <div>
-        <label class="lbl" for="routeTicketCategory">Category</label>
-        <select id="routeTicketCategory">
-          <option value="plane">✈️ Airplane</option>
-          <option value="bus">🚌 Bus</option>
-          <option value="train">🚆 Train</option>
-        </select>
-      </div>
-      <div>
-        <label class="lbl" id="routeTicketPlaceLabel" for="routeTicketPlace">Airport</label>
-        <input id="routeTicketPlace" type="text" maxlength="160" placeholder="Bicol International Airport">
+      <div class="route-place-row">
+        <div class="route-cat-wrap">
+          <button type="button" class="route-cat-btn" id="routeTicketCategoryBtn" aria-haspopup="listbox" aria-expanded="false" aria-label="Category"><span id="routeTicketCategoryIcon">✈️</span></button>
+          <div class="route-cat-menu" id="routeTicketCategoryMenu" role="listbox" hidden>
+            <button type="button" role="option" data-cat="plane">✈️ Airplane</button>
+            <button type="button" role="option" data-cat="bus">🚌 Bus</button>
+            <button type="button" role="option" data-cat="train">🚉 Train</button>
+          </div>
+          <select id="routeTicketCategory" hidden tabindex="-1" aria-hidden="true">
+            <option value="plane">✈️ Airplane</option>
+            <option value="bus">🚌 Bus</option>
+            <option value="train">🚉 Train</option>
+          </select>
+        </div>
+        <div>
+          <label class="lbl" id="routeTicketPlaceLabel" for="routeTicketPlace">Airport</label>
+          <input id="routeTicketPlace" type="text" maxlength="160" placeholder="Bicol International Airport">
+        </div>
       </div>
       <div>
         <label class="lbl" id="routeTicketRouteLabel" for="routeTicketRoute">Flight route</label>
         <input id="routeTicketRoute" type="text" maxlength="80" placeholder="LEG-MNL">
       </div>
-      <div>
-        <label class="lbl" for="routeTicketDateTime">Date and time</label>
-        <input id="routeTicketDateTime" type="datetime-local">
-      </div>
-      <div>
-        <label class="lbl" for="routeTicketCost">Total ticket price</label>
-        <input id="routeTicketCost" class="route-ticket-total" type="text" value="₱0.00" readonly aria-readonly="true">
+      <div class="row2">
+        <div>
+          <label class="lbl" for="routeTicketDateTime">Date and time</label>
+          <input id="routeTicketDateTime" type="datetime-local">
+        </div>
+        <div>
+          <label class="lbl" for="routeTicketCost">Total ticket price</label>
+          <input id="routeTicketCost" class="route-ticket-total" type="text" value="₱0.00" readonly aria-readonly="true">
+        </div>
       </div>
       <div>
         <span class="lbl">Traveler tickets</span>

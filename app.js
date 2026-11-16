@@ -3780,7 +3780,7 @@ function routeTicketTravelers(j){
   if(me>0)out.unshift(...out.splice(me,1));
   return out;
 }
-const ticketCategoryMeta={plane:{icon:'✈️',label:'Airplane',place:'Airport',placePh:'Bicol International Airport',route:'Flight route',routePh:'LEG-MNL'},bus:{icon:'🚌',label:'Bus',place:'Terminal',placePh:'PITX',route:'Bus route',routePh:'CUBAO-SAGADA'},train:{icon:'🚆',label:'Train',place:'Station',placePh:'Tokyo Station',route:'Train route',routePh:'TOKYO-KYOTO'}};
+const ticketCategoryMeta={plane:{icon:'✈️',label:'Airplane',place:'Airport',placePh:'Bicol International Airport',route:'Flight route',routePh:'LEG-MNL'},bus:{icon:'🚌',label:'Bus',place:'Terminal',placePh:'PITX',route:'Bus route',routePh:'CUBAO-SAGADA'},train:{icon:'🚉',label:'Train',place:'Station',placePh:'Tokyo Station',route:'Train route',routePh:'TOKYO-KYOTO'}};
 function routeTicketTotalFromInputs(){
   const total=[...document.querySelectorAll('#routeTicketTravelerFiles [data-ticket-price]')].reduce((n,i)=>n+(Number(i.value)||0),0);
   if($('routeTicketCost'))$('routeTicketCost').value=money(total);
@@ -3788,6 +3788,7 @@ function routeTicketTotalFromInputs(){
 }
 function updateRouteTicketLabels(){
   const cat=$('routeTicketCategory')?.value||'plane',m=ticketCategoryMeta[cat]||ticketCategoryMeta.plane;
+  if($('routeTicketCategoryIcon'))$('routeTicketCategoryIcon').textContent=m.icon;
   if($('routeTicketPlaceLabel'))$('routeTicketPlaceLabel').textContent=m.place;
   if($('routeTicketPlace'))$('routeTicketPlace').placeholder=m.placePh;
   if($('routeTicketRouteLabel'))$('routeTicketRouteLabel').textContent=m.route;
@@ -4162,7 +4163,7 @@ function paintRouteSummary(){
   if($('journeyDetailTitle'))$('journeyDetailTitle').textContent=title;
   if($('journeyDetailAvatar'))$('journeyDetailAvatar').textContent=avatar;
 }
-const ticketIcon=c=>c==='bus'?'🚌':c==='train'?'🚆':'✈️';
+const ticketIcon=c=>c==='bus'?'🚌':c==='train'?'🚉':'✈️';
 const itineraryTab=()=>lsGet('ledger.route.itineraryTab')==='stops'?'stops':'tickets';
 // The signed-in user is always the first traveler / participant shown.
 const selfTraveler=()=>({name:displayName(),code:(mode==='cloud'&&profile)?profile.code:null});
@@ -4315,6 +4316,12 @@ function initJourneys(){
   $('routeTicketCancel')?.addEventListener('click',closeRouteOverlays);
 
   $('routeTicketCategory')?.addEventListener('change',updateRouteTicketLabels);
+  { const btn=$('routeTicketCategoryBtn'),menu=$('routeTicketCategoryMenu');
+    const closeMenu=()=>{if(menu){menu.hidden=true;btn?.setAttribute('aria-expanded','false');}};
+    btn?.addEventListener('click',e=>{e.stopPropagation();const open=menu.hidden;menu.hidden=!open;btn.setAttribute('aria-expanded',String(open));});
+    menu?.addEventListener('click',e=>{const o=e.target.closest('[data-cat]');if(!o)return;const sel=$('routeTicketCategory');sel.value=o.dataset.cat;sel.dispatchEvent(new Event('change'));closeMenu();});
+    document.addEventListener('click',e=>{if(menu&&!menu.hidden&&!e.target.closest('.route-cat-wrap'))closeMenu();});
+    $('routeTicketOverlay')?.addEventListener('keydown',e=>{if(e.key==='Escape'&&menu&&!menu.hidden){e.stopPropagation();closeMenu();}}); }
   $('routeTicketTravelerFiles')?.addEventListener('input',e=>{if(e.target.matches('[data-ticket-price]'))routeTicketTotalFromInputs();});
   
   $('routeTicketTravelerFiles')?.addEventListener('change',e=>{
