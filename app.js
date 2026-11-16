@@ -3609,6 +3609,9 @@ async function loadJourneyExtras(j){
   if(a.error)toast('Could not load files: '+a.error.message);else journeyFiles=a.data||[];
   if(b.error)toast('Could not load travelers: '+b.error.message);else journeyMembers=b.data||[];
   renderJourneyExtras();
+  // Repaint after legacy Route extras in case an older cached fragment mutates the detail DOM.
+  paintRouteSummary();
+  requestAnimationFrame(paintRouteSummary);
 }
 async function persistJourney(j){
   if(!j.shared){save();return true;}
@@ -4191,19 +4194,26 @@ function renderJourneys(){
   }
   placeNotificationInHeader();
   const j=journeyById(activeJourneyId), stopTotal=j.stops.reduce((n,p)=>n+(Number(p.cost)||0),0), ticketTotal=(j.tickets||[]).reduce((n,t)=>n+(Number(t.cost)||0),0), total=stopTotal+ticketTotal;
-  $('journeyHeroTitle').textContent=j.title;
-  if($('journeyOverviewMain'))$('journeyOverviewMain').dataset.routeEmoji=j.emoji||'🧭';
-  $('journeyHeroDate').textContent=routeCardDate(j.startDate)||'Date not set';
+  const routeAvatar=String(j.emoji||'🗺️');
+  const routeTitle=String(j.title||'Untitled Route');
+  const routeDestination=String(j.destination||'Destination not set');
+  const routeDate=routeCardDate(j.startDate)||'Date not set';
+  const paintRouteSummary=()=>{
+    if($('journeyHeroTitle'))$('journeyHeroTitle').textContent=routeTitle;
+    if($('journeyOverviewMain'))$('journeyOverviewMain').dataset.routeEmoji=routeAvatar;
+    if($('journeyHeroDate'))$('journeyHeroDate').textContent=routeDate;
+    if($('journeyDetailSubtitle'))$('journeyDetailSubtitle').textContent=routeDestination;
+    if($('journeyTotal'))$('journeyTotal').textContent=money(total);
+    if($('journeyStopsCount'))$('journeyStopsCount').textContent=`${j.stops.length} ${j.stops.length===1?'stop':'stops'}`;
+    if($('journeyDetailTitle'))$('journeyDetailTitle').textContent=routeTitle;
+    if($('journeyDetailAvatar'))$('journeyDetailAvatar').textContent=routeAvatar;
+  };
+  paintRouteSummary();
   $('journeyOpenLinkedBillHeader').hidden=!(state.billGroups||[]).some(g=>String(g.id)===String(j.linkedBillId||''));
-  $('journeyDetailTitle').textContent=j.title;
-  $('journeyDetailAvatar').textContent=j.emoji||'🧭';
   const linked=(state.billGroups||[]).find(g=>String(g.id)===String(j.linkedBillId||''));
   const linkedPanel=$('journeyLinkedBill');linkedPanel.hidden=!linked;
   if(linked)linkedPanel.innerHTML=`<span>Linked bill</span><strong>${esc(linked.emoji||'🧾')} ${esc(linked.name)}</strong><button type="button" id="routeOpenLinkedBill">Open bill →</button>`;
   linkedPanel.hidden=true; // Header link is now the only visible bill shortcut.
-  $('journeyDetailSubtitle').textContent=j.destination||'Destination not set';
-  $('journeyTotal').textContent=money(total);
-  $('journeyStopsCount').textContent=`${j.stops.length} ${j.stops.length===1?'stop':'stops'}`;
   $('journeyDetailNotes').textContent=j.notes||'';
   $('journeyDetailNotes').hidden=!j.notes;
   $('journeyEdit').hidden=false;$('journeyDelete').hidden=true;

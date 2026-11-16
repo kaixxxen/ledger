@@ -3009,3 +3009,81 @@ select:not([multiple]){max-width:100%;min-width:0;}
 #routeTicketOverlay .route-ticket-person{width:100%!important;box-sizing:border-box!important;overflow:hidden!important;}
 #routeTicketOverlay .route-ticket-file-button{max-width:48%!important;white-space:nowrap!important;text-overflow:ellipsis!important;overflow:hidden!important;}
 @media(max-width:360px){#routeTicketOverlay .route-ticket-two{grid-template-columns:1fr!important;}}
+
+
+/* v86 — Route detail display regression fix.
+   Keep the Route header aligned with open Bill headers and never let actions squeeze the title away. */
+#page-journeys #journeyDetail .route-detail-header{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  align-items:center!important;
+  gap:10px!important;
+  width:100%!important;
+  min-width:0!important;
+}
+#page-journeys #journeyDetail .route-detail-left{
+  width:auto!important;
+  min-width:0!important;
+  display:grid!important;
+  grid-template-columns:30px auto minmax(0,1fr)!important;
+  align-items:center!important;
+  gap:7px!important;
+  overflow:hidden!important;
+}
+#page-journeys #journeyDetail .journey-detail-avatar{
+  display:block!important;
+  width:auto!important;
+  min-width:0!important;
+  height:auto!important;
+  background:transparent!important;
+  border:0!important;
+  padding:0!important;
+  font-size:24px!important;
+  line-height:1!important;
+}
+#page-journeys #journeyDetail .journey-detail-name{
+  min-width:0!important;
+  width:100%!important;
+  overflow:hidden!important;
+}
+#page-journeys #journeyDetail .journey-detail-name h2{
+  display:block!important;
+  width:100%!important;
+  color:var(--text)!important;
+  opacity:1!important;
+  visibility:visible!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+#page-journeys #journeyDetail .route-detail-actions{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  gap:6px!important;
+  width:max-content!important;
+  min-width:max-content!important;
+  margin:0!important;
+}
+/* The overview must always show its actual Route data. */
+#page-journeys #journeyDetail .route-overview-destination,
+#page-journeys #journeyDetail .route-overview-date,
+#page-journeys #journeyDetail .route-overview-stats strong{
+  display:block!important;
+  opacity:1!important;
+  visibility:visible!important;
+}
+#page-journeys #journeyDetail .route-overview-destination,
+#page-journeys #journeyDetail .route-overview-date{
+  color:var(--muted)!important;
+}
+#page-journeys #journeyDetail .route-overview-stats strong{
+  min-height:1.25em!important;
+  color:var(--text)!important;
+  font-weight:700!important;
+}
+@media(max-width:390px){
+  #page-journeys #journeyDetail .route-detail-header{gap:6px!important;}
+  #page-journeys #journeyDetail .route-detail-left{grid-template-columns:28px auto minmax(0,1fr)!important;gap:5px!important;}
+  #page-journeys #journeyDetail .route-detail-actions{gap:5px!important;}
+}
