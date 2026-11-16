@@ -337,7 +337,8 @@
             <button type="button" class="route-slide-arrow next" data-route-slide="1" aria-label="Next destination photo">›</button>
             <span id="routeSlideCounter" class="route-slide-count"></span>
           </div>
-          <div class="route-slide-caption"><span id="routeSlideLocation" class="route-slide-location"></span><span id="routeSlideCredit" class="route-slide-credit"></span></div>
+          <div class="route-slide-caption"><span id="routeSlideLocation" class="route-slide-location"></span></div>
+          <details class="route-slide-attribution"><summary aria-label="Photo credits and license" title="Photo credits and license">ⓘ</summary><div id="routeSlideCredit" class="route-slide-credit"></div></details>
         </div>
         <div class="route-overview-main" id="journeyOverviewMain">
           <h3 id="journeyHeroTitle"></h3>
@@ -402,7 +403,7 @@
       <div id="stopTravelersWrap" class="route-travelers-wrap" hidden><span class="lbl">Travelers at this stop</span><div id="stopTravelers" class="route-traveler-choices participant-select-grid"></div><small class="fine">Leave all unselected to include everyone.</small></div>
       <div><label class="lbl" for="stopPhotoUrl">Photo link (HTTPS)</label><input id="stopPhotoUrl" type="url" placeholder="https://example.com/photo.jpg"><div id="stopPhotoGallery" class="route-gallery"></div></div>
       <div><label class="lbl" for="stopNotes">Notes</label><textarea id="stopNotes" maxlength="1500" rows="2" placeholder="Tickets, reservations, reminders…"></textarea></div>
-      <div class="btnrow modal-actions"><button id="stopSave" type="submit" class="primary">Save Stop</button><button id="stopCancel" type="button" class="secondary">Cancel</button><button id="stopDelete" type="button" class="secondary danger">Delete Stop</button></div>
+      <div class="btnrow modal-actions"><button id="stopSave" type="submit" class="primary">Save Stop</button><button id="stopDelete" type="button" class="secondary danger">Delete Stop</button><button id="stopCancel" type="button" class="secondary">Cancel</button></div>
     </form>
   </section>
 </div>

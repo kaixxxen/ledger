@@ -4404,6 +4404,22 @@ function routePhotoSearchKey(route){
   const destination=String(route?.destination||'').trim();
   return [title && !destination.toLowerCase().includes(title.toLowerCase())?title:'',destination].filter(Boolean).join(', ').slice(0,120);
 }
+// Destination photos must have explicit metadata evidence for EVERY meaningful
+// token from the Route name and destination. Search rank alone is not proof.
+// A conservative empty gallery is preferable to showing unrelated locations.
+function routePhotoRequiredTokens(route){
+  const title=String(route?.title||'').replace(/\b(?:19|20)\d{2}\b/g,' ');
+  const destination=String(route?.destination||'');
+  const normalize=s=>String(s||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+  return [...new Set(normalize(title+' '+destination).split(/\s+/).filter(s=>s.length>1 && !/^\d+$/.test(s)))];
+}
+function routePhotoMatchesDestination(photo,route){
+  const required=routePhotoRequiredTokens(route);
+  if(!required.length)return false;
+  const haystack=String(photo?.description||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ');
+  const words=new Set(haystack.split(/\s+/).filter(Boolean));
+  return required.every(word=>words.has(word));
+}
 function validUnsplashPhoto(photo){
   if(!photo||typeof photo!=='object')return null;
   const source=String(photo.url||'');
@@ -4442,7 +4458,7 @@ function validCommonsPhoto(page){
   // Commons should generally be freely licensed. Skip items without usable license metadata.
   if(!license || /non.?commercial|no.?derivative|all rights reserved/i.test(license))return null;
   return {provider:'wikimedia',id:String(page.pageid||page.title),url:source,
-    description:String(page.title||'').replace(/^File:/,'').replace(/\.[^.]+$/,'').replace(/_/g,' ').slice(0,180),
+    description:[String(page.title||'').replace(/^File:/,'').replace(/\.[^.]+$/,'').replace(/_/g,' '),routePlainMetadata(meta.ImageDescription?.value||''),routePlainMetadata(meta.ObjectName?.value||'')].filter(Boolean).join(' ').slice(0,380),
     photographer:author||'Wikimedia contributor',photographerUrl:pageLink,photoUrl:pageLink,
     license:license.slice(0,60),licenseUrl:licenseUrl||pageLink};
 }
@@ -4467,7 +4483,7 @@ async function searchCommonsRoutePhotos(route,needed){
       const data=await response.json();
       for(const page of data.query?.pages||[]){
         const photo=validCommonsPhoto(page);
-        if(photo && !seen.has(photo.id)){seen.add(photo.id);found.push(photo);}
+        if(photo && routePhotoMatchesDestination(photo,route) && !seen.has(photo.id)){seen.add(photo.id);found.push(photo);}
         if(found.length>=needed)break;
       }
     }catch(error){console.warn('Wikimedia photo lookup unavailable:',error?.message||error);}
@@ -4484,12 +4500,13 @@ function showRouteSlide(){
   const i=((routeSlideshowState.index%photos.length)+photos.length)%photos.length;
   routeSlideshowState.index=i;
   const photo=photos[i];
+  const credits=host.querySelector('.route-slide-attribution');if(credits)credits.open=false;
   imageEl.src=photo.url;
   imageEl.alt=photo.description||'Destination inspiration photo';
   $('routeSlideCounter').textContent=photos.length>1?`${i+1} / ${photos.length}`:'';
   const j=journeyById(activeJourneyId);
   $('routeSlideLocation').textContent=j?.destination||'Destination inspiration';
-  $('routeSlideLocation').title='Destination-inspired photographs; individual photo locations may vary';
+  $('routeSlideLocation').title='Destination matched using photo metadata; exact image location is not independently verified';
   if(photo.provider==='wikimedia'){
     const license=photo.license?` · <a href="${esc(photo.licenseUrl)}" target="_blank" rel="noopener noreferrer">${esc(photo.license)}</a>`:'';
     $('routeSlideCredit').innerHTML=`<a href="${esc(photo.photographerUrl)}" target="_blank" rel="noopener noreferrer">${esc(photo.photographer)}</a> · <a href="${esc(photo.photoUrl)}" target="_blank" rel="noopener noreferrer">Wikimedia Commons</a>${license}`;
@@ -4540,7 +4557,7 @@ function paintRoutePhotos(route){
       const {data,error}=await sb.functions.invoke('route-photos',{body:{destination:search}});
       if(error)throw error;
       if(data?.error)throw Error(String(data.error));
-      photos=(Array.isArray(data?.photos)?data.photos:[]).map(validUnsplashPhoto).filter(Boolean).slice(0,routePhotoTargetCount);
+      photos=(Array.isArray(data?.photos)?data.photos:[]).map(validUnsplashPhoto).filter(photo=>photo && routePhotoMatchesDestination(photo,route)).slice(0,routePhotoTargetCount);
     }catch(err){console.warn('Unsplash destination photos unavailable; trying Wikimedia:',err?.message||err);}
     if(photos.length<routePhotoTargetCount){
       const remaining=routePhotoTargetCount-photos.length;
@@ -4655,7 +4672,7 @@ function renderJourneys(){
     const last=i>0&&ordered[i-1].date!==p.date;
     const photos=stopPhotoUrls(p);
     const travelerNames=Array.isArray(p.travelerIds)?p.travelerIds.map(id=>{const member=journeyMembers.find(m=>m.user_id===id);return member?(user&&member.user_id===user.id?displayName():member.display_name||'Traveler')+(member.user_id===j.ownerId?' (Owner)':''):'Traveler';}):[];
-    return `${i===0||last?`<div class="journey-day-label">${esc(routeStopDisplayDate(p.date)||'Unscheduled')}</div>`:''}<article class="journey-stop${photos.length?' has-photo':''}${p.archived?' is-archived':''}" data-stop-id="${esc(p.id)}" tabindex="0" role="button" aria-label="View ${esc(p.title)}">${photos.length?`<div class="route-stop-cover"><img src="${esc(photos[0])}" alt="${esc(p.title)}" loading="lazy"><span class="route-stop-photo-count">${photos.length>1?`${photos.length} photos`:'Photo'}</span></div>`:''}<div class="route-stop-card-content"><span class="journey-type-dot ${esc(p.type)}" aria-hidden="true"></span><div class="journey-stop-main"><div class="journey-stop-meta">${esc(JTYPE[p.type]||'Place')} · ${esc(dateLabel||'Time not set')}</div><strong>${esc(p.title)}</strong>${summary?`<small>${esc(summary)}</small>`:''}${p.notes?`<p>${esc(p.notes)}</p>`:''}${travelerNames.length?`<small>👤 ${esc(travelerNames.join(', '))}</small>`:''}</div><div class="journey-stop-right"><strong>${money(p.cost)}</strong><span class="journey-stop-edit">${journeyOwner(j)?'Details':'View'}</span></div></div></article>`;
+    return `${i===0||last?`<div class="journey-day-label">${esc(routeStopDisplayDate(p.date)||'Unscheduled')}</div>`:''}<article class="journey-stop${photos.length?' has-photo':''}${p.archived?' is-archived':''}" data-stop-id="${esc(p.id)}" tabindex="0" role="button" aria-label="View ${esc(p.title)}">${photos.length?`<div class="route-stop-cover"><img src="${esc(photos[0])}" alt="${esc(p.title)}" loading="lazy"><span class="route-stop-photo-count">${photos.length>1?`${photos.length} photos`:'Photo'}</span></div>`:''}<div class="route-stop-card-content"><div class="journey-stop-main"><div class="journey-stop-meta">${esc(JTYPE[p.type]||'Place')} · ${esc(dateLabel||'Time not set')}</div><strong>${esc(p.title)}</strong>${summary?`<small>${esc(summary)}</small>`:''}${p.notes?`<p>${esc(p.notes)}</p>`:''}${travelerNames.length?`<small>👤 ${esc(travelerNames.join(', '))}</small>`:''}</div><div class="journey-stop-right"><strong>${money(p.cost)}</strong><span class="journey-stop-edit">${journeyOwner(j)?'Details':'View'}</span></div></div></article>`;
   }).join(''):`<div class="journey-empty route-subempty">${itineraryArchiveOpen?'No archived stops.':'No stops yet. Tap + to add one.'}</div>`;
   const tab=itineraryTab();
   const sortOpts=[['date','Date'],['name','Name'],['price','Price']];
