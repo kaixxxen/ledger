@@ -3889,6 +3889,9 @@ function routeTicketTravelers(j){
   return out;
 }
 const ticketCategoryMeta={plane:{icon:'✈️',label:'Airplane',place:'Airport',placePh:'Bicol International Airport',route:'Flight route',routePh:'LEG-MNL'},bus:{icon:'🚌',label:'Bus',place:'Terminal',placePh:'PITX',route:'Bus route',routePh:'CUBAO-SAGADA'},train:{icon:'🚉',label:'Train',place:'Station',placePh:'Tokyo Station',route:'Train route',routePh:'TOKYO-KYOTO'}};
+function googleDriveIconSvg(){
+  return '<svg class="route-drive-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="#0F9D58" d="M9.5 3h5l6.1 10.5-2.5 4.3H13L6.9 7.4z"/><path fill="#4285F4" d="M6.9 7.4 9.5 3 3.4 13.5 6 17.8h5.2l2.5-4.3z"/><path fill="#F4B400" d="M13 17.8h5.1L21.5 13.5H11.7L9.2 17.8z"/></svg>';
+}
 function routeTicketTotalFromInputs(){
   const total=[...document.querySelectorAll('#routeTicketTravelerFiles [data-ticket-price]')].reduce((n,i)=>n+(Number(i.value)||0),0);
   if($('routeTicketCost'))$('routeTicketCost').value=money(total);
@@ -3920,7 +3923,7 @@ function openRouteTicketForm(ticket=null){
       const people=routeTicketTravelers(j),prices=ticket?.travelerPrices||{},links=ticket?.attachmentLinks||{},names=ticket?.attachmentNames||{};
       host.innerHTML=people.length?people.map(p=>{
         const url=links[p.key]||'',name=names[p.key]||(url?'Drive attachment':'');
-        return `<div class="route-ticket-person" data-ticket-person-row="${esc(p.key)}" data-drive-url="${esc(url)}" data-drive-name="${esc(name)}"><div class="route-ticket-person-name">${esc(p.label)}${p.isSelf?' <small>(You)</small>':p.isOwner?' <small>(Owner)</small>':''}</div><div class="row2"><input type="number" min="0" max="999999999" step="0.01" inputmode="decimal" placeholder="0.00" aria-label="Ticket price for ${esc(p.label)}" data-ticket-price="${esc(p.key)}" value="${esc(prices[p.key]??'')}"><button type="button" class="route-drive-add" data-drive-pick="${esc(p.key)}">☁ Add from Drive</button></div><div class="route-drive-selected" ${url?'':'hidden'}><span class="route-drive-file-name" title="${esc(name)}">${esc(name)}</span><button type="button" class="route-drive-remove" data-drive-remove="${esc(p.key)}" aria-label="Remove Drive attachment">×</button></div></div>`;
+        return `<div class="route-ticket-person" data-ticket-person-row="${esc(p.key)}" data-drive-url="${esc(url)}" data-drive-name="${esc(name)}"><div class="route-ticket-person-name">${esc(p.label)}${p.isSelf?' <small>(You)</small>':p.isOwner?' <small>(Owner)</small>':''}</div><div class="row2"><input type="number" min="0" max="999999999" step="0.01" inputmode="decimal" placeholder="0.00" aria-label="Ticket price for ${esc(p.label)}" data-ticket-price="${esc(p.key)}" value="${esc(prices[p.key]??'')}"><button type="button" class="route-drive-add" data-drive-pick="${esc(p.key)}"><span class="route-drive-add-inner">${googleDriveIconSvg()}<span>Add from Drive</span></span></button></div><div class="route-drive-selected" ${url?'':'hidden'}><span class="route-drive-file-name" title="${esc(name)}">${esc(name)}</span><button type="button" class="route-drive-remove" data-drive-remove="${esc(p.key)}" aria-label="Remove Drive attachment">×</button></div></div>`;
       }).join(''):'<p class="fine">Add travelers to this Route first.</p>';
     }
     routeTicketTotalFromInputs();
@@ -4369,17 +4372,46 @@ function routeTicketById(id){const j=journeyById(activeJourneyId);return j?.tick
 function ticketFilesFor(t){return (journeyFiles||[]).filter(f=>String(f.stop_id||'')===String(t?.id||''));}
 function openRouteTicketDetail(t){
   if(!t)return;closeRouteOverlays();
+  const routeName=[t.place,t.route?`(${t.route})`:'' ].filter(Boolean).join(' ')||t.name||'Ticket';
   const icon=ticketIcon(t.category), files=ticketFilesFor(t);
-  const when=[routeCardDate(t.date),t.time?routeClockTime(t.time):''].filter(Boolean).join(' • ');
+  const when=[routeCardDate(t.date),t.time?routeClockTime(t.time):''].filter(Boolean).join(' · ');
+  const categoryLabel=t.category==='bus'?'Bus':t.category==='train'?'Train':'Airplane';
+  const travelers=routeTicketTravelers(journeyById(activeJourneyId));
   const linkRows=Object.entries(t.attachmentLinks||{}).filter(([,url])=>{try{const u=new URL(url);return u.protocol==='https:';}catch{return false;}}).map(([key,url])=>{
-    const person=routeTicketTravelers(journeyById(activeJourneyId)).find(p=>p.key===key);
-    return `<a class="route-ticket-detail-file" href="${esc(url)}" target="_blank" rel="noopener noreferrer"><span>${esc(person?.label||'Traveler')} · ${esc(t.attachmentNames?.[key]||'Drive attachment')}</span><span>Open ↗</span></a>`;
+    const person=travelers.find(p=>p.key===key);
+    return `<a class="route-ticket-detail-file" href="${esc(url)}" target="_blank" rel="noopener noreferrer"><span class="route-ticket-detail-file-copy"><b>${esc(person?.label||'Traveler')}</b><small>${esc(t.attachmentNames?.[key]||'Drive attachment')}</small></span><span class="route-ticket-detail-open">Open ↗</span></a>`;
   }).join('');
-  const legacyRows=files.map(f=>`<button type="button" class="route-ticket-detail-file" data-route-file-open="${esc(f.id)}"><span>${esc(f.display_name||'Ticket file')}</span><span>Open</span></button>`).join('');
-  const fileRows=linkRows+legacyRows||'<p class="fine">No links attached.</p>';
-  const priceRows=Object.entries(t.travelerPrices||{}).map(([k,v])=>{const person=routeTicketTravelers(journeyById(activeJourneyId)).find(p=>p.key===k);return `<div class="route-ticket-detail-price"><span>${esc(person?.label||'Traveler')}${person?.isOwner?' (Owner)':''}</span><strong>${money(v||0)}</strong></div>`;}).join('');
+  const legacyRows=files.map(f=>`<button type="button" class="route-ticket-detail-file" data-route-file-open="${esc(f.id)}"><span class="route-ticket-detail-file-copy"><b>${esc(f.display_name||'Ticket file')}</b><small>Saved attachment</small></span><span class="route-ticket-detail-open">Open</span></button>`).join('');
+  const fileRows=linkRows+legacyRows||'<p class="fine route-ticket-detail-empty">No attachments yet.</p>';
+  const priceRows=Object.entries(t.travelerPrices||{}).map(([k,v])=>{
+    const person=travelers.find(p=>p.key===k);
+    const suffix=person?.isSelf?' (You)':person?.isOwner?' (Owner)':'';
+    return `<div class="route-ticket-detail-list-row"><span>${esc((person?.label||'Traveler')+suffix)}</span><strong>${money(v||0)}</strong></div>`;
+  }).join('')||'<p class="fine route-ticket-detail-empty">No traveler prices yet.</p>';
   $('routeTicketDetailTitle').textContent='Ticket details';
-  $('routeTicketDetailBody').innerHTML=`<div class="route-ticket-detail-hero"><span>${icon}</span><div><strong>${esc(t.place||'')}</strong><small>${esc(t.route||'')}</small></div></div><div class="route-ticket-detail-grid"><div><small>Date & time</small><strong>${esc(when||'Not set')}</strong></div><div><small>Total price</small><strong>${money(t.cost||0)}</strong></div><div><small>Category</small><strong>${t.category==='bus'?'Bus':t.category==='train'?'Train':'Airplane'}</strong></div></div>${priceRows?`<div class="route-ticket-detail-prices"><small>Traveler prices</small>${priceRows}</div>`:''}<div class="route-ticket-detail-files"><small>Ticket attachments</small>${fileRows}</div>`;
+  $('routeTicketDetailBody').innerHTML=`
+    <section class="route-ticket-detail-section">
+      <div class="route-ticket-detail-hero">
+        <span class="route-ticket-detail-hero-icon" aria-hidden="true">${icon}</span>
+        <div class="route-ticket-detail-hero-copy">
+          <strong>${esc(routeName)}</strong>
+          <small>${esc(when||'Schedule not set')} · ${money(t.cost||0)}</small>
+        </div>
+      </div>
+    </section>
+    <section class="route-ticket-detail-section">
+      <div class="route-ticket-detail-row"><small>Date & time</small><strong>${esc(when||'Not set')}</strong></div>
+      <div class="route-ticket-detail-row"><small>Total price</small><strong>${money(t.cost||0)}</strong></div>
+      <div class="route-ticket-detail-row"><small>Category</small><strong>${esc(categoryLabel)}</strong></div>
+    </section>
+    <section class="route-ticket-detail-section">
+      <div class="route-ticket-detail-section-title">Traveler prices</div>
+      <div class="route-ticket-detail-list">${priceRows}</div>
+    </section>
+    <section class="route-ticket-detail-section">
+      <div class="route-ticket-detail-section-title">Ticket attachments</div>
+      <div class="route-ticket-detail-list">${fileRows}</div>
+    </section>`;
   $('routeTicketDetailEdit').hidden=!journeyOwner(journeyById(activeJourneyId));
   $('routeTicketDetailEdit').dataset.ticketEdit=t.id;
   showRouteOverlay('routeTicketDetailOverlay');
