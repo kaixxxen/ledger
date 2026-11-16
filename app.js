@@ -3632,22 +3632,22 @@ function renderJourneyExtras(){
   const panel=$('journeyCollab');if(!panel)return;
   const shared=!!j.shared;
   panel.hidden=false;
-  $('journeyShareBtn').hidden=shared||mode!=='cloud'||!sb;
-  $('journeySharingStatus').textContent=shared?'Shared · '+(journeyOwner(j)?'You manage this route':'Member access'):'Private route · saved to your Ledger';
-  $('journeyShareHint').textContent=mode==='cloud'?'Share a route to invite people by Ledger ID and securely attach files.':'Sign in to sync routes and upload shared files.';
-  $('journeyInviteForm').hidden=!shared||!journeyOwner(j);
-  $('journeyMemberList').innerHTML=shared?(journeyMembers.map(m=>`<div class="route-member"><span>👤 ${esc(m.display_name||'Ledger user')} ${m.ledger_code?'· #'+esc(m.ledger_code):''} ${m.user_id===j.ownerId?'· Owner':''}</span>${journeyOwner(j)&&m.user_id!==j.ownerId?`<button type="button" class="secondary" data-route-remove-member="${esc(m.user_id)}">Remove</button>`:''}</div>`).join('')||'<p class="fine">Loading travelers…</p>'):'<p class="fine">Share this route to manage travelers.</p>';
-  $('journeyFilesSection').hidden=!shared;
-  $('journeyFiles').innerHTML=journeyFileRows()||'<p class="fine">No shared files yet. Add an itinerary, PDF, PowerPoint, or exported Canva file.</p>';
-  $('journeyDocTraveler').innerHTML='<option value="">All route members</option>'+journeyMembers.map(m=>`<option value="${esc(m.user_id)}">${esc(m.display_name||'Traveler')}${m.user_id===j.ownerId?' (owner)':''}</option>`).join('');
-  $('journeyDocStop').innerHTML='<option value="">General itinerary / documents</option>'+(j.stops||[]).map(p=>`<option value="${esc(p.id)}">${esc(p.title)}</option>`).join('');
-  $('journeyLinkForm').hidden=!shared||!journeyOwner(j);
-  $('journeyLinks').innerHTML=(j.links||[]).map(l=>{
+  if($('journeyShareBtn'))$('journeyShareBtn').hidden=shared||mode!=='cloud'||!sb;
+  if($('journeySharingStatus'))$('journeySharingStatus').textContent=shared?'Shared · '+(journeyOwner(j)?'You manage this route':'Member access'):'Private route · saved to your Ledger';
+  if($('journeyShareHint'))$('journeyShareHint').textContent=mode==='cloud'?'Share a route to invite people by Ledger ID and securely attach files.':'Sign in to sync routes and upload shared files.';
+  if($('journeyInviteForm'))$('journeyInviteForm').hidden=!shared||!journeyOwner(j);
+  if($('journeyMemberList'))$('journeyMemberList').innerHTML=shared?(journeyMembers.map(m=>`<div class="route-member"><span>👤 ${esc(m.display_name||'Ledger user')} ${m.ledger_code?'· #'+esc(m.ledger_code):''} ${m.user_id===j.ownerId?'· Owner':''}</span>${journeyOwner(j)&&m.user_id!==j.ownerId?`<button type="button" class="secondary" data-route-remove-member="${esc(m.user_id)}">Remove</button>`:''}</div>`).join('')||'<p class="fine">Loading travelers…</p>'):'<p class="fine">Share this route to manage travelers.</p>';
+  if($('journeyFilesSection'))$('journeyFilesSection').hidden=!shared;
+  if($('journeyFiles'))$('journeyFiles').innerHTML=journeyFileRows()||'<p class="fine">No shared files yet. Add an itinerary, PDF, PowerPoint, or exported Canva file.</p>';
+  if($('journeyDocTraveler'))$('journeyDocTraveler').innerHTML='<option value="">All route members</option>'+journeyMembers.map(m=>`<option value="${esc(m.user_id)}">${esc(m.display_name||'Traveler')}${m.user_id===j.ownerId?' (owner)':''}</option>`).join('');
+  if($('journeyDocStop'))$('journeyDocStop').innerHTML='<option value="">General itinerary / documents</option>'+(j.stops||[]).map(p=>`<option value="${esc(p.id)}">${esc(p.title)}</option>`).join('');
+  if($('journeyLinkForm'))$('journeyLinkForm').hidden=!shared||!journeyOwner(j);
+  if($('journeyLinks'))$('journeyLinks').innerHTML=(j.links||[]).map(l=>{
     const url=imageHttpUrl(l.url);if(!url)return '';
     return `<div class="route-file-row"><span class="route-file-name">🔗 ${esc(l.title||'Link')}</span><a class="route-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">Open</a>${journeyOwner(j)?`<button type="button" class="secondary" data-route-link-remove="${esc(l.id)}">Remove</button>`:''}</div>`;
   }).join('')||'<p class="fine">No links yet. Keep a Canva or booking link handy for the group.</p>';
   // Non-owners can share files or attach files addressed only to themselves.
-  if(!journeyOwner(j))Array.from($('journeyDocTraveler').options).forEach(o=>{if(o.value&&o.value!==user?.id)o.remove();});
+  if(!journeyOwner(j)&&$('journeyDocTraveler'))Array.from($('journeyDocTraveler').options).forEach(o=>{if(o.value&&o.value!==user?.id)o.remove();});
   const selected=$('stopPhotoGallery'); if(selected){
     const stop=j.stops.find(p=>p.id===$('stopId').value);
     const photos=stopPhotoUrls(stop);
@@ -3684,7 +3684,8 @@ async function uploadJourneyFile(){
   const [date,timeRaw]=dt.split('T'),time=(timeRaw||'').slice(0,5);
   const priceInputs=[...document.querySelectorAll('#routeTicketTravelerFiles [data-ticket-price]')],travelerPrices={};
   for(const i of priceInputs){const v=Number(i.value||0);if(!Number.isFinite(v)||v<0){toast('Enter valid ticket prices');return;}travelerPrices[i.dataset.ticketPrice]=Math.round(v*100)/100;}
-  const cost=routeTicketTotalFromInputs();
+  const cost=Math.round(Object.values(travelerPrices).reduce((n,v)=>n+(Number(v)||0),0)*100)/100;
+  if($('routeTicketCost'))$('routeTicketCost').value=money(cost);
   const fileInputs=[...document.querySelectorAll('#routeTicketTravelerFiles input[type=file][data-ticket-traveler]')];
   const selected=fileInputs.map(input=>({input,file:input.files?.[0],label:input.dataset.ticketTraveler||'Traveler',key:input.dataset.ticketKey||''})).filter(x=>x.file);
   for(const x of selected){if(x.file.size>CLOUD_FILE_LIMIT){toast(`${x.label}: maximum file size is 15 MB`);return;}}
@@ -4154,7 +4155,7 @@ function renderJourneys(){
     initRouteDrag();placeNotificationInHeader();return;
   }
   placeNotificationInHeader();
-  const j=journeyById(activeJourneyId), stopTotal=j.stops.reduce((n,p)=>n+(Number(p.cost)||0),0), ticketTotal=(j.tickets||[]).reduce((n,t)=>n+(Number(t.cost)||0),0), total=stopTotal+ticketTotal;
+  const j=journeyById(activeJourneyId), stopTotal=(j.stops||[]).reduce((n,p)=>n+(Number(p.cost)||0),0), ticketTotal=(j.tickets||[]).reduce((n,t)=>{const vals=t&&t.travelerPrices&&typeof t.travelerPrices==='object'?Object.values(t.travelerPrices).map(Number).filter(Number.isFinite):[];const v=vals.length?vals.reduce((a,b)=>a+b,0):Number(t?.cost);return n+(Number.isFinite(v)&&v>=0?v:0);},0), total=stopTotal+ticketTotal;
   const routeAvatar=String(j.emoji||'🗺️');
   const routeTitle=String(j.title||'Untitled Route');
   const routeDestination=String(j.destination||'Destination not set');

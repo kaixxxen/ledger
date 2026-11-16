@@ -3116,3 +3116,28 @@ select:not([multiple]){max-width:100%;min-width:0;}
 .route-ticket-detail-price{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 11px;border:1px solid var(--line);border-radius:12px;background:var(--bar);font-size:var(--fs-sm);}
 .route-ticket-detail-price span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .route-ticket-detail-price strong{flex:none;}
+
+/* v89 — Ticket form geometry: strict Bill-style sizing, no overlap */
+#routeTicketOverlay .route-ticket-card{padding:22px 20px!important;overflow-x:hidden!important;}
+#routeTicketOverlay .route-ticket-fields{gap:12px!important;width:100%!important;max-width:100%!important;box-sizing:border-box!important;}
+#routeTicketOverlay .route-ticket-top-row{grid-template-columns:52px minmax(0,1fr)!important;gap:12px!important;align-items:end!important;width:100%!important;}
+#routeTicketOverlay .route-ticket-category-btn{width:52px!important;height:48px!important;min-width:52px!important;min-height:48px!important;max-width:52px!important;max-height:48px!important;border-radius:14px!important;padding:0!important;box-sizing:border-box!important;}
+#routeTicketOverlay .route-ticket-category-menu{top:54px!important;}
+#routeTicketOverlay input,#routeTicketOverlay select,#routeTicketOverlay .route-ticket-total{width:100%!important;max-width:100%!important;min-width:0!important;height:48px!important;min-height:48px!important;max-height:48px!important;box-sizing:border-box!important;margin:0!important;}
+#routeTicketOverlay input[type=\"datetime-local\"]{-webkit-appearance:none!important;appearance:none!important;padding:0 13px!important;font-size:16px!important;line-height:48px!important;}
+#routeTicketOverlay .route-ticket-two{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:12px!important;width:100%!important;align-items:end!important;}
+#routeTicketOverlay .route-ticket-two>div{min-width:0!important;width:100%!important;}
+#routeTicketOverlay .route-ticket-total{border:1.5px dashed var(--accent)!important;padding:0 13px!important;}
+#routeTicketOverlay .route-ticket-person{grid-template-columns:minmax(0,1fr) 82px 106px!important;gap:8px!important;padding:8px 10px!important;min-height:56px!important;}
+#routeTicketOverlay .route-ticket-person-price{width:82px!important;height:38px!important;min-height:38px!important;max-height:38px!important;padding:0 8px!important;border-radius:11px!important;line-height:38px!important;}
+#routeTicketOverlay .route-ticket-file-button{width:106px!important;height:38px!important;min-height:38px!important;max-height:38px!important;border-radius:11px!important;}
+#routeTicketOverlay .route-ticket-file-button input{height:100%!important;max-height:none!important;}
+@media(max-width:380px){
+ #routeTicketOverlay .route-ticket-card{padding-left:16px!important;padding-right:16px!important;}
+ #routeTicketOverlay .route-ticket-top-row{grid-template-columns:48px minmax(0,1fr)!important;gap:10px!important;}
+ #routeTicketOverlay .route-ticket-category-btn{width:48px!important;min-width:48px!important;max-width:48px!important;}
+ #routeTicketOverlay .route-ticket-two{gap:10px!important;}
+ #routeTicketOverlay .route-ticket-person{grid-template-columns:minmax(0,1fr) 74px 96px!important;gap:6px!important;}
+ #routeTicketOverlay .route-ticket-person-price{width:74px!important;}
+ #routeTicketOverlay .route-ticket-file-button{width:96px!important;}
+}
