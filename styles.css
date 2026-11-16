@@ -2660,3 +2660,82 @@ select:not([multiple]){max-width:100%;min-width:0;}
 .route-ticket-card #journeyUploadBtn,.route-ticket-card .route-ticket-cancel{width:100%;min-height:46px;border-radius:14px}
 .route-ticket-card .route-ticket-cancel{margin-top:7px}
 @media(max-width:380px){#page-journeys #journeyDetail .route-detail-header{gap:6px!important}#page-journeys #journeyDetail .route-detail-header .route-icon-btn{width:38px!important;min-width:38px!important;height:38px!important}#page-journeys #journeyDetail .route-overview-stats>div{padding:14px 5px}}
+
+
+/* Ledger v79 — Unified user-selected accent system.
+   Neutral content surfaces remain neutral; interactive highlights and tinted
+   backgrounds follow Appearance > Accent in both light and dark themes. */
+:root {
+  --accent-tint-soft: color-mix(in srgb, var(--user-accent) 11%, var(--card));
+  --accent-tint: color-mix(in srgb, var(--user-accent) 20%, var(--card));
+  --accent-tint-strong: color-mix(in srgb, var(--user-accent) 32%, var(--card));
+  --accent-border: color-mix(in srgb, var(--user-accent) 48%, var(--line));
+  /* Chart categories are varied tones of the selected hue, not fixed unrelated colors. */
+  --c-food:color-mix(in srgb,var(--user-accent) 92%,white);
+  --c-housing:color-mix(in srgb,var(--user-accent) 78%,white);
+  --c-transport:color-mix(in srgb,var(--user-accent) 69%,#9c9c9c);
+  --c-bills:color-mix(in srgb,var(--user-accent) 84%,#777);
+  --c-health:color-mix(in srgb,var(--user-accent) 65%,white);
+  --c-fun:color-mix(in srgb,var(--user-accent) 72%,#666);
+  --c-shopping:color-mix(in srgb,var(--user-accent) 55%,white);
+  --c-other:color-mix(in srgb,var(--user-accent) 43%,#888);
+  --c-cash:color-mix(in srgb,var(--user-accent) 87%,white);
+  --c-debit:color-mix(in srgb,var(--user-accent) 76%,#777);
+  --c-card:color-mix(in srgb,var(--user-accent) 47%,white);
+}
+:root[data-theme="light"],:root[data-theme="dark"] {
+  --blue-glow:rgba(var(--user-accent-rgb),.16);
+  --blue-soft:var(--user-accent);
+  --blue-strong:var(--user-accent);
+}
+/* Selection and active navigation: tinted backing, dark/light readable icons. */
+:root[data-theme] .dock button.on,
+:root[data-theme] .seg button.on,
+:root[data-theme] .bill-pin-btn.on,
+:root[data-theme] .part-chip-toggle.on {
+  background:var(--accent-tint)!important;
+  border-color:var(--accent-border);
+  color:var(--text)!important;
+}
+:root[data-theme] .dock button.on svg {stroke:var(--text)!important;}
+:root[data-theme] .chip.on {background:var(--accent-tint-strong);border-color:var(--accent-border);color:var(--text);}
+:root[data-theme] .emoji-grid-item.is-selected {
+  border-color:var(--user-accent)!important;
+  background:var(--accent-tint)!important;
+}
+:root[data-theme] .emoji-grid-item.is-selected::after {background:var(--user-accent)!important;color:#202020!important;}
+:root[data-theme] .route-avatar-option.selected {
+  border-color:var(--accent-border);background:var(--accent-tint-soft);
+  box-shadow:inset 0 0 0 1px var(--user-accent);
+}
+:root[data-theme] .expense-icon-action.is-active,
+:root[data-theme] .expense-icon-action:hover,
+:root[data-theme] .bill-card.is-pinned,
+:root[data-theme] .journey-tile.is-pinned {
+  border-color:var(--accent-border);
+}
+:root[data-theme] .notification-entry.unread {background:var(--accent-tint-soft);border-color:var(--accent-border);}
+:root[data-theme] .notification-entry.unread::before,
+:root[data-theme] .notification-dot {background:var(--user-accent);}
+:root[data-theme] .notification-entry-icon {background:var(--accent-tint);border-color:var(--accent-border);color:var(--text);}
+:root[data-theme] .notification-head {background:var(--accent-tint-soft);}
+:root[data-theme] .progress i {
+  background:linear-gradient(90deg,color-mix(in srgb,var(--user-accent) 60%,white),var(--user-accent));
+}
+:root[data-theme] .route-traveler-choice input,
+:root[data-theme] .bill-repeat-row input,
+:root[data-theme] input[type="checkbox"],
+:root[data-theme] input[type="radio"] {accent-color:var(--user-accent);}
+:root[data-theme] input:focus-visible,
+:root[data-theme] select:focus-visible,
+:root[data-theme] textarea:focus-visible {border-color:var(--accent-border);}
+/* Budget keeps its existing animated glow, with the selected accent tint. */
+:root[data-theme] .hero {
+  background:linear-gradient(125deg,
+    color-mix(in srgb,var(--user-accent) 48%,var(--card)) 0%,
+    color-mix(in srgb,var(--user-accent) 30%,var(--card)) 52%,
+    color-mix(in srgb,var(--user-accent) 13%,var(--card)) 100%);
+}
+:root[data-theme] .hero::after {background:radial-gradient(circle,rgba(var(--user-accent-rgb),.36),transparent 68%);}
+/* Do not tint primary reading text or semantic positive/negative balances:
+   status needs to remain distinguishable and light-mode legibility matters. */

@@ -26,9 +26,19 @@ const CAT_COLORS = {
   'Other':     'var(--c-other)'
 };
 
+// Custom expense categories use shades of the user's current pastel accent.
+// A stable hash keeps each category visually consistent when changing themes.
 const DYNAMIC_PALETTE = [
-  '#D8B9AC','#B4D8C7','#C5BCEC','#F0CCD5','#C1D7E7',
-  '#ECD7AE','#D5C5DD','#B6D8D8','#D8D4AD','#CDC8C2'
+  'color-mix(in srgb,var(--user-accent) 91%,white)',
+  'color-mix(in srgb,var(--user-accent) 76%,white)',
+  'color-mix(in srgb,var(--user-accent) 70%,#777)',
+  'color-mix(in srgb,var(--user-accent) 55%,white)',
+  'color-mix(in srgb,var(--user-accent) 82%,#888)',
+  'color-mix(in srgb,var(--user-accent) 60%,#aaa)',
+  'color-mix(in srgb,var(--user-accent) 48%,white)',
+  'color-mix(in srgb,var(--user-accent) 77%,#555)',
+  'color-mix(in srgb,var(--user-accent) 66%,#bbb)',
+  'color-mix(in srgb,var(--user-accent) 42%,#888)'
 ];
 
 function getCategoryColor(catName) {
