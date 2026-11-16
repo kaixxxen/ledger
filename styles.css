@@ -3288,3 +3288,20 @@ body.ledger-drive-picker-open #routeTicketOverlay{
 #page-journeys .journey-stop .journey-stop-right{flex:0 0 auto;max-width:35%;font-size:var(--fs-sm);}
 #page-journeys .journey-stop .journey-stop-edit{text-decoration:none;color:var(--muted);font-weight:500;}
 #page-journeys .journey-stop:focus-visible{outline:2px solid var(--user-accent);outline-offset:2px;}
+
+
+/* v104 — compact paired date/cost, bill-style traveler chips and Stop actions */
+#routeStopOverlay .route-stop-date-control{position:relative;min-width:0;height:44px;overflow:hidden;border-radius:12px;}
+#routeStopOverlay .route-stop-date-control input[type=date]{position:absolute;inset:0;width:100%;height:44px;opacity:0;z-index:2;cursor:pointer;}
+#routeStopOverlay .route-stop-date-display{display:flex;align-items:center;width:100%;height:44px;min-width:0;padding:0 10px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-size:var(--fs-sm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;}
+#routeStopOverlay .route-stop-date-control:focus-within .route-stop-date-display{border-color:var(--gold);box-shadow:0 0 0 2px color-mix(in srgb,var(--gold) 20%,transparent);}
+#routeStopOverlay .route-travelers-wrap{background:transparent;border:0;border-radius:0;padding:0;gap:4px;}
+#routeStopOverlay #stopTravelers{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 4px;}
+#routeStopOverlay .route-stop-traveler-chip{min-height:36px;padding:7px 12px;border-radius:999px;font-size:var(--fs-sm);line-height:1.2;max-width:100%;white-space:normal;text-align:center;}
+#routeStopOverlay .route-stop-traveler-chip:disabled{opacity:.65;cursor:default;}
+#routeStopOverlay #stopTravelers input[type=checkbox][hidden]{display:none!important;}
+#routeStopOverlay #stopPhotoGallery:empty{display:none!important;margin:0!important;padding:0!important;}
+#routeStopOverlay #stopPhotoGallery:not(:empty){margin-top:8px;}
+#routeStopOverlay #stopForm>div:has(#stopPhotoUrl){display:grid;gap:0;}
+#routeStopOverlay #stopNotes{margin-top:0!important;}
+#page-journeys .journey-stop.is-archived{opacity:.65;}
