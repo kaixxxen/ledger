@@ -2897,3 +2897,9 @@ select:not([multiple]){max-width:100%;min-width:0;}
   min-height:44px;
   border-radius:var(--radius-md);
 }
+
+/* v81 — Route action sheets: dedicated top-level overlays for iOS Safari */
+#routeStopOverlay,#routeTicketOverlay{z-index:2600!important;}
+#routeStopOverlay.route-overlay-open,#routeTicketOverlay.route-overlay-open,#routeEditorOverlay.route-overlay-open{display:flex!important;}
+#routeStopOverlay #stopEditor,#routeTicketOverlay .route-ticket-card{width:min(100%,480px);max-height:min(88dvh,780px);overflow:auto;-webkit-overflow-scrolling:touch;}
+#routeStopOverlay #stopEditor h2,#routeTicketOverlay .route-ticket-card h2{font-size:22px;font-weight:750;line-height:1.2;letter-spacing:-.03em;margin:0 0 14px;color:var(--text);}

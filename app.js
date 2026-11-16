@@ -3726,6 +3726,23 @@ const ROUTE_EMOJIS = ['🧭','🏕️','✈️','🏖️','🏔️','🌸','🚗
 const JTYPE = {place:'Place',transport:'Transport',activity:'Activity',stay:'Stay',food:'Food'};
 function journeyById(id){return journeysAll().find(j=>j.id===id);}
 // Keep one document upload form: it is moved into the dedicated floating Ticket sheet.
+function showRouteOverlay(id, cardId){
+  const overlay=$(id);
+  if(!overlay)return false;
+  if(overlay.parentElement!==document.body)document.body.appendChild(overlay);
+  overlay.hidden=false;
+  overlay.removeAttribute('hidden');
+  overlay.style.display='flex';
+  if(cardId){const card=$(cardId);if(card){card.hidden=false;card.removeAttribute('hidden');}}
+  requestAnimationFrame(()=>overlay.classList.add('route-overlay-open'));
+  return true;
+}
+function hideRouteOverlay(id){
+  const overlay=$(id);if(!overlay)return;
+  overlay.classList.remove('route-overlay-open');
+  overlay.style.display='';
+  overlay.hidden=true;
+}
 function openRouteTicketForm(){
   const j=journeyById(activeJourneyId);
   if(!j){toast('Open a Route first');return;}
@@ -3742,19 +3759,24 @@ function openRouteTicketForm(){
         ? 'Choose a ticket file. Ledger will securely share this Route when you upload it.'
         : 'Upload a ticket or booking document, and choose who can access it.');
   }
-  $('routeTicketOverlay').hidden=false;
+  showRouteOverlay('routeTicketOverlay');
 }
+
 function closeRouteOverlays(){
-  $('routeEditorOverlay').hidden=true;$('journeyEditor').hidden=true;$('stopEditor').hidden=true;
-  $('routeOptionsOverlay').hidden=true;
-  $('routeCollabOverlay').hidden=true;
-  if($('routeTicketOverlay'))$('routeTicketOverlay').hidden=true;
+  hideRouteOverlay('routeEditorOverlay');
+  hideRouteOverlay('routeStopOverlay');
+  hideRouteOverlay('routeOptionsOverlay');
+  hideRouteOverlay('routeCollabOverlay');
+  hideRouteOverlay('routeTicketOverlay');
+  if($('journeyEditor'))$('journeyEditor').hidden=true;
+  if($('stopEditor'))$('stopEditor').hidden=true;
 }
 function showJourneyEditor(open){
   const el=$('journeyEditor');if(!el)return;
-  $('routeOptionsOverlay').hidden=true;
-  $('stopEditor').hidden=true;
-  el.hidden=!open;$('routeEditorOverlay').hidden=!open;
+  hideRouteOverlay('routeOptionsOverlay');
+  if($('stopEditor'))$('stopEditor').hidden=true;
+  if(open)showRouteOverlay('routeEditorOverlay','journeyEditor');
+  else hideRouteOverlay('routeEditorOverlay');
 }
 function routeEmojiPicker(value='🧭'){
   $('journeyEmoji').value=value;
@@ -4025,9 +4047,12 @@ function openStopForm(stop=null){
   $('stopForm').querySelectorAll('input,textarea,select').forEach(el=>{if(!['stopId','stopPhotoUrl'].includes(el.id))el.disabled=!journeyOwner(j);});
   $('stopSave').hidden=!journeyOwner(j);$('stopDelete').hidden=!journeyOwner(j);
   renderJourneyExtras();
-  $('journeyEditor').hidden=true;$('routeOptionsOverlay').hidden=true;
-  $('routeEditorOverlay').hidden=false;$('stopEditor').hidden=false;
-  $('stopTitle').focus();
+  if($('journeyEditor'))$('journeyEditor').hidden=true;
+  hideRouteOverlay('routeEditorOverlay');
+  hideRouteOverlay('routeOptionsOverlay');
+  if($('routeStopTitle'))$('routeStopTitle').textContent=stop?'Edit Stop':'Add a Stop';
+  showRouteOverlay('routeStopOverlay','stopEditor');
+  setTimeout(()=>$('stopTitle')?.focus(),0);
 }
 // Date-only strings must not be interpreted in the device's time zone.
 function routeCardDate(iso){
@@ -4113,7 +4138,7 @@ function openLinkedBillFromRoute(){
 }
 function initJourneys(){
   // Fixed dialogs must not be descendants of the animated/scrolled app root on iOS Safari.
-  ['routeEditorOverlay','routeCollabOverlay','routeOptionsOverlay','routeTicketOverlay'].forEach(id => {
+  ['routeEditorOverlay','routeStopOverlay','routeCollabOverlay','routeOptionsOverlay','routeTicketOverlay'].forEach(id => {
     const dialog = $(id); if (dialog && dialog.parentElement !== document.body) document.body.appendChild(dialog);
   });
   // Reuse the already-working secure attachment uploader, never create a second storage path.
@@ -4121,6 +4146,7 @@ function initJourneys(){
   if(ticketHost&&existingUpload)ticketHost.appendChild(existingUpload);
   $('routeTicketCancel')?.addEventListener('click',closeRouteOverlays);
   $('routeTicketOverlay')?.addEventListener('click',e=>{if(e.target.id==='routeTicketOverlay')closeRouteOverlays();});
+  $('routeStopOverlay')?.addEventListener('click',e=>{if(e.target.id==='routeStopOverlay')closeRouteOverlays();});
   $('journeyCancel')?.addEventListener('click',closeRouteOverlays);
   $('journeyDeleteFromEditor')?.addEventListener('click',async()=>{
     const j=journeyById($('journeyId').value||activeJourneyId);if(!j)return;

@@ -1,4 +1,4 @@
-const CACHE = 'ledger-v80-route-detail-functional';
+const CACHE = 'ledger-v81-route-modal-fix';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'
