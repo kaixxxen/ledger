@@ -4125,3 +4125,40 @@ input:focus,select:focus,textarea:focus{
   #page-split #billsList .bill-card,
   #page-journeys #journeyList .journey-tile{transition:none!important;}
 }
+
+
+/* v116 — original Ledger vector icon + abstract avatar system. */
+.ledger-vector-avatar{display:block;width:100%;height:100%;min-width:0;min-height:0;overflow:visible;flex:none;}
+.bill-emoji,.split-header-emoji,.journey-tile-icon{
+  display:inline-flex!important;align-items:center;justify-content:center;
+  width:38px;height:38px;min-width:38px;min-height:38px;
+  padding:0!important;border:0!important;background:transparent!important;
+  border-radius:12px;line-height:1;overflow:hidden;
+}
+.bill-emoji .ledger-vector-avatar,.split-header-emoji .ledger-vector-avatar,.journey-tile-icon .ledger-vector-avatar{width:38px;height:38px;}
+.emoji-avatar-btn{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;padding:4px!important;overflow:hidden;border-radius:14px!important;}
+.emoji-avatar-btn>.ledger-vector-avatar{width:100%;height:100%;}
+.emoji-grid-item{padding:5px!important;overflow:hidden;}
+.emoji-grid-item>.ledger-vector-avatar{width:100%;height:100%;max-width:54px;max-height:54px;}
+#splitDetailView .split-header-emoji{width:38px!important;height:38px!important;min-width:38px!important;}
+#page-journeys .journey-detail-avatar,
+#page-journeys #journeyDetail .journey-detail-avatar{
+  display:grid!important;place-items:center!important;width:34px!important;height:34px!important;
+  min-width:34px!important;min-height:34px!important;flex:0 0 34px!important;
+  background:transparent!important;padding:0!important;overflow:hidden!important;
+}
+#page-journeys #journeyDetail .journey-detail-avatar>.ledger-vector-avatar{width:34px!important;height:34px!important;}
+#page-journeys #journeyDetail .route-detail-left{grid-template-columns:34px auto minmax(0,1fr)!important;}
+#routeOpenLinkedBill .ledger-vector-avatar,.route-linked-bill .ledger-vector-avatar{width:24px;height:24px;}
+#page-journeys .route-linked-bill strong .ledger-vector-avatar{display:inline-block;width:22px;height:22px;vertical-align:middle;margin-right:5px;}
+.ledger-flat-control-icon{display:block;width:18px;height:18px;margin:auto;}
+.bill-pin-btn .ledger-flat-control-icon{transform:rotate(30deg);transition:transform .15s ease;}
+.bill-pin-btn.on .ledger-flat-control-icon{transform:rotate(0);}
+/* Flat, contextual color for existing SVG actions without changing hit targets. */
+#page-split .bill-pin-btn.on,#page-journeys .bill-pin-btn.on{color:#6D4BBA!important;}
+#page-split .bill-drag-handle,#page-journeys .bill-drag-handle{color:var(--muted);}
+@media(max-width:420px){
+  .bill-emoji,.journey-tile-icon{width:36px;height:36px;min-width:36px;min-height:36px;}
+  .bill-emoji .ledger-vector-avatar,.journey-tile-icon .ledger-vector-avatar{width:36px;height:36px;}
+  .emoji-grid-item>.ledger-vector-avatar{max-width:48px;max-height:48px;}
+}
