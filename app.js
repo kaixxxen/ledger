@@ -1663,9 +1663,35 @@ async function loadProfile() {
   renderSettings();
 }
 
+async function syncSharedRouteNickname(nickname) {
+  if (mode !== 'cloud' || !sb || !user) return;
+  // Only update the signed-in member's display name. Never change user_id,
+  // ledger_code, traveler price keys or attachment keys.
+  const { data, error } = await sb.from('ledger_route_members')
+    .update({ display_name: nickname })
+    .eq('user_id', user.id)
+    .select('route_id');
+  if (error) {
+    console.error('Shared Route nickname sync failed:', error);
+    toast('Nickname saved, but shared Route names could not sync. Check Route member permissions.');
+    return;
+  }
+  // Refresh local member display data without rewriting shared Route records.
+  const updated = new Set((data || []).map(m => String(m.route_id)));
+  if (updated.size && activeJourneyId && updated.has(String(activeJourneyId))) {
+    journeyMembers.forEach(m => { if (m.user_id === user.id) m.display_name = nickname; });
+    renderJourneyExtras();
+    if (currentPage === 'journeys') renderJourneys();
+  }
+}
 function scheduleNicknameSync() {
   clearTimeout(nickTimer);
-  nickTimer = setTimeout(async () => { await loadProfile(); scheduleSharedReload(0); }, 900);
+  nickTimer = setTimeout(async () => {
+    const nickname = displayName();
+    await loadProfile();
+    await syncSharedRouteNickname(nickname);
+    scheduleSharedReload(0);
+  }, 900);
 }
 
 async function loadSharedBills() {
@@ -2492,7 +2518,15 @@ async function enterCloud(u) {
   await loadSharedBills();
   await loadSharedJourneys();
   clearInterval(journeySyncTimer);
-  journeySyncTimer=setInterval(()=>{if(mode==='cloud'&&!document.hidden)loadSharedJourneys();},30000);
+  journeySyncTimer=setInterval(async()=>{
+    if(mode!=='cloud'||document.hidden)return;
+    await loadSharedJourneys();
+    const active=journeyById(activeJourneyId);
+    if(active?.shared && currentPage==='journeys') {
+      await loadJourneyExtras(active); // Refresh member nicknames on other devices.
+      renderJourneys();
+    }
+  },30000);
   startSharedSync();
 }
 
@@ -4401,8 +4435,10 @@ function openRouteTicketDetail(t){
     </section>
     <section class="route-ticket-detail-section">
       <div class="route-ticket-detail-row"><small>Date & time</small><strong>${esc(when||'Not set')}</strong></div>
-      <div class="route-ticket-detail-row"><small>Total price</small><strong>${money(t.cost||0)}</strong></div>
-      <div class="route-ticket-detail-row"><small>Category</small><strong>${esc(categoryLabel)}</strong></div>
+      <div class="route-ticket-detail-duo">
+        <div class="route-ticket-detail-half"><small>Total price</small><strong>${money(t.cost||0)}</strong></div>
+        <div class="route-ticket-detail-half"><small>Category</small><strong>${esc(categoryLabel)}</strong></div>
+      </div>
     </section>
     <section class="route-ticket-detail-section">
       <div class="route-ticket-detail-section-title">Traveler prices</div>

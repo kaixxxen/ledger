@@ -3176,3 +3176,39 @@ body.ledger-drive-picker-open #routeTicketOverlay{
   #routeTicketDetailBody .route-ticket-detail-list-row,
   #routeTicketDetailBody .route-ticket-detail-file{grid-template-columns:minmax(0,1fr) auto;}
 }
+
+
+/* v98 — two equal-width ticket details fields, independent of screen width */
+#routeTicketDetailBody .route-ticket-detail-duo{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  min-width:0;
+}
+#routeTicketDetailBody .route-ticket-detail-half{
+  min-width:0;
+  min-height:52px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:3px;
+  padding:9px 12px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:var(--card);
+}
+#routeTicketDetailBody .route-ticket-detail-half small{
+  font-size:var(--fs-xs);
+  line-height:1.2;
+  font-weight:600;
+  color:var(--muted);
+}
+#routeTicketDetailBody .route-ticket-detail-half strong{
+  font-size:var(--fs-sm);
+  line-height:1.25;
+  font-weight:650;
+  color:var(--text);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
