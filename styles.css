@@ -1,8 +1,8 @@
 /* =====================================================================
    Ledger · design system
    - One set of tokens (colour, type, radius, spacing, shadow) used everywhere
-   - Fonts: native Apple system font on macOS/iPadOS/iOS; Inter elsewhere.
-            Financial figures use tabular numerals on both.
+   - Fonts: Liter for headings, body, controls and financial figures.
+            Financial figures retain tabular-nums where supported.
    - Text size: every font size is multiplied by --fs-scale (Settings → Text size).
                 The original sizes are the minimum (scale 1).
    - Responsive: bottom dock on phones/tablets, sidebar + grid layouts on desktop
@@ -43,8 +43,8 @@
   --fs-hero:calc(32px * var(--fs-scale));
 
   /* font stacks */
-  --font-ui:'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  --font-num:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-ui:'Liter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-num:'Liter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
   /* radii */
   --radius-sm:6px; --radius-md:10px; --radius-lg:16px; --radius-pill:999px;
@@ -64,10 +64,10 @@
 }
 :root[data-theme="light"]{ color-scheme:light; }
 
-/* Use the native platform font across macOS, iPadOS, and iOS. */
+/* Use Liter consistently on Apple devices too. */
 :root[data-apple-font="true"]{
-  --font-ui:-apple-system, BlinkMacSystemFont, system-ui, "Helvetica Neue", sans-serif;
-  --font-num:-apple-system, BlinkMacSystemFont, system-ui, "Helvetica Neue", sans-serif;
+  --font-ui:'Liter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-num:'Liter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 @media (prefers-color-scheme: dark){
@@ -110,7 +110,7 @@ h1,h2,h3,p{ margin:0; }
 ul{ list-style:none; margin:0; padding:0; }
 code{ font-family:var(--font-num); }
 
-/* Financial figures use Inter tabular numerals. */
+/* Financial figures use Liter with tabular numerals where available. */
 .num, .big, .stat b, .mini b, li.tx .amt, .exp-amount, .card-spent-current, .card-spent-next, .paid-amount,
 .d-val, .b-val, .legend b, .legend em, .split-legend b, .split-stats-bar b, .fixed-item b, .history-item b,
 .settle-row .bold, .hero-split b, .clickable-code, input[type="number"], .mini-in{
@@ -3778,39 +3778,4 @@ body.ledger-drive-picker-open #routeTicketOverlay{
 }
 #page-journeys #journeyDetail .route-ticket-icon{
   border-radius:0!important;
-}
-
-
-/* v113.1 — centered, identically sized SVG slideshow chevrons (no glyph alignment drift) */
-#page-journeys #journeyDetail .route-slide-arrow{
-  display:grid!important;
-  place-items:center!important;
-  position:absolute;
-  padding:0!important;
-  font-size:0!important;
-  line-height:0!important;
-  text-indent:-9999px;
-  overflow:hidden;
-}
-#page-journeys #journeyDetail .route-slide-arrow::before{
-  content:""!important;
-  display:block!important;
-  width:20px!important;
-  height:20px!important;
-  position:absolute!important;
-  left:50%!important;
-  top:50%!important;
-  margin:0!important;
-  box-sizing:border-box!important;
-  border:0!important;
-  background-repeat:no-repeat!important;
-  background-position:center center!important;
-  background-size:20px 20px!important;
-  transform:translate(-50%,-50%)!important;
-}
-#page-journeys #journeyDetail .route-slide-arrow.previous::before{
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M15.5 4.5 8 12l7.5 7.5' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")!important;
-}
-#page-journeys #journeyDetail .route-slide-arrow.next::before{
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M8.5 4.5 16 12l-7.5 7.5' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")!important;
 }
