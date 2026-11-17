@@ -3814,3 +3814,124 @@ body.ledger-drive-picker-open #routeTicketOverlay{
 #page-journeys #journeyDetail .route-slide-arrow.next::before{
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M8.5 4.5 16 12l-7.5 7.5' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")!important;
 }
+
+
+/* Ledger v117 — illustrated Bill Splitter avatars; dimensions and card layout unchanged. */
+.bill-emoji, .split-header-emoji {
+  display:inline-flex;
+  width:1em;
+  height:1em;
+  flex:0 0 1em;
+  align-items:center;
+  justify-content:center;
+  vertical-align:middle;
+  background:transparent !important;
+  overflow:visible;
+}
+.bill-emoji .bill-avatar-art, .split-header-emoji .bill-avatar-art,
+.emoji-avatar-btn .bill-avatar-art {
+  display:block;
+  width:100%;
+  height:100%;
+  max-width:100%;
+  max-height:100%;
+  border-radius:50%;
+  object-fit:contain;
+  image-rendering:auto;
+  pointer-events:none;
+  flex:none;
+}
+.bill-avatar-legacy {display:inline-block;font-size:1em;line-height:1;white-space:nowrap;}
+/* The editor button retains its exact 44 × 44-px footprint; artwork replaces 24-px emoji. */
+#emojiAvatarBtn {background:transparent !important;}
+#emojiAvatarBtn .bill-avatar-art, #emojiAvatarBtn .bill-avatar-legacy {width:1em;height:1em;}
+/* Grid has equal row and column gutters; no tile fill in light or dark mode. */
+#emojiGrid.bill-avatar-grid {
+  display:grid !important;
+  grid-template-columns:repeat(4,minmax(0,1fr)) !important;
+  gap:12px !important;
+  padding:6px !important;
+  align-content:start !important;
+  min-height:0 !important;
+}
+#emojiGrid .bill-avatar-choice {
+  box-sizing:border-box !important;
+  display:grid !important;
+  place-items:center !important;
+  width:100% !important;
+  height:auto !important;
+  min-width:0 !important;
+  min-height:0 !important;
+  aspect-ratio:1 / 1 !important;
+  padding:5px !important;
+  border:1px solid transparent !important;
+  border-radius:14px !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  overflow:hidden !important;
+  transform:none !important;
+}
+#emojiGrid .bill-avatar-choice:hover {
+  background:transparent !important;
+  border-color:var(--line) !important;
+  transform:none !important;
+}
+#emojiGrid .bill-avatar-choice.is-selected {
+  background:transparent !important;
+  border:2px solid var(--user-accent,var(--gold)) !important;
+}
+#emojiGrid .bill-avatar-choice.is-selected::after {
+  content:'✓';
+  right:1px;
+  top:1px;
+  z-index:1;
+  width:17px;
+  height:17px;
+  line-height:17px;
+  font-size:11px;
+  color:var(--text);
+  background:var(--card) !important;
+  border:1px solid var(--line);
+  box-sizing:border-box;
+}
+#emojiGrid .bill-avatar-choice .bill-avatar-art {
+  width:100%;
+  height:100%;
+  max-width:100%;
+  max-height:100%;
+  display:block;
+  border-radius:50%;
+  object-fit:contain;
+  image-rendering:auto;
+  pointer-events:none;
+}
+/* Never enlarge the selected image in the bill detail header. */
+#splitDetailView .split-header-emoji {min-width:1em;max-width:1em;min-height:1em;max-height:1em;}
+#splitDetailView .split-header-emoji .bill-avatar-art {width:100%;height:100%;}
+@media(max-width:430px){
+  #emojiGrid.bill-avatar-grid {gap:10px !important;padding:4px !important;}
+  #emojiGrid .bill-avatar-choice {border-radius:11px !important;padding:4px !important;}
+}
+
+/* Explicit flex rows prevent the earlier Safari grid-row compression and overlap. */
+#emojiGrid.bill-avatar-grid {
+  display:flex !important;
+  flex-wrap:wrap !important;
+  align-items:flex-start !important;
+  align-content:flex-start !important;
+  gap:12px !important;
+  box-sizing:border-box !important;
+}
+#emojiGrid.bill-avatar-grid .bill-avatar-choice {
+  flex:0 0 calc((100% - 36px) / 4) !important;
+  width:calc((100% - 36px) / 4) !important;
+  aspect-ratio:1 / 1 !important;
+  height:auto !important;
+}
+@media(max-width:430px){
+  #emojiGrid.bill-avatar-grid{gap:10px !important;}
+  #emojiGrid.bill-avatar-grid .bill-avatar-choice{
+    flex-basis:calc((100% - 30px) / 4) !important;
+    width:calc((100% - 30px) / 4) !important;
+  }
+}
