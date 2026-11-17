@@ -3935,3 +3935,95 @@ body.ledger-drive-picker-open #routeTicketOverlay{
     width:calc((100% - 30px) / 4) !important;
   }
 }
+
+
+/* Ledger v118 — Bill Splitter avatar optical/box centering and larger card artwork.
+   Only bill cards are enlarged; modal trigger, picker and opened-bill header keep v117 sizes. */
+#billsList .bill-card-left,
+#archivedBillsList .bill-card-left {
+  display:flex;
+  align-items:center;
+  min-width:0;
+  gap:12px;
+}
+#billsList .bill-card-info,
+#archivedBillsList .bill-card-info {
+  flex:1 1 auto;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+#billsList .bill-card .bill-emoji,
+#archivedBillsList .bill-card .bill-emoji {
+  width:48px !important;
+  height:48px !important;
+  min-width:48px !important;
+  min-height:48px !important;
+  flex:0 0 48px !important;
+  font-size:44px !important; /* only used for older custom emoji */
+  line-height:1 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  align-self:center !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  overflow:hidden;
+}
+#billsList .bill-card .bill-avatar-art,
+#archivedBillsList .bill-card .bill-avatar-art {
+  display:block !important;
+  width:100% !important;
+  height:100% !important;
+  max-width:100% !important;
+  max-height:100% !important;
+  margin:0 auto !important;
+  padding:0 !important;
+  border:0 !important;
+  background:transparent !important;
+  border-radius:50%;
+  object-fit:contain !important;
+  object-position:50% 50% !important;
+  transform:none !important;
+}
+#billsList .bill-card,
+#archivedBillsList .bill-card {
+  padding-left:16px;
+  padding-right:14px;
+  align-items:center;
+}
+/* Keep the artwork centered inside every existing avatar circle, without changing its size. */
+#emojiAvatarBtn,
+#emojiGrid .bill-avatar-choice,
+#splitDetailView #splitPersonAvatar {
+  align-items:center !important;
+  justify-content:center !important;
+}
+#emojiAvatarBtn .bill-avatar-art,
+#emojiGrid .bill-avatar-choice .bill-avatar-art,
+#splitDetailView #splitPersonAvatar .bill-avatar-art {
+  object-fit:contain !important;
+  object-position:center center !important;
+  margin:0 auto !important;
+  padding:0 !important;
+  transform:none !important;
+}
+@media(max-width:420px) {
+  #billsList .bill-card,
+  #archivedBillsList .bill-card {padding-left:14px !important;padding-right:12px !important;}
+  #billsList .bill-card-left,
+  #archivedBillsList .bill-card-left {gap:11px !important;}
+  #billsList .bill-card .bill-emoji,
+  #archivedBillsList .bill-card .bill-emoji {
+    width:46px !important;
+    height:46px !important;
+    min-width:46px !important;
+    min-height:46px !important;
+    flex-basis:46px !important;
+    font-size:42px !important;
+  }
+}

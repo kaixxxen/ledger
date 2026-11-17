@@ -1,4 +1,4 @@
-const CACHE='ledger-v117-curated-bill-avatars';
+const CACHE='ledger-v118-avatar-alignment';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'google-picker-config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'
