@@ -99,19 +99,22 @@
       </div>
     </header>
 
-    <div class="hero">
-      <small id="leftLabel">Net this month</small>
-      <div class="big" id="left">0</div>
-    </div>
+    <div class="bento-overview" aria-label="Monthly financial overview">
+      <div class="hero">
+        <small id="leftLabel">Net this month</small>
+        <div class="big" id="left">0</div>
+        <div class="bento-hero-art" aria-hidden="true"><span></span><span></span><span></span></div>
+      </div>
 
-    <div class="stats">
+      <div class="stats">
       <div class="stat"><small>Income</small><b class="in" id="inc">0</b></div>
       <div class="stat"><small>Spent</small><b class="out" id="exp">0</b></div>
       <div class="stat"><small>Budget</small><b id="bud">—</b></div>
     </div>
-    <div class="progress" id="prog" hidden><i></i></div>
+      <div class="progress" id="prog" hidden><i></i></div>
+    </div>
 
-    <div class="home-cols">
+    <div class="home-cols bento-home-grid">
       <!-- left column on desktop -->
       <div class="home-col">
         <!-- Credit Card Due Date Reminders -->
@@ -1060,13 +1063,13 @@
 <div id="globalActions" class="global-actions" hidden>
   <div id="globalActionsDismiss" class="global-actions-dismiss" hidden></div>
   <div id="globalActionsMenu" class="global-actions-menu" role="menu" aria-label="Create new" hidden>
-    <button type="button" role="menuitem" data-create="expense"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h14v18l-3-2-4 2-4-2-3 2z"/><path d="M8 8h8M8 12h6"/></svg><span>Add expense</span></button>
-    <button type="button" role="menuitem" data-create="bill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M17 6a3 3 0 0 1 0 6M17 14a5 5 0 0 1 4 5v1"/></svg><span>Add a bill</span></button>
+    <button type="button" role="menuitem" data-create="expense"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3.8h14v16.4l-3-1.8-4 1.8-4-1.8-3 1.8z"/><path d="M8.3 8.5h7.4M8.3 12h3.8"/><circle cx="16.3" cy="13.7" r="1.2" fill="currentColor" stroke="none"/></svg><span>Add expense</span></button>
+    <button type="button" role="menuitem" data-create="bill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.2" width="10.5" height="14" rx="2.5"/><rect x="10.5" y="7" width="10.5" height="13" rx="2.5"/><path d="M6.4 8.8h3.5M14.1 12h3.3"/></svg><span>Add a bill</span></button>
     
-    <button type="button" role="menuitem" data-create="journey"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15M15 6v15"/></svg><span>Plan a Route</span></button>
+    <button type="button" role="menuitem" data-create="journey"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="18.6" r="2.1"/><path d="M7.2 18.5h6.2c4.6 0 5.1-6.2 1.5-6.2H10c-4.7 0-4.7-6.9.1-6.9H17"/><path d="m14.4 2.9 3 3-3 3"/></svg><span>Plan a Route</span></button>
     <button type="button" role="menuitem" data-create="in-bill" id="globalAddToBill" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Add expense to this bill</span></button>
-    <button type="button" role="menuitem" data-create="route-ticket" id="globalRouteTicket" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4V7Z"/><path d="M12 7v10" stroke-dasharray="2 2"/></svg><span>Add a ticket</span></button>
-    <button type="button" role="menuitem" data-create="route-stop" id="globalRouteStop" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6 7-12a7 7 0 1 0-14 0c0 6 7 12 7 12Z"/><path d="M12 7v6M9 10h6"/></svg><span>Add a Stop</span></button>
+    <button type="button" role="menuitem" data-create="route-ticket" id="globalRouteTicket" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 7h17v4.3a2 2 0 0 0 0 3.4V19h-17v-4.3a2 2 0 0 0 0-3.4z"/><path d="M13 7v12" stroke-dasharray="2 3"/></svg><span>Add a ticket</span></button>
+    <button type="button" role="menuitem" data-create="route-stop" id="globalRouteStop" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-5.7 7-12a7 7 0 1 0-14 0c0 6.3 7 12 7 12z"/><circle cx="12" cy="9" r="2.1"/></svg><span>Add a Stop</span></button>
     <button type="button" role="menuitem" data-create="payment" id="globalRecordPayment" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h18v11H3z"/><path d="M3 11h18M7 15h4"/></svg><span>Record payment</span></button>
   </div>
   <button id="globalActionsToggle" type="button" class="global-actions-toggle" aria-label="Create expense or bill" aria-haspopup="menu" aria-expanded="false" aria-controls="globalActionsMenu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="sr-only">Quick actions</span></button>
@@ -1083,23 +1086,23 @@
 <nav class="dock" id="dock" aria-label="Main" hidden>
   <div class="dock-brand"><img src="icon-192.png" alt="" width="30" height="30"><span>Ledger</span></div>
   <button type="button" data-go="home" aria-label="Home" title="Home">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 10 12 3l8.5 7v9a2 2 0 0 1-2 2H5.5a2 2 0 0 1-2-2z"/><path d="M9 21v-7h6v7"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.3" y="3.3" width="7.4" height="7.4" rx="1.9"/><rect x="13.3" y="3.3" width="7.4" height="7.4" rx="1.9"/><rect x="3.3" y="13.3" width="7.4" height="7.4" rx="1.9"/><path d="M13.4 17h7.2M17 13.4v7.2"/></svg>
     <span>Home</span>
   </button>
   <button type="button" data-go="expenses" aria-label="Expenses" title="Expenses">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2.75" width="14" height="18.5" rx="2.5"/><path d="M8.5 8h7M8.5 12h7M8.5 16h4"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3.8h14v16.4l-3-1.8-4 1.8-4-1.8-3 1.8z"/><path d="M8.3 8.5h7.4M8.3 12h3.8"/><circle cx="16.3" cy="13.7" r="1.2" fill="currentColor" stroke="none"/></svg>
     <span>Expenses</span>
   </button>
   <button type="button" data-go="split" aria-label="Split bills" title="Split bills">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8.25" r="3"/><path d="M2.75 20v-1.5A5.25 5.25 0 0 1 8 13.25h.75A5.25 5.25 0 0 1 14 18.5V20"/><path d="M16.5 5.7a3 3 0 0 1 0 5.8M16.5 14.1a4.6 4.6 0 0 1 4.75 4.5V20"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.2" width="10.5" height="14" rx="2.5"/><rect x="10.5" y="7" width="10.5" height="13" rx="2.5"/><path d="M6.4 8.8h3.5M14.1 12h3.3"/></svg>
     <span>Split</span>
   </button>
   <button type="button" data-go="journeys" aria-label="Routes" title="Routes">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="18.6" r="2.1"/><path d="M7.2 18.5h6.2c4.6 0 5.1-6.2 1.5-6.2H10c-4.7 0-4.7-6.9.1-6.9H17"/><path d="m14.4 2.9 3 3-3 3"/></svg>
     <span>Routes</span>
   </button>
   <button type="button" data-go="settings" aria-label="Settings" title="Settings">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2.6"/><circle cx="15.5" cy="17" r="2.6"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h16"/><circle cx="9" cy="6.5" r="2.5" fill="var(--nav-icon-fill, #20252a)"/><circle cx="16" cy="12" r="2.5" fill="var(--nav-icon-fill, #20252a)"/><circle cx="11" cy="17.5" r="2.5" fill="var(--nav-icon-fill, #20252a)"/></svg>
     <span>Settings</span>
   </button>
 </nav>
