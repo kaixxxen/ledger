@@ -1,5 +1,8 @@
-# Ledger v123 — Add a Stop form layout
+# Ledger v124 — Itinerary Summary
 
-Based on v122. Stops now show: Stop name (full width), then Type and Estimated cost (two equal columns), then the existing Start/End Date & Time controls (two equal columns). No data model, event handlers, authentication, or database changes.
+Baseline: Ledger v123. Replace `index.html`, `styles.css`, `app.js`, and `sw.js`. Do not replace `config.js` or any Google credentials.
 
-Replace `index.html`, `styles.css`, and `sw.js` in GitHub. `app.js` is included unchanged for convenience. Preserve `config.js`, `google-picker-config.js`, and all other existing site files.
+- The second route overview statistic has become **View Itinerary**.
+- The modal merges active tickets and active stops in ascending date/time order, day by day. Undated items follow dated items.
+- The PDF button opens your browser's native Print dialogue. On desktop choose **Save as PDF**; on iPhone/iPad use the print preview's Share/Save to Files flow where available. It cannot silently write to arbitrary local folders.
+- Does not alter storage or Supabase schemas.

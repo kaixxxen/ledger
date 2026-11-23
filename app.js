@@ -4023,6 +4023,7 @@ function closeRouteOverlays(){
   hideRouteOverlay('routeTicketDetailOverlay');
   hideRouteOverlay('routeStopDetailOverlay');
   hideRouteOverlay('routeCostSummaryOverlay');
+  hideRouteOverlay('routeItinerarySummaryOverlay');
   if($('journeyEditor'))$('journeyEditor').hidden=true;
   if($('stopEditor'))$('stopEditor').hidden=true;
 }
@@ -4434,6 +4435,67 @@ function routeCostBreakdown(j){
   });
   return {people:[...byKey.values()],unallocated,unallocatedItems};
 }
+// v124: Read-only combined itinerary. Never modifies a route or creates a transaction.
+function routeItinerarySummaryEntries(j){
+  const stops=(j.stops||[]).filter(s=>!s.archived).map((s,i)=>({
+    kind:'stop',date:routeCardDate(s.date)?s.date:'',time:/^([01]\d|2[0-3]):[0-5]\d$/.test(String(s.time||''))?s.time:'',
+    title:s.title||'Untitled stop',type:JTYPE[s.type]||'Stop',
+    sub:[s.location,s.transport].filter(Boolean).join(' · '),note:s.notes||'',
+    endDate:s.endDate||'',endTime:s.endTime||'',order:i
+  }));
+  const tickets=(j.tickets||[]).filter(t=>!t.archived).map((t,i)=>({
+    kind:'ticket',date:routeCardDate(t.date)?t.date:'',time:/^([01]\d|2[0-3]):[0-5]\d$/.test(String(t.time||''))?t.time:'',
+    title:[t.place,t.route?`(${t.route})`:''].filter(Boolean).join(' ')||t.name||'Ticket',
+    type:t.category==='bus'?'Bus ticket':t.category==='train'?'Train ticket':'Flight ticket',
+    sub:t.name&&t.place&&t.name!==t.place?t.name:'',note:'',endDate:'',endTime:'',order:i
+  }));
+  return [...stops,...tickets].sort((a,b)=>
+    (a.date||'9999-99-99').localeCompare(b.date||'9999-99-99')||
+    (a.time||'99:99').localeCompare(b.time||'99:99')||
+    (a.kind==='ticket'?0:1)-(b.kind==='ticket'?0:1)||a.order-b.order);
+}
+function routeItinerarySummaryMarkup(j){
+  const entries=routeItinerarySummaryEntries(j);
+  const dateText=routeDateRange(j.startDate,j.endDate)||'Dates to be confirmed';
+  const place=String(j.destination||'Destination to be confirmed');
+  let currentDay=null,dayIndex=0;
+  const sections=[];
+  entries.forEach((item,index)=>{
+    if(item.date!==currentDay){
+      currentDay=item.date;dayIndex++;
+      const label=item.date?routeStopDisplayDate(item.date):'Unscheduled';
+      sections.push(`<section class="route-itinerary-day"><div class="route-itinerary-day-label"><span>${item.date?'DAY '+dayIndex:'TBD'}</span></div><div class="route-itinerary-day-content"><h4>${esc(label)}</h4><div class="route-itinerary-entries">`);
+    }
+    const last=sections.length-1;
+    const time=item.time?routeClockTime(item.time):'Time TBD';
+    const end=(item.kind==='stop'&&(item.endDate||item.endTime))?routeStopDateTimeLabel(item.endDate||(item.endTime?item.date:''),item.endTime):'';
+    const endHtml=end?`<span class="route-itinerary-end">Until ${esc(end)}</span>`:'';
+    const note=item.note?`<div class="route-itinerary-note">${esc(item.note)}</div>`:'';
+    sections[last]+= `<div class="route-itinerary-entry"><span class="route-itinerary-time">${esc(time)}</span><div class="route-itinerary-event"><span class="route-itinerary-kind">${item.kind==='ticket'?'Ticket':'Stop'} · ${esc(item.type)}</span><strong>${esc(item.title)}</strong>${item.sub?`<span class="route-itinerary-sub">${esc(item.sub)}</span>`:''}${endHtml}${note}</div></div>`;
+    // Close each day group on next date or at end, leaving the next group appendable.
+    const next=entries[index+1];
+    if(!next||next.date!==item.date)sections[last]+='</div></div></section>';
+  });
+  const content=sections.length?sections.join(''):'<p class="route-itinerary-no-events">No stops or tickets have been added yet. They will appear here once scheduled.</p>';
+  return `<div class="route-itinerary-document"><div class="route-itinerary-doc-top"><div class="route-itinerary-doc-kicker">LEDGER  /  TRIP PLANNER</div><h2>${esc(j.title||'Untitled Route')}<span> itinerary</span></h2><div class="route-itinerary-doc-rule"></div><div class="route-itinerary-doc-meta"><div><span>TRAVEL DATES</span><strong>${esc(dateText)}</strong></div><div><span>DESTINATION</span><strong>${esc(place)}</strong></div></div></div><div class="route-itinerary-doc-days">${content}</div><footer class="route-itinerary-doc-footer">Prepared with Ledger · ${entries.length} scheduled ${entries.length===1?'item':'items'}</footer></div>`;
+}
+function openRouteItinerarySummary(){
+  const j=journeyById(activeJourneyId),host=$('routeItinerarySummaryBody');
+  if(!j||!host)return;
+  host.innerHTML=routeItinerarySummaryMarkup(j);
+  showRouteOverlay('routeItinerarySummaryOverlay');
+}
+function routeItinerarySummaryPrint(){
+  const j=journeyById(activeJourneyId),sheet=$('routeItineraryPrintSheet');
+  if(!j||!sheet)return;
+  sheet.innerHTML=routeItinerarySummaryMarkup(j);
+  sheet.hidden=false;
+  // The browser's native Print dialog offers "Save as PDF" (or Share > Save to Files on iOS).
+  const clean=()=>{sheet.hidden=true;sheet.innerHTML='';window.removeEventListener('afterprint',clean);};
+  window.addEventListener('afterprint',clean,{once:true});
+  try{window.print();}catch(err){clean();console.error('Could not open print dialog',err);toast('Could not open PDF export. Try your browser Print option.');}
+}
+
 function openRouteCostSummary(){
   const j=journeyById(activeJourneyId);if(!j)return;
   const result=routeCostBreakdown(j),host=$('routeCostSummaryBody');if(!host)return;
@@ -4656,7 +4718,6 @@ function paintRouteSummary(){
   if($('journeyHeroDate'))$('journeyHeroDate').textContent=routeDateRange(j.startDate,j.endDate)||'Date not set';
   if($('journeyDetailSubtitle'))$('journeyDetailSubtitle').textContent=String(j.destination||'Destination not set');
   if($('journeyTotal'))$('journeyTotal').textContent=money(routeCostTotal(j));
-  if($('journeyStopsCount'))$('journeyStopsCount').textContent=`${stops} ${stops===1?'stop':'stops'}`;
   if($('journeyDetailTitle'))$('journeyDetailTitle').textContent=title;
   if($('journeyDetailAvatar'))$('journeyDetailAvatar').textContent=avatar;
 }
@@ -4937,6 +4998,11 @@ function initJourneys(){
   $('routeTicketOverlay')?.addEventListener('click',e=>{if(e.target.id==='routeTicketOverlay')closeRouteOverlays();});
   $('routeTicketDetailOverlay')?.addEventListener('click',e=>{if(e.target.id==='routeTicketDetailOverlay')closeRouteOverlays();});
   $('journeyCostSummaryOpen')?.addEventListener('click',openRouteCostSummary);
+  $('routeItinerarySummaryOpen')?.addEventListener('click',openRouteItinerarySummary);
+  $('routeItinerarySummaryClose')?.addEventListener('click',closeRouteOverlays);
+  $('routeItinerarySummaryDone')?.addEventListener('click',closeRouteOverlays);
+  $('routeItinerarySummaryPdf')?.addEventListener('click',routeItinerarySummaryPrint);
+  $('routeItinerarySummaryOverlay')?.addEventListener('click',e=>{if(e.target.id==='routeItinerarySummaryOverlay')closeRouteOverlays();});
   $('routeCostSummaryClose')?.addEventListener('click',closeRouteOverlays);
   $('routeCostSummaryOverlay')?.addEventListener('click',e=>{if(e.target.id==='routeCostSummaryOverlay')closeRouteOverlays();});
   $('routeStopDetailOverlay')?.addEventListener('click',e=>{if(e.target.id==='routeStopDetailOverlay')closeRouteOverlays();});
