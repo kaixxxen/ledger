@@ -4027,3 +4027,31 @@ body.ledger-drive-picker-open #routeTicketOverlay{
     font-size:42px !important;
   }
 }
+
+
+/* v119 — Route end date and multi-day stop scheduling. All existing styling retained. */
+#routeEditorOverlay #journeyEditor .route-date-range-row{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;
+  align-items:end;min-width:0;
+}
+#routeEditorOverlay #journeyEditor .route-date-range-row>.route-form-field{min-width:0;}
+#routeEditorOverlay #journeyEditor .route-date-range-row input[type="date"]{
+  width:100%;max-width:100%;min-width:0;height:44px;min-height:44px;
+  box-sizing:border-box;font-size:var(--fs-sm);padding:0 10px;text-align:left;
+}
+#routeEditorOverlay #journeyEditor .route-date-range-row input[type="date"]::-webkit-date-and-time-value{
+  text-align:left;min-height:1.2em;
+}
+#routeStopOverlay .route-stop-datetime-block{min-width:0;}
+#routeStopOverlay .route-stop-datetime-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;min-width:0;align-items:center;}
+#routeStopOverlay .route-stop-datetime-pair>*,
+#routeStopOverlay .route-stop-datetime-pair .route-stop-date-control{width:100%;min-width:0;max-width:100%;}
+#routeStopOverlay .route-stop-datetime-pair input[type="time"]{height:44px;min-height:44px;max-width:100%;}
+#routeStopOverlay .route-stop-datetime-pair .route-stop-date-display{justify-content:flex-start;padding:0 11px;}
+#page-journeys .route-stop-datetime-details .route-stop-detail-field{min-width:0;}
+#page-journeys .route-stop-datetime-details .route-stop-detail-field strong{overflow-wrap:anywhere;line-height:1.4;}
+@media(max-width:365px){
+  #routeEditorOverlay #journeyEditor .route-date-range-row{gap:8px;}
+  #routeStopOverlay .route-stop-datetime-pair{gap:8px;}
+  #routeStopOverlay .route-stop-datetime-pair .route-stop-date-display{padding:0 8px;}
+}

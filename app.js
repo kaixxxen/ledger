@@ -307,6 +307,7 @@ function normalize(raw) {
     title: String(j.title || 'Untitled journey').slice(0,120),
     destination: String(j.destination || '').slice(0,160),
     startDate: isIsoDate(j.startDate) ? j.startDate : '',
+    endDate: isIsoDate(j.endDate) ? j.endDate : '',
     notes: String(j.notes || '').slice(0,1500),
     emoji: String(j.emoji || '🧭').slice(0,8),
     linkedBillId: String(j.linkedBillId || ''),
@@ -320,6 +321,7 @@ function normalize(raw) {
       title: String(p.title || 'Stop').slice(0,120),
       date: isIsoDate(p.date) ? p.date : '',
       time: /^([01]\d|2[0-3]):[0-5]\d$/.test(String(p.time||'')) ? p.time : '',
+      endDate: isIsoDate(p.endDate) ? p.endDate : '',
       endTime: /^([01]\d|2[0-3]):[0-5]\d$/.test(String(p.endTime||'')) ? p.endTime : '',
       location: String(p.location||'').slice(0,200),
       transport: String(p.transport||'').slice(0,120),
@@ -3724,7 +3726,7 @@ async function loadJourneyExtras(j){
 async function persistJourney(j){
   if(!j.shared){save();return true;}
   if(!sb||!user){toast('Sign in to edit shared routes');return false;}
-  const data={title:j.title,destination:j.destination,startDate:j.startDate,notes:j.notes,stops:j.stops,tickets:j.tickets||[],links:j.links||[],emoji:j.emoji||"🧭",linkedBillId:j.linkedBillId||"",archived:!!j.archived,travelers:j.travelers||[],createdAt:j.createdAt||""};
+  const data={title:j.title,destination:j.destination,startDate:j.startDate,endDate:j.endDate||'',notes:j.notes,stops:j.stops,tickets:j.tickets||[],links:j.links||[],emoji:j.emoji||"🧭",linkedBillId:j.linkedBillId||"",archived:!!j.archived,travelers:j.travelers||[],createdAt:j.createdAt||""};
   const {error}=await sb.from('ledger_routes').update({data,updated_at:new Date().toISOString()}).eq('id',j.id);
   if(error){toast('Could not save shared route: '+error.message);await loadSharedJourneys();return false;}
   return true;
@@ -3921,7 +3923,7 @@ async function uploadJourneyFile(){
 }
 async function shareJourney(j){
   if(mode!=='cloud'||!sb||!user){toast('Sign in first to share a route');return;}
-  const data={title:j.title,destination:j.destination,startDate:j.startDate,notes:j.notes,stops:j.stops,tickets:j.tickets||[],links:j.links||[],emoji:j.emoji||"🧭",linkedBillId:j.linkedBillId||"",archived:!!j.archived,travelers:j.travelers||[],createdAt:j.createdAt||""};
+  const data={title:j.title,destination:j.destination,startDate:j.startDate,endDate:j.endDate||'',notes:j.notes,stops:j.stops,tickets:j.tickets||[],links:j.links||[],emoji:j.emoji||"🧭",linkedBillId:j.linkedBillId||"",archived:!!j.archived,travelers:j.travelers||[],createdAt:j.createdAt||""};
   // The RPC derives the route owner from the verified JWT, not local cached account state.
   // It also avoids requiring a SELECT of the newly inserted row in the same browser request.
   const {data:authData,error:authError}=await sb.auth.getUser();
@@ -4304,6 +4306,8 @@ function openJourneyForm(j=null){
   $('journeyTitle').value=j?.title||'';
   $('journeyDestination').value=j?.destination||'';
   $('journeyStartDate').value=j?.startDate||'';
+  $('journeyEndDate').value=j?.endDate||'';
+  $('journeyEndDate').min=j?.startDate||'';
   $('journeyModalTitle').textContent=j?'Edit Route':'Plan a Route';
   routeEmojiPicker(j?.emoji||'🧭');routeAvailableBills(j?.linkedBillId||'');
   routeTravelerDraft=Array.isArray(j?.travelers)?j.travelers.map(p=>({name:p.name||p.code||'Traveler',code:p.code||null})):(j?.inviteCodes||[]).map(code=>({name:'Ledger user',code}));
@@ -4336,9 +4340,11 @@ function openStopForm(stop=null){
     $('stopType').value=stop?.type||'place';
     $('stopTitle').value=stop?.title||'';
     $('stopDate').value=stop?.date||j.startDate||today();
-    updateRouteStopDateDisplay();
     $('stopTime').value=stop?.time||'';
+    // Legacy stops have an end time but no end date; they were same-day.
+    $('stopEndDate').value=stop?.endDate||(stop?.endTime?stop?.date||'':'');
     $('stopEndTime').value=stop?.endTime||'';
+    updateRouteStopDateDisplay();
     $('stopLocation').value=stop?.location||'';
     $('stopTransport').value=stop?.transport||'';
     $('stopCost').value=stop?.cost??'';
@@ -4374,8 +4380,34 @@ function routeStopDisplayDate(iso){
   return `${parts[1]} ${parts[0]}, ${parts[2]}`;
 }
 function updateRouteStopDateDisplay(){
-  const el=$('stopDateDisplay'),picker=$('stopDate');
-  if(el&&picker)el.textContent=routeStopDisplayDate(picker.value)||'Select date';
+  for(const [displayId,inputId] of [['stopDateDisplay','stopDate'],['stopEndDateDisplay','stopEndDate']]){
+    const el=$(displayId),picker=$(inputId);
+    if(el&&picker)el.textContent=routeStopDisplayDate(picker.value)||'Select date';
+  }
+}
+function routeDateRange(start,end){
+  const first=routeCardDate(start),last=routeCardDate(end);
+  if(!first)return last||'';
+  if(!last||!end||end===start)return first;
+  // Compact format for cards when both dates share a month or year.
+  const a=first.split(' '),b=last.split(' ');
+  if(a[2]===b[2]&&a[1]===b[1])return `${a[0]}–${b[0]} ${a[1]} ${a[2]}`;
+  if(a[2]===b[2])return `${a[0]} ${a[1]} – ${b[0]} ${b[1]} ${a[2]}`;
+  return `${first} – ${last}`;
+}
+function routeStopDateTimeLabel(date,time){
+  return [routeStopDisplayDate(date),routeClockTime(time)].filter(Boolean).join(' · ');
+}
+function routeStopSchedule(stop){
+  const startDate=stop?.date||'',endDate=stop?.endDate||(stop?.endTime?startDate:'');
+  const first=routeStopDateTimeLabel(startDate,stop?.time),last=routeStopDateTimeLabel(endDate,stop?.endTime);
+  if(!last)return first;
+  if(endDate===startDate){
+    if(stop?.time&&stop?.endTime)return `${routeStopDisplayDate(startDate)} · ${routeClockTime(stop.time)}–${routeClockTime(stop.endTime)}`;
+    if(!stop?.endTime)return first;
+    return `${routeStopDisplayDate(startDate)} · ${routeClockTime(stop.endTime)}`;
+  }
+  return [first,last].filter(Boolean).join(' – ');
 }
 function routeCardDate(iso){
   const match=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso||''));
@@ -4644,7 +4676,7 @@ function paintRouteSummary(){
   const stops=(j.stops||[]).filter(p=>!p.archived).length;
   if($('journeyHeroTitle'))$('journeyHeroTitle').textContent=title;
   if($('journeyOverviewMain'))$('journeyOverviewMain').dataset.routeEmoji=avatar;
-  if($('journeyHeroDate'))$('journeyHeroDate').textContent=routeCardDate(j.startDate)||'Date not set';
+  if($('journeyHeroDate'))$('journeyHeroDate').textContent=routeDateRange(j.startDate,j.endDate)||'Date not set';
   if($('journeyDetailSubtitle'))$('journeyDetailSubtitle').textContent=String(j.destination||'Destination not set');
   if($('journeyTotal'))$('journeyTotal').textContent=money(routeCostTotal(j));
   if($('journeyStopsCount'))$('journeyStopsCount').textContent=`${stops} ${stops===1?'stop':'stops'}`;
@@ -4680,7 +4712,7 @@ function renderJourneys(){
     $('routeSortSelect').value=routeSortMode();
     list.innerHTML=ordered.length?ordered.map(j=>{
       const pin=pins.has(String(j.id));
-      const displayDate=routeCardDate(j.startDate);
+      const displayDate=routeDateRange(j.startDate,j.endDate);
       return `<div class="bill-card journey-tile ${pin?'is-pinned':''}" data-journey-open="${esc(j.id)}" tabindex="0" role="button" aria-label="Open ${esc(j.title)}"><div class="bill-card-left"><span class="bill-emoji journey-tile-icon">${esc(j.emoji||'🧭')}</span><div class="bill-card-info journey-tile-info"><div class="bill-name-row"><span class="bill-name">${esc(j.title)}</span>${j.shared?'<span class="tag shared-tag">Shared</span>':''}</div><div class="route-card-address muted fine" title="${esc([j.destination,displayDate].filter(Boolean).join(' · '))}">${esc([j.destination,displayDate].filter(Boolean).join(' · ')||'No address added')}</div></div></div><button type="button" class="bill-pin-btn ${pin?'on':''}" aria-label="${pin?'Unpin':'Pin'} ${esc(j.title)}" aria-pressed="${pin}" title="${pin?'Unpin':'Pin Route'}">📌</button><button type="button" class="bill-drag-handle" aria-label="Reorder ${esc(j.title)}" title="Drag to reorder"><svg class="bill-grip-icon" viewBox="0 0 20 24" aria-hidden="true" focusable="false" fill="currentColor"><circle cx="6" cy="5" r="1.6"/><circle cx="14" cy="5" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="14" cy="12" r="1.6"/><circle cx="6" cy="19" r="1.6"/><circle cx="14" cy="19" r="1.6"/></svg></button><span class="bill-chevron" aria-hidden="true">›</span></div>`;
     }).join(''):'<div class="empty-card card">No routes yet. Tap + to plan one.</div>';
     list.querySelectorAll('.journey-tile').forEach(card=>{
@@ -4713,7 +4745,7 @@ function renderJourneys(){
     return `<article class="route-ticket-itinerary${t.archived?' is-archived':''}" data-ticket-id="${esc(t.id)}" tabindex="0" role="button" aria-label="Ticket ${esc(top)}"><span class="route-ticket-icon" aria-hidden="true">${ticketIcon(t.category)}</span><div class="route-ticket-main"><strong title="${esc(top)}">${esc(top)}</strong><small title="${esc(subtitle)}">${esc(subtitle||'Schedule not set')}</small></div></article>`;
   }).join(''):`<div class="journey-empty route-subempty">${itineraryArchiveOpen?'No archived tickets.':'No tickets yet. Tap + to add one.'}</div>`;
   const stopHtml=ordered.length?ordered.map((p,i)=>{
-    const dateLabel=[routeStopDisplayDate(p.date),p.time?routeClockTime(p.time)+(p.endTime?'–'+routeClockTime(p.endTime):''):''].filter(Boolean).join(' · ');
+    const dateLabel=routeStopSchedule(p);
     const summary=[p.location,p.transport].filter(Boolean).join(' · ');
     const last=i>0&&ordered[i-1].date!==p.date;
     const photos=stopPhotoUrls(p);
@@ -4761,8 +4793,8 @@ function openRouteStopDetail(stop){
   if(!j)return;
   closeRouteOverlays();
   const urls=stopPhotoUrls(stop).map(imageHttpUrl).filter(Boolean);
-  const date=routeStopDisplayDate(stop.date);
-  const range=[routeClockTime(stop.time),routeClockTime(stop.endTime)].filter(Boolean).join(' – ');
+  const startDateTime=routeStopDateTimeLabel(stop.date,stop.time);
+  const endDateTime=routeStopDateTimeLabel(stop.endDate||(stop.endTime?stop.date:''),stop.endTime);
   const detailRow=(label,value)=>`<div class="route-stop-detail-row"><small>${esc(label)}</small><strong>${esc(value||'Not set')}</strong></div>`;
   const selectedIds=Array.isArray(stop.travelerIds)?stop.travelerIds:[];
   const selected=selectedIds.map(id=>journeyMembers.find(m=>String(m.user_id)===String(id))?.display_name||
@@ -4775,10 +4807,9 @@ function openRouteStopDetail(stop){
   $('routeStopDetailBody').innerHTML=`${picture}${extras}
     <div class="route-stop-detail-heading"><strong>${esc(stop.title||'Untitled stop')}</strong><small>${esc(JTYPE[stop.type]||'Place')}</small></div>
     <section class="route-stop-detail-section">
-      ${detailRow('Date',date)}
-      <div class="route-stop-detail-duo">
-        <div class="route-stop-detail-field"><small>Start time</small><strong>${esc(routeClockTime(stop.time)||'Not set')}</strong></div>
-        <div class="route-stop-detail-field"><small>End time</small><strong>${esc(routeClockTime(stop.endTime)||'Not set')}</strong></div>
+      <div class="route-stop-detail-duo route-stop-datetime-details">
+        <div class="route-stop-detail-field"><small>Start Date &amp; Time</small><strong>${esc(startDateTime||'Not set')}</strong></div>
+        <div class="route-stop-detail-field"><small>End Date and Time</small><strong>${esc(endDateTime||'Not set')}</strong></div>
       </div>
       ${detailRow('Estimated cost',money(stop.cost||0))}
       ${stop.location?detailRow('Place / address',stop.location):''}
@@ -4963,6 +4994,7 @@ function initJourneys(){
   $('journeyManageTravelers')?.addEventListener('click',()=>{$('routeCollabOverlay').hidden=false;});
   $('routeCollabClose')?.addEventListener('click',closeRouteOverlays);
   $('routeCollabOverlay')?.addEventListener('click',e=>{if(e.target.id==='routeCollabOverlay')closeRouteOverlays();});
+  $('journeyStartDate')?.addEventListener('change',()=>{if($('journeyEndDate'))$('journeyEndDate').min=$('journeyStartDate').value||'';});
   // A new Route uses the SAME verified Ledger-ID invitation RPC as Travelers & Files.
   // Do not close the sheet before the route and its members have been saved.
   let routeSaveInProgress=false;
@@ -4970,6 +5002,9 @@ function initJourneys(){
     e.preventDefault();
     if(routeSaveInProgress)return;
     const title=$('journeyTitle').value.trim();if(!title)return;
+    const routeStart=$('journeyStartDate').value,routeEnd=$('journeyEndDate').value;
+    if(routeEnd&&!routeStart){toast('Choose a Start Date before the End Date.');$('journeyStartDate').focus();return;}
+    if(routeStart&&routeEnd&&routeEnd<routeStart){toast('End Date cannot be before Start Date.');$('journeyEndDate').focus();return;}
     // Mobile users often type a final Ledger ID and press Save without tapping Add.
     // Resolve that input first; never silently omit it from the shared Route.
     const pending=$('routeParticipantInput')?.value.trim();
@@ -4986,7 +5021,7 @@ function initJourneys(){
       // stale failed IDs from a previous save after the user removes or corrects them.
       const confirmed=new Set((old?.shared?journeyMembers:[]).map(m=>parseLedgerId(m.ledger_code||'')).filter(Boolean));
       const toInvite=newCodes.filter(code=>!confirmed.has(code));
-      const j={id:old?.id||uid(),title,destination:$('journeyDestination').value.trim(),startDate:$('journeyStartDate').value,notes:old?.notes||'',emoji:$('journeyEmoji').value||'🧭',linkedBillId:$('journeyLinkedBillSelect').value,
+      const j={id:old?.id||uid(),title,destination:$('journeyDestination').value.trim(),startDate:$('journeyStartDate').value,endDate:$('journeyEndDate').value,notes:old?.notes||'',emoji:$('journeyEmoji').value||'🧭',linkedBillId:$('journeyLinkedBillSelect').value,
         travelers:routeTravelerDraft.map(p=>({...p})),inviteCodes:toInvite,archived:!!old?.archived,createdAt:old?.createdAt||new Date().toISOString(),stops:old?.stops||[],tickets:old?.tickets||[],...(old?.shared?{shared:true,ownerId:old.ownerId}:{})};
       if(user){
         const retryKey='ledger.route.pending.'+user.id+'.'+j.id;
@@ -5033,6 +5068,12 @@ function initJourneys(){
   $('stopCancel')?.addEventListener('click',closeRouteOverlays);
   $('stopDate')?.addEventListener('change',updateRouteStopDateDisplay);
   $('stopDate')?.addEventListener('input',updateRouteStopDateDisplay);
+  $('stopEndDate')?.addEventListener('change',updateRouteStopDateDisplay);
+  $('stopEndDate')?.addEventListener('input',updateRouteStopDateDisplay);
+  // When an end time is selected without an end date, default to the start day.
+  $('stopEndTime')?.addEventListener('change',()=>{
+    if($('stopEndTime').value&&!$('stopEndDate').value){$('stopEndDate').value=$('stopDate').value;updateRouteStopDateDisplay();}
+  });
   $('stopTravelers')?.addEventListener('click',e=>{
     const chip=e.target.closest('[data-stop-traveler]');if(!chip||chip.disabled)return;
     const check=[...$('stopTravelers').querySelectorAll('input[type=checkbox]')].find(i=>i.value===chip.dataset.stopTraveler);
@@ -5050,8 +5091,12 @@ function initJourneys(){
     if(!title){toast('Enter the stop name');$('stopTitle').focus();return;}
     const cost=Number($('stopCost').value||0);
     if(!Number.isFinite(cost)||cost<0||cost>999999999){toast('Enter a valid estimated cost');return;}
-    const p={id:$('stopId').value||uid(),title,type:$('stopType').value,date:$('stopDate').value,time:$('stopTime').value,endTime:$('stopEndTime').value,location:$('stopLocation').value.trim(),transport:$('stopTransport').value.trim(),cost:Math.round(cost*100)/100,notes:$('stopNotes').value.trim(),travelerIds:Array.from($('stopTravelers').querySelectorAll('input:checked')).map(el=>el.value).filter(id=>journeyMembers.some(m=>m.user_id===id))};
-    if(p.time&&p.endTime&&p.endTime<p.time){toast('End time cannot be earlier than start time');return;}
+    const p={id:$('stopId').value||uid(),title,type:$('stopType').value,date:$('stopDate').value,time:$('stopTime').value,endDate:$('stopEndDate').value||($('stopEndTime').value?$('stopDate').value:''),endTime:$('stopEndTime').value,location:$('stopLocation').value.trim(),transport:$('stopTransport').value.trim(),cost:Math.round(cost*100)/100,notes:$('stopNotes').value.trim(),travelerIds:Array.from($('stopTravelers').querySelectorAll('input:checked')).map(el=>el.value).filter(id=>journeyMembers.some(m=>m.user_id===id))};
+    if(p.endDate&&!p.date){toast('Choose a Start Date before the End Date.');$('stopDate').focus();return;}
+    if(p.endDate&&p.date&&p.endDate<p.date){toast('End Date cannot be before Start Date.');$('stopEndDate').focus();return;}
+    if(p.endDate&&p.date&&p.endDate===p.date&&p.time&&p.endTime&&p.endTime<p.time){
+      toast('End Date & Time cannot be before Start Date & Time.');$('stopEndTime').focus();return;
+    }
     const old=j.stops.find(x=>x.id===p.id);
     const snapshot=old?structuredClone(old):null;
     p.archived=!!old?.archived;
