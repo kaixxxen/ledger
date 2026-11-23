@@ -4480,11 +4480,17 @@ function routeItinerarySummaryMarkup(j){
   return `<div class="route-itinerary-document"><div class="route-itinerary-doc-top"><div class="route-itinerary-doc-kicker">LEDGER  /  TRIP PLANNER</div><h2>${esc(j.title||'Untitled Route')}<span> itinerary</span></h2><div class="route-itinerary-doc-rule"></div><div class="route-itinerary-doc-meta"><div><span>TRAVEL DATES</span><strong>${esc(dateText)}</strong></div><div><span>DESTINATION</span><strong>${esc(place)}</strong></div></div></div><div class="route-itinerary-doc-days">${content}</div><footer class="route-itinerary-doc-footer">Prepared with Ledger · ${entries.length} scheduled ${entries.length===1?'item':'items'}</footer></div>`;
 }
 function openRouteItinerarySummary(){
-  const j=journeyById(activeJourneyId),host=$('routeItinerarySummaryBody');
-  if(!j||!host)return;
-  host.innerHTML=routeItinerarySummaryMarkup(j);
-  showRouteOverlay('routeItinerarySummaryOverlay');
+  const j=journeyById(activeJourneyId), host=$('routeItinerarySummaryBody');
+  if(!j||!host){toast('Open a route first to view its itinerary.');return;}
+  try{
+    host.innerHTML=routeItinerarySummaryMarkup(j);
+    if(!showRouteOverlay('routeItinerarySummaryOverlay'))throw new Error('Itinerary dialog missing');
+    const title=$('routeItinerarySummaryTitle');
+    if(title)title.textContent='Trip itinerary';
+    $('routeItinerarySummaryClose')?.focus({preventScroll:true});
+  }catch(err){console.error('Itinerary view error',err);toast('Could not show the itinerary. Please reopen the route.');}
 }
+
 function routeItinerarySummaryPrint(){
   const j=journeyById(activeJourneyId),sheet=$('routeItineraryPrintSheet');
   if(!j||!sheet)return;
@@ -4998,9 +5004,12 @@ function initJourneys(){
   $('routeTicketOverlay')?.addEventListener('click',e=>{if(e.target.id==='routeTicketOverlay')closeRouteOverlays();});
   $('routeTicketDetailOverlay')?.addEventListener('click',e=>{if(e.target.id==='routeTicketDetailOverlay')closeRouteOverlays();});
   $('journeyCostSummaryOpen')?.addEventListener('click',openRouteCostSummary);
-  $('routeItinerarySummaryOpen')?.addEventListener('click',openRouteItinerarySummary);
+  document.addEventListener('click',e=>{
+    const trigger=e.target.closest('#routeItinerarySummaryOpen');
+    if(!trigger)return;
+    e.preventDefault();e.stopPropagation();openRouteItinerarySummary();
+  }, true);
   $('routeItinerarySummaryClose')?.addEventListener('click',closeRouteOverlays);
-  $('routeItinerarySummaryDone')?.addEventListener('click',closeRouteOverlays);
   $('routeItinerarySummaryPdf')?.addEventListener('click',routeItinerarySummaryPrint);
   $('routeItinerarySummaryOverlay')?.addEventListener('click',e=>{if(e.target.id==='routeItinerarySummaryOverlay')closeRouteOverlays();});
   $('routeCostSummaryClose')?.addEventListener('click',closeRouteOverlays);
