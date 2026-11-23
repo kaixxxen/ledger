@@ -4309,12 +4309,20 @@ function openStopForm(stop=null){
     $('stopId').value=stop?.id||'';
     $('stopType').value=stop?.type||'place';
     $('stopTitle').value=stop?.title||'';
-    $('stopDate').value=stop?.date||j.startDate||today();
-    $('stopTime').value=stop?.time||'';
-    // Legacy stops have an end time but no end date; they were same-day.
-    $('stopEndDate').value=stop?.endDate||(stop?.endTime?stop?.date||'':'');
-    $('stopEndTime').value=stop?.endTime||'';
-    updateRouteStopDateDisplay();
+    // UI uses native date+time selectors, while persisted stop fields remain
+    // date/time/endDate/endTime for backwards compatibility and shared routes.
+    const startDate=stop?.date||j.startDate||today();
+    const startTime=stop?.time||'00:00';
+    const startPicker=$('stopStartDateTime');
+    startPicker.value=startDate?`${startDate}T${startTime}`:'';
+    startPicker.dataset.originalValue=startPicker.value;
+    startPicker.dataset.hadTime=stop?.time?'true':'false';
+    // Older records with endTime but no endDate are same-day.
+    const endDate=stop?.endDate||(stop?.endTime?stop?.date||'':'');
+    const endPicker=$('stopEndDateTime');
+    endPicker.value=endDate?`${endDate}T${stop?.endTime||'00:00'}`:'';
+    endPicker.dataset.originalValue=endPicker.value;
+    endPicker.dataset.hadTime=stop?.endTime?'true':'false';
     $('stopLocation').value=stop?.location||'';
     $('stopTransport').value=stop?.transport||'';
     $('stopCost').value=stop?.cost??'';
@@ -4349,11 +4357,10 @@ function routeStopDisplayDate(iso){
   const parts=d.split(' ');
   return `${parts[1]} ${parts[0]}, ${parts[2]}`;
 }
-function updateRouteStopDateDisplay(){
-  for(const [displayId,inputId] of [['stopDateDisplay','stopDate'],['stopEndDateDisplay','stopEndDate']]){
-    const el=$(displayId),picker=$(inputId);
-    if(el&&picker)el.textContent=routeStopDisplayDate(picker.value)||'Select date';
-  }
+// Split a native datetime-local value without a timezone conversion.
+function routeStopDateTimeParts(value){
+  const m=/^(\d{4}-\d{2}-\d{2})T([01]\d|2[0-3]):([0-5]\d)$/.exec(String(value||''));
+  return m?{date:m[1],time:`${m[2]}:${m[3]}`}:{date:'',time:''};
 }
 function routeDateRange(start,end){
   const first=routeCardDate(start),last=routeCardDate(end);
@@ -5036,14 +5043,8 @@ function initJourneys(){
   $('journeyDelete')?.addEventListener('click',()=>deleteJourney(journeyById(activeJourneyId)));
   $('journeyAddStop')?.addEventListener('click',()=>openStopForm());
   $('stopCancel')?.addEventListener('click',closeRouteOverlays);
-  $('stopDate')?.addEventListener('change',updateRouteStopDateDisplay);
-  $('stopDate')?.addEventListener('input',updateRouteStopDateDisplay);
-  $('stopEndDate')?.addEventListener('change',updateRouteStopDateDisplay);
-  $('stopEndDate')?.addEventListener('input',updateRouteStopDateDisplay);
-  // When an end time is selected without an end date, default to the start day.
-  $('stopEndTime')?.addEventListener('change',()=>{
-    if($('stopEndTime').value&&!$('stopEndDate').value){$('stopEndDate').value=$('stopDate').value;updateRouteStopDateDisplay();}
-  });
+  // Both fields use the same native date-and-time picker as Add a Ticket.
+  // Do not auto-fill the end: a stop may have no end date/time.
   $('stopTravelers')?.addEventListener('click',e=>{
     const chip=e.target.closest('[data-stop-traveler]');if(!chip||chip.disabled)return;
     const check=[...$('stopTravelers').querySelectorAll('input[type=checkbox]')].find(i=>i.value===chip.dataset.stopTraveler);
@@ -5061,11 +5062,20 @@ function initJourneys(){
     if(!title){toast('Enter the stop name');$('stopTitle').focus();return;}
     const cost=Number($('stopCost').value||0);
     if(!Number.isFinite(cost)||cost<0||cost>999999999){toast('Enter a valid estimated cost');return;}
-    const p={id:$('stopId').value||uid(),title,type:$('stopType').value,date:$('stopDate').value,time:$('stopTime').value,endDate:$('stopEndDate').value||($('stopEndTime').value?$('stopDate').value:''),endTime:$('stopEndTime').value,location:$('stopLocation').value.trim(),transport:$('stopTransport').value.trim(),cost:Math.round(cost*100)/100,notes:$('stopNotes').value.trim(),travelerIds:Array.from($('stopTravelers').querySelectorAll('input:checked')).map(el=>el.value).filter(id=>journeyMembers.some(m=>m.user_id===id))};
-    if(p.endDate&&!p.date){toast('Choose a Start Date before the End Date.');$('stopDate').focus();return;}
-    if(p.endDate&&p.date&&p.endDate<p.date){toast('End Date cannot be before Start Date.');$('stopEndDate').focus();return;}
+    const startPicker=$('stopStartDateTime'),endPicker=$('stopEndDateTime');
+    const start=routeStopDateTimeParts(startPicker.value);
+    const end=routeStopDateTimeParts(endPicker.value);
+    if(startPicker.value&&!start.date){toast('Enter a valid Start Date & Time.');startPicker.focus();return;}
+    if(endPicker.value&&!end.date){toast('Enter a valid End Date & Time.');endPicker.focus();return;}
+    // Preserve time-less legacy records if their displayed midnight placeholder
+    // was not edited; their original stored value should not silently change.
+    const unchangedLegacyStart=startPicker.value===startPicker.dataset.originalValue&&startPicker.dataset.hadTime==='false';
+    const unchangedLegacyEnd=endPicker.value===endPicker.dataset.originalValue&&endPicker.dataset.hadTime==='false';
+    const p={id:$('stopId').value||uid(),title,type:$('stopType').value,date:start.date,time:unchangedLegacyStart?'':start.time,endDate:end.date,endTime:unchangedLegacyEnd?'':end.time,location:$('stopLocation').value.trim(),transport:$('stopTransport').value.trim(),cost:Math.round(cost*100)/100,notes:$('stopNotes').value.trim(),travelerIds:Array.from($('stopTravelers').querySelectorAll('input:checked')).map(el=>el.value).filter(id=>journeyMembers.some(m=>m.user_id===id))};
+    if(p.endDate&&!p.date){toast('Choose a Start Date & Time before the End Date & Time.');startPicker.focus();return;}
+    if(p.endDate&&p.date&&p.endDate<p.date){toast('End Date & Time cannot be before Start Date & Time.');endPicker.focus();return;}
     if(p.endDate&&p.date&&p.endDate===p.date&&p.time&&p.endTime&&p.endTime<p.time){
-      toast('End Date & Time cannot be before Start Date & Time.');$('stopEndTime').focus();return;
+      toast('End Date & Time cannot be before Start Date & Time.');endPicker.focus();return;
     }
     const old=j.stops.find(x=>x.id===p.id);
     const snapshot=old?structuredClone(old):null;

@@ -389,23 +389,19 @@
     <form id="stopForm" novalidate>
       <h3 id="routeStopTitle">Add a Stop</h3>
       <input id="stopId" type="hidden">
-      <div class="route-stop-fields-two">
+      <div class="route-stop-name-field"><label class="lbl" for="stopTitle">Stop name</label><input id="stopTitle" maxlength="120" required placeholder="Arrive at station"></div>
+      <div class="route-stop-fields-two route-stop-type-cost-row">
         <div><label class="lbl" for="stopType">Type</label><select id="stopType"><option value="place">Place</option><option value="transport">Transport</option><option value="activity">Activity</option><option value="stay">Stay</option><option value="food">Food</option></select></div>
-        <div><label class="lbl" for="stopTitle">Stop name</label><input id="stopTitle" maxlength="120" required placeholder="Arrive at station"></div>
+        <div><label class="lbl" for="stopCost">Estimated cost</label><input id="stopCost" type="number" min="0" max="999999999" step="0.01" inputmode="decimal" placeholder="0.00"></div>
       </div>
-      <div><label class="lbl" for="stopCost">Estimated cost</label><input id="stopCost" type="number" min="0" max="999999999" step="0.01" inputmode="decimal" placeholder="0.00"></div>
-      <div class="route-stop-datetime-block">
-        <label class="lbl" for="stopDate">Start Date &amp; Time</label>
-        <div class="route-stop-fields-two route-stop-datetime-pair">
-          <div class="route-stop-date-control"><input id="stopDate" type="date" aria-label="Start date"><span class="route-stop-date-display" id="stopDateDisplay" aria-hidden="true">Select date</span></div>
-          <input id="stopTime" type="time" aria-label="Start time">
+      <div class="route-stop-datetime-columns">
+        <div class="route-stop-datetime-block">
+          <label class="lbl" for="stopStartDateTime">Start Date &amp; Time</label>
+          <input id="stopStartDateTime" type="datetime-local" step="60" aria-label="Start date and time">
         </div>
-      </div>
-      <div class="route-stop-datetime-block">
-        <label class="lbl" for="stopEndDate">End Date and Time</label>
-        <div class="route-stop-fields-two route-stop-datetime-pair">
-          <div class="route-stop-date-control"><input id="stopEndDate" type="date" aria-label="End date"><span class="route-stop-date-display" id="stopEndDateDisplay" aria-hidden="true">Select date</span></div>
-          <input id="stopEndTime" type="time" aria-label="End time">
+        <div class="route-stop-datetime-block">
+          <label class="lbl" for="stopEndDateTime">End Date &amp; Time</label>
+          <input id="stopEndDateTime" type="datetime-local" step="60" aria-label="End date and time">
         </div>
       </div>
       <div><label class="lbl" for="stopLocation">Place / address</label><input id="stopLocation" maxlength="200" placeholder="Where is this stop?"></div>

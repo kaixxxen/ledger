@@ -1,13 +1,5 @@
-# Ledger v120 — Restore classic Bill Splitter emoji avatars
+# Ledger v123 — Add a Stop form layout
 
-This release starts from the v119 Route/Stop date update (not v116).
+Based on v122. Stops now show: Stop name (full width), then Type and Estimated cost (two equal columns), then the existing Start/End Date & Time controls (two equal columns). No data model, event handlers, authentication, or database changes.
 
-- Original set of 30 animal emoji choices restored in Bill Splitter.
-- Original emoji picker grid and avatar sizing restored by removing v117/v118 illustration-only CSS.
-- Original Bill Splitter card and opened-bill header avatar sizing restored.
-- Existing saved `avatar_XX` illustrations display as standard emoji via a compatibility mapping, without changing stored data until the bill is edited and saved.
-- Custom emojis and route emoji picker retained.
-- v119 Route End Date, Stop Start Date & Time, End Date & Time, layouts and saving functions preserved.
-- No SQL, Supabase, financial logic or authentication changes. `config.js` unchanged; do not replace it.
-
-Replace `app.js`, `styles.css`, `index.html`, `sw.js` at the website root. Leave `config.js` and `google-picker-config.js` untouched. Test in local mode and your real deployment before relying on this update.
+Replace `index.html`, `styles.css`, and `sw.js` in GitHub. `app.js` is included unchanged for convenience. Preserve `config.js`, `google-picker-config.js`, and all other existing site files.
