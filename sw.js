@@ -1,4 +1,4 @@
-const CACHE='ledger-v119-route-date-ranges';
+const CACHE='ledger-v120-route-date-ranges';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'google-picker-config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'
