@@ -1,7 +1,13 @@
-Ledger v127 — Route/Bill connection and targeted UI fixes.
+# Ledger v128 — Itinerary timeline polish
 
-Replace app.js, index.html, styles.css and sw.js on GitHub. Keep config.js, google-picker-config.js, schema.sql and Supabase settings unchanged. No new tables needed.
+Based on v127; no changes to authentication, Supabase credentials, or schema.
 
-Changes: flat floating bill actions; create-or-link a bill from Route (new bill uses route name, avatar and travelers); synchronize travelers in both editors for routes/bills owned by the same account; guard historical expenses and settlements from unsafe participant deletion; compact one-line Stop datetime values using native date/time pickers; more visible pastel accent controls; a compact Back to Route button in bills opened from Routes.
+- One unified card with a continuous left rail for all tickets and stops on each day.
+- Smaller typography for daily headings and rows; main modal title remains the largest.
+- Prevents ticket labels from repeating when the saved ticket name equals its displayed heading.
+- Distinct monochrome SVG icons for plane, bus, train, place, lodging, food, transport, and activity.
+- Preselects all travelers when adding a new stop. Existing stop selections are preserved; legacy empty arrays display all selected.
+- Temporarily sets the browser document title to the route name with spaces replaced by underscores during PDF export, then restores Ledger. The browser/OS controls the final suggested filename; PDF extension is added by the save dialog.
 
-Notes: Participant removal is blocked if they are referenced by historical expenses, custom shares or payments. Existing historical transactions are NOT automatically redistributed; changing them silently would alter balances. Confirmed cloud membership changes require existing owner permissions/RPCs. Local unit assertions and JavaScript syntax checks passed; live OAuth/Supabase/mobile browser end-to-end tests were not possible in this environment. Keep a rollback backup of v126.
+Replace app.js, styles.css and sw.js. index.html is included unchanged for completeness.
+No SQL changes. Live Google/Supabase tests were not performed.

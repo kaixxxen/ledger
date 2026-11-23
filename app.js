@@ -4453,7 +4453,7 @@ function openStopForm(stop=null){
     const assigned=Array.isArray(stop?.travelerIds)?stop.travelerIds:[];
     $('stopTravelers').innerHTML=journeyMembers.map(m=>{
       const name=user&&m.user_id===user.id?displayName():(m.display_name||'Traveler');
-      const selected=assigned.includes(m.user_id);
+      const selected=stop ? (!assigned.length || assigned.includes(m.user_id)) : true;
       return `<button type="button" class="part-chip-toggle route-stop-traveler-chip${selected?' on':''}" data-stop-traveler="${esc(m.user_id)}" aria-pressed="${selected}"${!journeyOwner(j)?' disabled':''}>${selected?'✓ ':''}${esc(name)}${m.user_id===j.ownerId?' (Owner)':''}</button><input type="checkbox" value="${esc(m.user_id)}"${selected?' checked':''} hidden>`;
     }).join('');
     $('stopForm').querySelectorAll('input,textarea,select').forEach(el=>{if(!['stopId','stopPhotoUrl'].includes(el.id))el.disabled=!journeyOwner(j);});
@@ -4561,33 +4561,51 @@ function routeCostBreakdown(j){
 function routeItinerarySummaryEntries(j){
   const stops=(j.stops||[]).filter(s=>!s.archived).map((s,i)=>({
     kind:'stop',date:routeCardDate(s.date)?s.date:'',time:/^([01]\d|2[0-3]):[0-5]\d$/.test(String(s.time||''))?s.time:'',
-    title:s.title||'Untitled stop',type:JTYPE[s.type]||'Stop',
+    title:s.title||'Untitled stop',type:JTYPE[s.type]||'Stop',iconType:s.type||'place',
     sub:[s.location,s.transport].filter(Boolean).join(' · '),note:s.notes||'',
     endDate:s.endDate||'',endTime:s.endTime||'',order:i
   }));
-  const tickets=(j.tickets||[]).filter(t=>!t.archived).map((t,i)=>({
-    kind:'ticket',date:routeCardDate(t.date)?t.date:'',time:/^([01]\d|2[0-3]):[0-5]\d$/.test(String(t.time||''))?t.time:'',
-    title:[t.place,t.route?`(${t.route})`:''].filter(Boolean).join(' ')||t.name||'Ticket',
-    type:t.category==='bus'?'Bus ticket':t.category==='train'?'Train ticket':'Flight ticket',
-    sub:t.name&&t.place&&t.name!==t.place?t.name:'',note:'',endDate:'',endTime:'',order:i
-  }));
+  const tickets=(j.tickets||[]).filter(t=>!t.archived).map((t,i)=>{
+    const title=[t.place,t.route?`(${t.route})`:''].filter(Boolean).join(' ')||t.name||'Ticket';
+    const name=String(t.name||'').trim();
+    // The ticket editor commonly stores the full heading as its name.
+    // Do not repeat an identical heading as a description.
+    const norm=v=>String(v||'').toLocaleLowerCase().replace(/[\s\u2013\u2014\-]+/g,' ').replace(/[()]/g,'').trim();
+    const duplicate=name&&(norm(name)===norm(title)||norm(name)===norm(t.place));
+    return {
+      kind:'ticket',date:routeCardDate(t.date)?t.date:'',time:/^([01]\d|2[0-3]):[0-5]\d$/.test(String(t.time||''))?t.time:'',
+      title,type:t.category==='bus'?'Bus ticket':t.category==='train'?'Train ticket':'Flight ticket',
+      iconType:t.category==='bus'?'bus':t.category==='train'?'train':'plane',
+      sub:duplicate?'':name,note:'',endDate:'',endTime:'',order:i
+    };
+  });
   return [...stops,...tickets].sort((a,b)=>
     (a.date||'9999-99-99').localeCompare(b.date||'9999-99-99')||
     (a.time||'99:99').localeCompare(b.time||'99:99')||
     (a.kind==='ticket'?0:1)-(b.kind==='ticket'?0:1)||a.order-b.order);
+}
+// Monochrome pictograms follow each stop or ticket's actual type.
+function routeItineraryIcon(type){
+  const paths={
+    plane:'<path d="M17 21v-8l-5-3V3a2 2 0 0 0-4 0v7l-5 3v8l7-2 7 2Z"/>',
+    bus:'<rect x="5" y="3" width="14" height="16" rx="3"/><path d="M5 11h14M8 19v2m8-2v2M8 15h.01M16 15h.01"/>',
+    train:'<rect x="5" y="3" width="14" height="15" rx="3"/><path d="M5 11h14m-9 7-3 3m7-3 3 3M8 7h.01M16 7h.01"/>',
+    place:'<path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/>',
+    stay:'<path d="M3 20V5m0 10h18v5M7 15V9h12a2 2 0 0 1 2 2v4M7 15V9"/><path d="M7 10h4v5"/>',
+    food:'<path d="M4 3v7a3 3 0 0 0 6 0V3m-3 0v18M17 21V3c-4 3-4 8 0 11h3"/>',
+    activity:'<circle cx="12" cy="12" r="8"/><path d="m9 12 2 2 4-5"/>',
+    transport:'<rect x="3" y="8" width="18" height="10" rx="2"/><path d="M7 8l2-4h6l2 4M7 18v3m10-3v3M7 13h.01M17 13h.01"/>'
+  };
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[type]||paths.place}</svg>`;
 }
 function routeItinerarySummaryMarkup(j){
   const entries=routeItinerarySummaryEntries(j);
   const dateText=routeDateRange(j.startDate,j.endDate)||'Dates to be confirmed';
   const place=String(j.destination||'Destination to be confirmed');
   const dateParts=value=>{
-    if(!/^\d{4}-\d{2}-\d{2}$/.test(String(value||''))) return {day:'Unscheduled',weekday:'Add a date'};
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(String(value||'')))return {day:'Unscheduled',weekday:'Add a date'};
     const dt=new Date(value+'T12:00:00');
     return {day:dt.toLocaleDateString('en-US',{day:'numeric',month:'short'}),weekday:dt.toLocaleDateString('en-US',{weekday:'long'})};
-  };
-  const icons={
-    ticket:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.5 21 3l-6.2 18-3.4-7.3L3 11.5Z"/><path d="m11.4 13.7 5.5-5.5"/></svg>',
-    stop:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>'
   };
   const groups=[];
   for(const item of entries){
@@ -4600,7 +4618,7 @@ function routeItinerarySummaryMarkup(j){
       const at=item.time?routeClockTime(item.time):'Time not set';
       const end=(item.kind==='stop'&&(item.endDate||item.endTime))?routeStopDateTimeLabel(item.endDate||(item.endTime?item.date:''),item.endTime):'';
       const timeLabel=end?`${esc(at)} <span class="route-itinerary-time-sep">–</span> ${esc(end)}`:esc(at);
-      return `<article class="route-itinerary-entry"><div class="route-itinerary-card-rail"><span class="route-itinerary-card-dot"></span></div><div class="route-itinerary-event"><div class="route-itinerary-card-top"><span class="route-itinerary-time">${timeLabel}</span><span class="route-itinerary-kind">${item.kind==='ticket'?'Ticket':esc(item.type)}</span></div><div class="route-itinerary-card-title"><span class="route-itinerary-card-icon">${icons[item.kind]}</span><strong>${esc(item.title)}</strong></div>${item.sub?`<p class="route-itinerary-sub">${esc(item.sub)}</p>`:''}${item.note?`<p class="route-itinerary-note">${esc(item.note)}</p>`:''}</div></article>`;
+      return `<article class="route-itinerary-entry"><div class="route-itinerary-card-rail"><span class="route-itinerary-card-dot"></span></div><div class="route-itinerary-event"><div class="route-itinerary-card-top"><span class="route-itinerary-time">${timeLabel}</span><span class="route-itinerary-kind">${item.kind==='ticket'?'Ticket':esc(item.type)}</span></div><div class="route-itinerary-card-title"><span class="route-itinerary-card-icon">${routeItineraryIcon(item.iconType)}</span><strong>${esc(item.title)}</strong></div>${item.sub?`<p class="route-itinerary-sub">${esc(item.sub)}</p>`:''}${item.note?`<p class="route-itinerary-note">${esc(item.note)}</p>`:''}</div></article>`;
     }).join('');
     return `<section class="route-itinerary-day"><header class="route-itinerary-day-head"><div><h4>${esc(dt.day)}</h4><p>${esc(dt.weekday)}</p></div><span class="route-itinerary-day-index">${group.date?'Day '+(dayIndex+1):'Unscheduled'}</span></header><div class="route-itinerary-entries">${cards}</div></section>`;
   }).join('');
@@ -4629,11 +4647,17 @@ function routeItinerarySummaryPrint(){
   sheet.hidden=false;
   sheet.removeAttribute('aria-hidden');
   document.body.classList.add('ledger-print-itinerary');
+  // Browsers use document.title as the suggested "Save as PDF" filename.
+  // Avoid slashes/illegal filename characters and restore the app title afterward.
+  const previousTitle=document.title;
+  const filename=String(j.title||'Itinerary').trim().replace(/[\\/:*?"<>|\x00-\x1F]/g,'').replace(/\s+/g,'_').slice(0,100)||'Itinerary';
+  document.title=filename;
   let cleaned=false;
   const clean=()=>{
     if(cleaned)return;
     cleaned=true;
     document.body.classList.remove('ledger-print-itinerary');
+    document.title=previousTitle;
     sheet.hidden=true;
     sheet.setAttribute('aria-hidden','true');
     sheet.innerHTML='';
