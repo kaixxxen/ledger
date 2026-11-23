@@ -1,8 +1,12 @@
-# Ledger v125 — Itinerary modal correction
+Ledger v126 — itinerary timeline and PDF fix
 
-Baseline: v124. Replace index.html, styles.css, app.js and sw.js. Do not touch config.js, credentials or SQL.
+Based on v125. Replace app.js, index.html, styles.css, sw.js on GitHub.
 
-- Remove overview icon; two aligned equal-width overview cells with compact typography.
-- Click opens full combined itinerary dialog.
-- PDF icon/text beside dialog title opens device print/share workflow for Save as PDF. No direct filesystem write is possible from an ordinary webpage.
-- Preserves route and stop storage, authentication and calculations.
+Changes:
+- Clean dark timeline cards organized by day (ticket and stop entries in chronological order).
+- Reuses existing application font, sizes, variables, colors and modal controls.
+- Fixes blank PDF exports: the printable sheet is moved outside the hidden <main> element into body before calling print.
+- PDF print styles use a simple white document with selectable text and keep activities together.
+- Existing auth, Supabase calls, routes, bills, and data schema are unchanged.
+
+On iOS, use PDF button, then share or save the print preview to Files; desktop: Save as PDF printer.

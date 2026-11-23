@@ -4458,26 +4458,32 @@ function routeItinerarySummaryMarkup(j){
   const entries=routeItinerarySummaryEntries(j);
   const dateText=routeDateRange(j.startDate,j.endDate)||'Dates to be confirmed';
   const place=String(j.destination||'Destination to be confirmed');
-  let currentDay=null,dayIndex=0;
-  const sections=[];
-  entries.forEach((item,index)=>{
-    if(item.date!==currentDay){
-      currentDay=item.date;dayIndex++;
-      const label=item.date?routeStopDisplayDate(item.date):'Unscheduled';
-      sections.push(`<section class="route-itinerary-day"><div class="route-itinerary-day-label"><span>${item.date?'DAY '+dayIndex:'TBD'}</span></div><div class="route-itinerary-day-content"><h4>${esc(label)}</h4><div class="route-itinerary-entries">`);
-    }
-    const last=sections.length-1;
-    const time=item.time?routeClockTime(item.time):'Time TBD';
-    const end=(item.kind==='stop'&&(item.endDate||item.endTime))?routeStopDateTimeLabel(item.endDate||(item.endTime?item.date:''),item.endTime):'';
-    const endHtml=end?`<span class="route-itinerary-end">Until ${esc(end)}</span>`:'';
-    const note=item.note?`<div class="route-itinerary-note">${esc(item.note)}</div>`:'';
-    sections[last]+= `<div class="route-itinerary-entry"><span class="route-itinerary-time">${esc(time)}</span><div class="route-itinerary-event"><span class="route-itinerary-kind">${item.kind==='ticket'?'Ticket':'Stop'} · ${esc(item.type)}</span><strong>${esc(item.title)}</strong>${item.sub?`<span class="route-itinerary-sub">${esc(item.sub)}</span>`:''}${endHtml}${note}</div></div>`;
-    // Close each day group on next date or at end, leaving the next group appendable.
-    const next=entries[index+1];
-    if(!next||next.date!==item.date)sections[last]+='</div></div></section>';
-  });
-  const content=sections.length?sections.join(''):'<p class="route-itinerary-no-events">No stops or tickets have been added yet. They will appear here once scheduled.</p>';
-  return `<div class="route-itinerary-document"><div class="route-itinerary-doc-top"><div class="route-itinerary-doc-kicker">LEDGER  /  TRIP PLANNER</div><h2>${esc(j.title||'Untitled Route')}<span> itinerary</span></h2><div class="route-itinerary-doc-rule"></div><div class="route-itinerary-doc-meta"><div><span>TRAVEL DATES</span><strong>${esc(dateText)}</strong></div><div><span>DESTINATION</span><strong>${esc(place)}</strong></div></div></div><div class="route-itinerary-doc-days">${content}</div><footer class="route-itinerary-doc-footer">Prepared with Ledger · ${entries.length} scheduled ${entries.length===1?'item':'items'}</footer></div>`;
+  const dateParts=value=>{
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(String(value||''))) return {day:'Unscheduled',weekday:'Add a date'};
+    const dt=new Date(value+'T12:00:00');
+    return {day:dt.toLocaleDateString('en-US',{day:'numeric',month:'short'}),weekday:dt.toLocaleDateString('en-US',{weekday:'long'})};
+  };
+  const icons={
+    ticket:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.5 21 3l-6.2 18-3.4-7.3L3 11.5Z"/><path d="m11.4 13.7 5.5-5.5"/></svg>',
+    stop:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>'
+  };
+  const groups=[];
+  for(const item of entries){
+    if(!groups.length||groups[groups.length-1].date!==item.date)groups.push({date:item.date,items:[]});
+    groups[groups.length-1].items.push(item);
+  }
+  const groupsHtml=groups.map((group,dayIndex)=>{
+    const dt=dateParts(group.date);
+    const cards=group.items.map(item=>{
+      const at=item.time?routeClockTime(item.time):'Time not set';
+      const end=(item.kind==='stop'&&(item.endDate||item.endTime))?routeStopDateTimeLabel(item.endDate||(item.endTime?item.date:''),item.endTime):'';
+      const timeLabel=end?`${esc(at)} <span class="route-itinerary-time-sep">–</span> ${esc(end)}`:esc(at);
+      return `<article class="route-itinerary-entry"><div class="route-itinerary-card-rail"><span class="route-itinerary-card-dot"></span></div><div class="route-itinerary-event"><div class="route-itinerary-card-top"><span class="route-itinerary-time">${timeLabel}</span><span class="route-itinerary-kind">${item.kind==='ticket'?'Ticket':esc(item.type)}</span></div><div class="route-itinerary-card-title"><span class="route-itinerary-card-icon">${icons[item.kind]}</span><strong>${esc(item.title)}</strong></div>${item.sub?`<p class="route-itinerary-sub">${esc(item.sub)}</p>`:''}${item.note?`<p class="route-itinerary-note">${esc(item.note)}</p>`:''}</div></article>`;
+    }).join('');
+    return `<section class="route-itinerary-day"><header class="route-itinerary-day-head"><div><h4>${esc(dt.day)}</h4><p>${esc(dt.weekday)}</p></div><span class="route-itinerary-day-index">${group.date?'Day '+(dayIndex+1):'Unscheduled'}</span></header><div class="route-itinerary-entries">${cards}</div></section>`;
+  }).join('');
+  const content=groupsHtml||'<p class="route-itinerary-no-events">No tickets or stops yet. Add them to your route to see the full itinerary here.</p>';
+  return `<div class="route-itinerary-document"><header class="route-itinerary-doc-top"><span class="route-itinerary-doc-kicker">TRIP OVERVIEW</span><h2>${esc(j.title||'Untitled Route')}</h2><p class="route-itinerary-doc-destination">${esc(place)}</p><p class="route-itinerary-doc-dates">${esc(dateText)}</p></header><div class="route-itinerary-doc-days">${content}</div><footer class="route-itinerary-doc-footer">${entries.length} ${entries.length===1?'activity':'activities'} · Prepared with Ledger</footer></div>`;
 }
 function openRouteItinerarySummary(){
   const j=journeyById(activeJourneyId), host=$('routeItinerarySummaryBody');
@@ -4493,13 +4499,30 @@ function openRouteItinerarySummary(){
 
 function routeItinerarySummaryPrint(){
   const j=journeyById(activeJourneyId),sheet=$('routeItineraryPrintSheet');
-  if(!j||!sheet)return;
+  if(!j||!sheet){toast('Open an itinerary before exporting.');return;}
+  // v126: The print element must be a DIRECT child of body. Previous versions
+  // nested it inside <main>, which @media print hides: that produced blank PDFs.
+  if(sheet.parentElement!==document.body)document.body.appendChild(sheet);
   sheet.innerHTML=routeItinerarySummaryMarkup(j);
   sheet.hidden=false;
-  // The browser's native Print dialog offers "Save as PDF" (or Share > Save to Files on iOS).
-  const clean=()=>{sheet.hidden=true;sheet.innerHTML='';window.removeEventListener('afterprint',clean);};
-  window.addEventListener('afterprint',clean,{once:true});
-  try{window.print();}catch(err){clean();console.error('Could not open print dialog',err);toast('Could not open PDF export. Try your browser Print option.');}
+  sheet.removeAttribute('aria-hidden');
+  document.body.classList.add('ledger-print-itinerary');
+  let cleaned=false;
+  const clean=()=>{
+    if(cleaned)return;
+    cleaned=true;
+    document.body.classList.remove('ledger-print-itinerary');
+    sheet.hidden=true;
+    sheet.setAttribute('aria-hidden','true');
+    sheet.innerHTML='';
+    window.removeEventListener('afterprint',clean);
+  };
+  window.addEventListener('afterprint',clean);
+  try{
+    // Force style/layout to update before the native print compositor snapshots it.
+    void sheet.offsetHeight;
+    window.print();
+  }catch(err){clean();console.error('Itinerary PDF print error',err);toast('Unable to print. Please try again.');}
 }
 
 function openRouteCostSummary(){
