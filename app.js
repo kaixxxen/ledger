@@ -2077,6 +2077,8 @@ function renderBillDetail() {
 
   if ($('splitPersonAvatar')) $('splitPersonAvatar').textContent = billEmoji(group.emoji);
   if ($('splitPersonName')) $('splitPersonName').textContent = group.name;
+  const returnButton=$('btnReturnToRoute');
+  if(returnButton) returnButton.hidden=!(linkedBillReturnRouteId&&journeyById(linkedBillReturnRouteId)?.linkedBillId===group.id);
   if ($('btnOpenAddSplitExpense')) $('btnOpenAddSplitExpense').textContent = group.trip ? '+ Add Trip Expense' : '+ Add Expense to Bill';
   if ($('tripSummary')) { $('tripSummary').hidden = !group.trip; if (group.trip) renderTripSummary(group); }
 
@@ -3217,6 +3219,12 @@ function bind() {
       return;
     }
     const parts = pendingParticipants.map(p => ({ ...p }));
+    if(editId){
+      const previous=state.billGroups.find(g=>g.id===editId);
+      const linked=(state.journeys||[]).some(j=>String(j.linkedBillId)===String(editId));
+      const protectedMembers=linked?(previous?.participants||[]).filter(p=>!parts.some(q=>samePerson(p,q))&&!canSafelyDropBillMember(previous,p.key)):[];
+      if(protectedMembers.length){toast('Cannot remove a linked traveler with past expenses or payments. Settle or reassign those transactions first.');return;}
+    }
     let sharedWith = 0;
 
     if (editId) {
@@ -3225,6 +3233,7 @@ function bind() {
       if (group.shared && !(await saveBillRemote(group.id, name, finalEmoji, parts))) return;
       group.name = name; group.emoji = finalEmoji; group.participants = parts;
       persistGroup(group);
+      await syncLinkedRoutesFromBill(group);
       sharedWith = group.shared ? parts.filter(p => p.code && !isMeParticipant(p)).length : 0;
     } else if (mode === 'cloud' && sb && profile) {
       const g = {
@@ -4039,8 +4048,106 @@ function routeEmojiPicker(value='🧭'){
   if($('routeAvatarTrigger'))$('routeAvatarTrigger').textContent=value;
 }
 function routeAvailableBills(selected=''){
-  $('journeyLinkedBillSelect').innerHTML='<option value="">No linked bill</option>'+(state.billGroups||[]).filter(g=>!g.archived).map(g=>`<option value="${esc(g.id)}" ${String(g.id)===selected?'selected':''}>${esc(g.name)}</option>`).join('');
+  const sel=$('journeyLinkedBillSelect');if(!sel)return;
+  sel.innerHTML='<option value="">No linked bill</option><option value="__create__">+ Create a new linked Bill</option>'+(state.billGroups||[]).filter(g=>!g.archived).map(g=>`<option value="${esc(g.id)}">${esc(g.name)}</option>`).join('');
+  sel.value=selected||'';
+  if(!sel.value)sel.value='';
 }
+function routeLinkedPeople(j){
+  const self=meParticipant(),out=[{...self}],keys=new Set([String(self.code||self.name).toLowerCase()]);
+  (j.travelers||[]).forEach(t=>{const code=parseLedgerId(t.code||'');const name=String(t.name||code||'Traveler').trim();const k=String(code||name).toLowerCase();if(!name||keys.has(k))return;keys.add(k);out.push({key:code||name,name,code:code||null});});
+  return out;
+}
+// An omitted participant may be removed only when they have no recorded liability,
+// payments or explicit custom shares. Protect historical accounting from rewriting.
+function canSafelyDropBillMember(bill,key){
+  return !(bill.expenses||[]).some(e=>e.paidBy===key||(e.participants||[]).includes(key)||(e.tripData?.shares&&Object.hasOwn(e.tripData.shares,key)))&&
+    !(bill.settlements||[]).some(p=>p.from===key||p.to===key);
+}
+function samePerson(a,b){return !!(a.code&&b.code&&String(a.code).toUpperCase()===String(b.code).toUpperCase())||(!a.code&&!b.code&&String(a.name).trim().toLowerCase()===String(b.name).trim().toLowerCase());}
+async function reconcileRouteBill(j,{quiet=false,source='route'}={}){
+  if(!j?.linkedBillId)return true;
+  const bill=(state.billGroups||[]).find(g=>String(g.id)===String(j.linkedBillId));
+  if(!bill){if(!quiet)toast('Linked bill unavailable. Refresh Bills.');return false;}
+  if(j.shared&&bill.shared&&(!journeyOwner(j)||bill.createdBy!==user?.id)){
+    if(!quiet)toast('Only the Route and Bill owner can synchronize participants.');return false;
+  }
+  const original=(bill.participants||[]).map(p=>({...p}));
+  const desired=source==='bill'?original:routeLinkedPeople(j);
+  const retained=[];
+  for(const person of original){
+    if(desired.some(p=>samePerson(p,person))||!canSafelyDropBillMember(bill,person.key))retained.push(person);
+  }
+  for(const person of desired){const idx=retained.findIndex(p=>samePerson(p,person));if(idx<0)retained.push({...person});else retained[idx]={...retained[idx],name:person.name};}
+  const changed=JSON.stringify(original)!==JSON.stringify(retained);
+  if(changed){
+    if(bill.shared){
+      if(!sb||!user||mode!=='cloud')return false;
+      const r=await sb.rpc('upsert_bill',{p_id:bill.id,p_name:bill.name,p_emoji:bill.emoji,p_participants:partsPayload(retained)});
+      if(r.error){if(!quiet)toast('Bill sync failed: '+r.error.message);return false;}
+    }
+    bill.participants=retained;cacheWrite();
+  }
+  const blocked=original.filter(p=>!desired.some(t=>samePerson(p,t))&&!canSafelyDropBillMember(bill,p.key));
+  if(blocked.length&&!quiet)toast('Some participants remain in Bill because they have recorded expenses or payments. Review their balances first.');
+  if(changed&&bill.shared)scheduleSharedReload(0);
+  return true;
+}
+async function createBillForRoute(j){
+  const parts=routeLinkedPeople(j);const id=uid(),shared=mode==='cloud'&&!!sb&&!!user&&!!profile;
+  const bill={id,name:j.title,emoji:j.emoji,archived:false,shared,trip:false,createdBy:shared?user.id:'',createdAt:new Date().toISOString(),meKey:meParticipant().key,participants:parts,settlements:[],expenses:[]};
+  if(shared){const r=await sb.rpc('upsert_bill',{p_id:id,p_name:bill.name,p_emoji:bill.emoji,p_participants:partsPayload(parts)});if(r.error){toast('Could not create linked Bill: '+r.error.message);return null;}}
+  state.billGroups.push(bill);save();return bill;
+}
+// Keep the route editor and bill editor in agreement when the same owner edits either.
+// Cloud changes are sent through the existing owner-checked Route RPC and membership RPC.
+async function syncLinkedRoutesFromBill(bill){
+  const routes=(state.journeys||[]).filter(j=>String(j.linkedBillId||'')===String(bill.id));
+  if(!routes.length)return;
+  for(const j of routes){
+    if(j.shared&&(!journeyOwner(j)||bill.createdBy!==user?.id))continue;
+    const self=meParticipant();
+    const desired=[...bill.participants].filter(p=>String(p.key)!==String(self.key)).map(p=>({name:p.name||p.key,code:p.code||null}));
+    // Route records include owner in routeTravelerDraft, so keep the same shape.
+    const next=ensureSelfFirst(desired);
+    if(JSON.stringify(next)===JSON.stringify(j.travelers||[]))continue;
+    j.travelers=next;
+    j.inviteCodes=(next||[]).map(p=>parseLedgerId(p.code||'')).filter(Boolean);
+    if(!j.shared){save();continue;}
+    if(!await persistJourney(j)){toast('Bill saved, but its Route travelers could not be updated.');continue;}
+    const existing=await sb.from('ledger_route_members').select('ledger_code').eq('route_id',j.id);
+    if(existing.error){toast('Bill saved, but Route invitations could not be verified.');continue;}
+    const present=new Set((existing.data||[]).map(m=>parseLedgerId(m.ledger_code||'')).filter(Boolean));
+    j.inviteCodes=j.inviteCodes.filter(code=>!present.has(code)&&code!==profile?.code);
+    if(j.inviteCodes.length)await sendRouteInvitations(j);
+    await revokeMissingRouteMembers(j,bill);
+  }
+}
+async function revokeMissingRouteMembers(j,bill){
+  if(!j?.shared||!journeyOwner(j)||!sb||!user)return false;
+  const r=await sb.from('ledger_route_members').select('user_id,ledger_code').eq('route_id',j.id);
+  if(r.error){toast('Could not verify Route members: '+r.error.message);return false;}
+  const present=new Set((j.travelers||[]).map(t=>parseLedgerId(t.code||'')).filter(Boolean));
+  for(const m of (r.data||[])){
+    const code=parseLedgerId(m.ledger_code||'');
+    if(!code||code===profile?.code||present.has(code))continue;
+    if(bill){const p=(bill.participants||[]).find(p=>p.code===code);if(p&&!canSafelyDropBillMember(bill,p.key))continue;}
+    const removal=await sb.from('ledger_route_members').delete().eq('route_id',j.id).eq('user_id',m.user_id);
+    if(removal.error){toast('Could not remove a Route member: '+removal.error.message);return false;}
+  }
+  return true;
+}
+function updateStopDatetimeDisplay(id){
+  const input=$(id),display=$(id+'Display');if(!input||!display)return;
+  if(!input.value){display.textContent='Select date & time';display.classList.add('is-empty');return;}
+  const m=String(input.value).match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if(!m){display.textContent=input.value;return;}
+  const month=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(m[2])-1];
+  const hour=Number(m[4]);display.textContent=`${m[2]}/${m[3]}/${m[1].slice(2)} · ${hour%12||12}:${m[5]}${hour>=12?'PM':'AM'}`;
+  display.title=`${month} ${Number(m[3])}, ${m[1]} at ${hour%12||12}:${m[5]} ${hour>=12?'PM':'AM'}`;
+  display.classList.remove('is-empty');
+}
+
 // v73 — Route -> linked Bill membership (additive, owner-authorized).
 // A name-only traveler is a bill participant, but not an account with cloud access.
 // Account sharing occurs only after a Ledger ID is a confirmed Route member.
@@ -4086,7 +4193,20 @@ async function syncRouteTravelersToLinkedBill(j, {quiet=false}={}) {
       const name=String(m.display_name||'Ledger user').trim().slice(0,80)||'Ledger user';
       parts.push({key:code,name,code});knownCodes.add(code);added++;
     }
-    if(!added)return true;
+    // Remove only stale people without any financial history. A creditor, payer,
+    // explicit share recipient or settlement party must not vanish automatically.
+    const canonical=[...(routeRow.data?.travelers||[]).filter(t=>!t.code).map(t=>({name:String(t.name||'').trim(),code:null})),...(membersResponse.data||[]).map(m=>({name:m.display_name||'Ledger user',code:parseLedgerId(m.ledger_code||'')}))];
+    let removed=0;
+    for(let i=parts.length-1;i>=0;i--){
+      const p=parts[i];
+      if(p.code&&p.code===profile?.code)continue;
+      if(canonical.some(t=>samePerson(t,p)))continue;
+      const local=(state.billGroups||[]).find(g=>String(g.id)===String(bill.id));
+      if(local&&!canSafelyDropBillMember(local,p.key))continue;
+      if(!local)continue; // no financial context; fail closed
+      parts.splice(i,1);removed++;
+    }
+    if(!added&&!removed)return true;
     const result=await sb.rpc('upsert_bill',{
       p_id:bill.id,p_name:bill.name,p_emoji:bill.emoji,
       p_participants:partsPayload(parts)
@@ -4341,6 +4461,8 @@ function openStopForm(stop=null){
     const gallery=$('stopPhotoGallery');if(gallery){gallery.innerHTML=stopPhotoUrls(stop).map((url,i)=>`<div class="route-photo"><img src="${esc(url)}" loading="lazy" alt="Stop photo"><button type="button" data-route-photo-remove="${i}" aria-label="Remove photo">×</button></div>`).join('');}
     if($('routeStopTitle'))$('routeStopTitle').textContent=stop?'Edit Stop':'Add a Stop';
     if(!showRouteOverlay('routeStopOverlay','stopEditor')){toast('Could not open Add a Stop');return;}
+    updateStopDatetimeDisplay('stopStartDateTime');
+    updateStopDatetimeDisplay('stopEndDateTime');
     setTimeout(()=>$('stopTitle')?.focus(),0);
   }catch(err){
     console.error('openStopForm failed',err);
@@ -4991,12 +5113,14 @@ function routeTicketActionMenu(t){
     {text:'🗑️ Delete ticket',danger:true,action:()=>deleteRouteTicket(t)}
   ]);
 }
+let linkedBillReturnRouteId=null;
 function openLinkedBillFromRoute(){
   const j=journeyById(activeJourneyId);
   const billId=j?.linkedBillId;
   if(!billId)return;
   const exists=(state.billGroups||[]).some(g=>String(g.id)===String(billId));
   if(!exists){toast('The linked Bill is no longer available');return;}
+  linkedBillReturnRouteId=j.id;
   if(currentPage==='split'){openBillDetail(billId);return;}
   const onHash=()=>{window.removeEventListener('hashchange',onHash);requestAnimationFrame(()=>openBillDetail(billId));};
   window.addEventListener('hashchange',onHash);
@@ -5070,6 +5194,8 @@ function initJourneys(){
   $('routeCollabClose')?.addEventListener('click',closeRouteOverlays);
   $('routeCollabOverlay')?.addEventListener('click',e=>{if(e.target.id==='routeCollabOverlay')closeRouteOverlays();});
   $('journeyStartDate')?.addEventListener('change',()=>{if($('journeyEndDate'))$('journeyEndDate').min=$('journeyStartDate').value||'';});
+  ['stopStartDateTime','stopEndDateTime'].forEach(id=>$(id)?.addEventListener('input',()=>updateStopDatetimeDisplay(id)));
+  ['stopStartDateTime','stopEndDateTime'].forEach(id=>$(id)?.addEventListener('change',()=>updateStopDatetimeDisplay(id)));
   // A new Route uses the SAME verified Ledger-ID invitation RPC as Travelers & Files.
   // Do not close the sheet before the route and its members have been saved.
   let routeSaveInProgress=false;
@@ -5091,13 +5217,34 @@ function initJourneys(){
     routeSaveInProgress=true;if(saveButton){saveButton.disabled=true;saveButton.textContent='Saving…';}
     try{
       const old=journeyById($('journeyId').value);
+      const oldLinkedBill=(state.billGroups||[]).find(b=>String(b.id)===String(old?.linkedBillId||''));
+      if(oldLinkedBill){
+        const removed=(old?.travelers||[]).filter(p=>!routeTravelerDraft.some(t=>samePerson(t,p)));
+        const locked=removed.filter(p=>{
+          const match=(oldLinkedBill.participants||[]).find(q=>samePerson(q,p));
+          return match&&!canSafelyDropBillMember(oldLinkedBill,match.key);
+        });
+        if(locked.length){toast('These travelers have recorded Bill expenses or payments. Reassign or settle those records before removing them.');return;}
+      }
       const newCodes=[...new Set(routeTravelerDraft.map(p=>parseLedgerId(p.code||'')).filter(code=>code&&code!==profile?.code))];
       // v87: Invite only Ledger IDs that are still present in this editor. Never carry
       // stale failed IDs from a previous save after the user removes or corrects them.
       const confirmed=new Set((old?.shared?journeyMembers:[]).map(m=>parseLedgerId(m.ledger_code||'')).filter(Boolean));
       const toInvite=newCodes.filter(code=>!confirmed.has(code));
-      const j={id:old?.id||uid(),title,destination:$('journeyDestination').value.trim(),startDate:$('journeyStartDate').value,endDate:$('journeyEndDate').value,notes:old?.notes||'',emoji:$('journeyEmoji').value||'🧭',linkedBillId:$('journeyLinkedBillSelect').value,
+      const selectedBill=$('journeyLinkedBillSelect').value;
+      const j={id:old?.id||uid(),title,destination:$('journeyDestination').value.trim(),startDate:$('journeyStartDate').value,endDate:$('journeyEndDate').value,notes:old?.notes||'',emoji:$('journeyEmoji').value||'🧭',linkedBillId:selectedBill==='__create__'?'':selectedBill,
         travelers:routeTravelerDraft.map(p=>({...p})),inviteCodes:toInvite,archived:!!old?.archived,createdAt:old?.createdAt||new Date().toISOString(),stops:old?.stops||[],tickets:old?.tickets||[],...(old?.shared?{shared:true,ownerId:old.ownerId}:{})};
+      if(selectedBill==='__create__'){
+        const bill=await createBillForRoute(j);
+        if(!bill)return;
+        j.linkedBillId=bill.id;
+      }
+      if(j.linkedBillId){
+        // Local bills are synchronized here; cloud bills are reconciled after
+        // the Route and invitations have been persisted to the server.
+        const bill=state.billGroups.find(g=>String(g.id)===String(j.linkedBillId));
+        if(bill&&!bill.shared)await reconcileRouteBill(j,{source:'route',quiet:true});
+      }
       if(user){
         const retryKey='ledger.route.pending.'+user.id+'.'+j.id;
         if(toInvite.length)lsSet(retryKey,JSON.stringify(toInvite));else lsDel(retryKey);
@@ -5112,7 +5259,11 @@ function initJourneys(){
           closeRouteOverlays();renderJourneys();toast('Route saved, but a traveler invitation failed. Check the message above and retry.');
           return;
         }
-        if(j.linkedBillId)await syncRouteTravelersToLinkedBill(j);
+        if(j.linkedBillId){
+          const bill=state.billGroups.find(g=>String(g.id)===String(j.linkedBillId));
+          if(bill?.shared)await revokeMissingRouteMembers(j,bill);
+          await syncRouteTravelersToLinkedBill(j);
+        }
       } else {
         save();
         // Creating a Route with travelers automatically shares it with Ledger-ID accounts.
@@ -5135,6 +5286,14 @@ function initJourneys(){
   $('journeyList')?.addEventListener('click',async e=>{const b=e.target.closest('[data-journey-open]');if(!b||e.target.closest('.bill-pin-btn,.bill-drag-handle'))return;if(b._lpFired){b._lpFired=false;return;}routeArchiveView=false;activeJourneyId=b.dataset.journeyOpen;renderJourneys();const openedRoute=journeyById(activeJourneyId);await loadJourneyExtras(openedRoute);if(openedRoute?.shared&&openedRoute.linkedBillId&&journeyOwner(openedRoute))await syncRouteTravelersToLinkedBill(openedRoute,{quiet:true});renderJourneys();});
   $('journeyList')?.addEventListener('keydown',e=>{if(e.target.closest('.bill-pin-btn,.bill-drag-handle')||!['Enter',' '].includes(e.key))return;const b=e.target.closest('[data-journey-open]');if(!b)return;e.preventDefault();b.click();});
   $('journeyBack')?.addEventListener('click',()=>{activeJourneyId=null;$('stopEditor').hidden=true;renderJourneys();});
+  $('btnReturnToRoute')?.addEventListener('click',()=>{
+    const target=linkedBillReturnRouteId;linkedBillReturnRouteId=null;
+    closeBillDetail();if(!target)return;
+    activeJourneyId=target;
+    if(currentPage==='journeys'){renderJourneys();return;}
+    const goBack=()=>{window.removeEventListener('hashchange',goBack);activeJourneyId=target;renderJourneys();};
+    window.addEventListener('hashchange',goBack);location.hash='#journeys';
+  });
   $('journeyOpenLinkedBillHeader')?.addEventListener('click',openLinkedBillFromRoute);
   $('journeyEdit')?.addEventListener('click',()=>openJourneyForm(journeyById(activeJourneyId)));
   $('journeyLinkedBill')?.addEventListener('click',e=>{if(e.target.closest('#routeOpenLinkedBill'))openLinkedBillFromRoute();});
@@ -5228,10 +5387,22 @@ function initJourneys(){
   $('journeyMemberList')?.addEventListener('click',async e=>{
     const b=e.target.closest('[data-route-remove-member]');if(!b)return;
     const j=journeyById(activeJourneyId);if(!j?.shared||!journeyOwner(j))return;
-    if(!confirm('Remove this traveler? They will lose access to this route and their private files.'))return;
+    const removalMember=journeyMembers.find(m=>m.user_id===b.dataset.routeRemoveMember);
+    const linkedBill=(state.billGroups||[]).find(g=>String(g.id)===String(j.linkedBillId||''));
+    const inBill=linkedBill?.participants?.find(p=>p.code&&p.code===parseLedgerId(removalMember?.ledger_code||''));
+    if(inBill&&!canSafelyDropBillMember(linkedBill,inBill.key)){
+      toast('This traveler has recorded Bill expenses or payments. Reassign or settle those first.');return;
+    }
+    if(!confirm('Remove this traveler from Route and its linked Bill? They will lose access to this route and private files.'))return;
     const {error}=await sb.from('ledger_route_members').delete().eq('route_id',j.id).eq('user_id',b.dataset.routeRemoveMember);
-    if(error){toast(error.message);return;}await loadJourneyExtras(j);
-    if(j.linkedBillId)toast('Traveler removed from Route. Review the linked Bill separately: past expenses and Bill membership were not deleted.');
+    if(error){toast(error.message);return;}
+    const removed=journeyMembers.find(m=>m.user_id===b.dataset.routeRemoveMember);
+    if(removed){j.travelers=(j.travelers||[]).filter(t=>parseLedgerId(t.code||'')!==parseLedgerId(removed.ledger_code||''));await persistJourney(j);}
+    await loadJourneyExtras(j);
+    if(j.linkedBillId){
+      const synced=await syncRouteTravelersToLinkedBill(j);
+      if(synced)toast('Route and linked Bill membership updated where safe.');
+    }
   });
   $('journeyUploadBtn')?.addEventListener('click',uploadJourneyFile);
   $('journeyLinkForm')?.addEventListener('submit',async e=>{

@@ -252,6 +252,7 @@
           </button>
         </div>
       </header>
+      <button type="button" id="btnReturnToRoute" class="route-return-to-bill" hidden aria-label="Return to Route">← Back to Route</button>
 
       <!-- CONSOLIDATED BILL HERO CARD -->
       <div class="card hero-split">
@@ -372,7 +373,7 @@
           <div class="route-form-field"><label for="journeyStartDate">Start Date</label><input id="journeyStartDate" type="date"></div>
           <div class="route-form-field"><label for="journeyEndDate">End Date</label><input id="journeyEndDate" type="date"></div>
         </div>
-        <div class="route-form-field"><label for="journeyLinkedBillSelect">Linked Bill (optional)</label><select id="journeyLinkedBillSelect"><option value="">No linked bill</option></select></div>
+        <div class="route-form-field"><label for="journeyLinkedBillSelect">Linked Bill (optional)</label><select id="journeyLinkedBillSelect"><option value="">No linked bill</option><option value="__create__">Create a new linked bill</option></select><p class="fine route-linked-bill-hint" id="routeLinkedBillHint">Choose an existing Bill or create one with the same route name, avatar and travelers.</p></div>
         <div class="route-form-field"><label for="routeParticipantInput">Travelers (name or Ledger ID)</label>
           <div class="route-add-traveler"><input id="routeParticipantInput" maxlength="100" autocomplete="off" placeholder="Name or Ledger ID (ABC-123456)"><button type="button" id="routeParticipantAdd" class="secondary">Add</button></div>
           <p class="fine route-form-hint">Enter someone's Ledger ID to share this Route: it shows up on their Routes tab and you can both view it. Plain names work for people without an account.</p>
@@ -397,11 +398,11 @@
       <div class="route-stop-datetime-columns">
         <div class="route-stop-datetime-block">
           <label class="lbl" for="stopStartDateTime">Start Date &amp; Time</label>
-          <input id="stopStartDateTime" type="datetime-local" step="60" aria-label="Start date and time">
+          <span class="route-compact-datetime"><span class="route-compact-datetime-label" id="stopStartDateTimeDisplay" aria-hidden="true">Select date &amp; time</span><input id="stopStartDateTime" type="datetime-local" step="60" aria-label="Start date and time"></span>
         </div>
         <div class="route-stop-datetime-block">
           <label class="lbl" for="stopEndDateTime">End Date &amp; Time</label>
-          <input id="stopEndDateTime" type="datetime-local" step="60" aria-label="End date and time">
+          <span class="route-compact-datetime"><span class="route-compact-datetime-label" id="stopEndDateTimeDisplay" aria-hidden="true">Select date &amp; time</span><input id="stopEndDateTime" type="datetime-local" step="60" aria-label="End date and time"></span>
         </div>
       </div>
       <div><label class="lbl" for="stopLocation">Place / address</label><input id="stopLocation" maxlength="200" placeholder="Where is this stop?"></div>

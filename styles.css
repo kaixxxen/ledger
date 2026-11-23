@@ -4149,3 +4149,78 @@ body.ledger-drive-picker-open #routeTicketOverlay{
   #routeItineraryPrintSheet .route-itinerary-no-events{color:#555!important;padding:20px 0!important;font-size:12px!important;}
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
 }
+
+
+/* v127: targeted Route / Bill polish */
+/* Contextual actions inherit the same simple neutral menu rows as other actions. */
+#globalActionsMenu #globalAddToBill,#globalActionsMenu #globalRecordPayment{
+  border:0!important;outline:0;background:transparent!important;box-shadow:none!important;
+  border-radius:12px!important;margin:2px 0 0!important;
+}
+#globalActionsMenu #globalAddToBill:hover,#globalActionsMenu #globalRecordPayment:hover{
+  background:var(--bar)!important;
+}
+/* A small, removable return action is only displayed for a Bill opened from Route. */
+#splitDetailView .route-return-to-bill{
+  flex:0 0 auto;width:auto;max-width:78px;min-height:30px;padding:0 7px;
+  border-radius:8px;color:var(--muted);background:transparent;border:1px solid var(--line);
+  font-size:11px;line-height:1;white-space:nowrap;
+}
+#splitDetailView .route-return-to-bill:hover{color:var(--text);border-color:var(--user-accent)}
+@media(max-width:390px){#splitDetailView .route-return-to-bill{font-size:10px;padding:0 5px;}}
+/* Keep the two controls side-by-side while preserving one-line visible values.
+   The actual accessible native datetime-local input is placed above the label. */
+#routeStopOverlay .route-compact-datetime{
+  display:flex;align-items:center;position:relative;width:100%;height:44px;min-width:0;
+  border-radius:12px;background:var(--bg);border:1px solid var(--line);overflow:hidden;
+}
+#routeStopOverlay .route-compact-datetime-label{
+  width:100%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  padding:0 10px;text-align:left;font-size:clamp(9px,2.5vw,12px);color:var(--text);
+  line-height:1.2;pointer-events:none;
+}
+#routeStopOverlay .route-compact-datetime-label.is-empty{color:var(--muted)}
+#routeStopOverlay .route-compact-datetime input[type="datetime-local"]{
+  position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
+  opacity:.015!important;z-index:2!important;cursor:pointer!important;
+  margin:0!important;border:0!important;padding:0!important;
+}
+#routeStopOverlay .route-compact-datetime:focus-within{
+  border-color:var(--user-accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--user-accent) 22%,transparent);
+}
+/* Accent is expressed in active navigation and selection, not financial status colors. */
+:root[data-accent]:not([data-accent="graphite"]) #dock button.on,
+:root[data-accent]:not([data-accent="graphite"]) .seg button.on,
+:root[data-accent]:not([data-accent="graphite"]) .chip.on{
+  background:var(--user-accent)!important;color:#181818!important;border-color:transparent!important;
+}
+:root[data-accent]:not([data-accent="graphite"]) .primary,
+:root[data-accent]:not([data-accent="graphite"]) .global-actions-toggle{
+  background:var(--user-accent)!important;color:#181818!important;border-color:transparent!important;
+}
+:root[data-accent]:not([data-accent="graphite"]) .primary:disabled{opacity:.5}
+:root[data-accent]:not([data-accent="graphite"]) .bill-card.is-pinned,
+:root[data-accent]:not([data-accent="graphite"]) .journey-tile.is-pinned{
+  border-color:color-mix(in srgb,var(--user-accent) 62%,var(--line))!important;
+}
+:root[data-accent]:not([data-accent="graphite"]) .mnav,
+:root[data-accent]:not([data-accent="graphite"]) .bill-sort-bar select:focus{
+  border-color:color-mix(in srgb,var(--user-accent) 46%,var(--line))!important;
+}
+:root[data-accent]:not([data-accent="graphite"]) input:focus,
+:root[data-accent]:not([data-accent="graphite"]) select:focus,
+:root[data-accent]:not([data-accent="graphite"]) textarea:focus{
+  border-color:var(--user-accent)!important;
+}
+:root[data-accent]:not([data-accent="graphite"]) .route-itinerary-day-index{
+  border-color:var(--user-accent)!important;
+}
+
+#splitDetailView > .route-return-to-bill{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:32px;max-width:100%;width:auto;margin:0 0 12px 0;
+  padding:7px 12px;border:1px solid var(--line);border-radius:10px;
+  font-size:var(--fs-sm);color:var(--muted);background:transparent;
+}
+#splitDetailView > .route-return-to-bill:hover{color:var(--text);border-color:var(--user-accent)}
+#splitDetailView > .route-return-to-bill[hidden]{display:none!important}
