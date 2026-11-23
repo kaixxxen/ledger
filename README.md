@@ -1,13 +1,10 @@
-# Ledger v128 — Itinerary timeline polish
+# Ledger v129 — Floating dock icon contrast
 
-Based on v127; no changes to authentication, Supabase credentials, or schema.
+Baseline: Ledger v128.
 
-- One unified card with a continuous left rail for all tickets and stops on each day.
-- Smaller typography for daily headings and rows; main modal title remains the largest.
-- Prevents ticket labels from repeating when the saved ticket name equals its displayed heading.
-- Distinct monochrome SVG icons for plane, bus, train, place, lodging, food, transport, and activity.
-- Preselects all travelers when adding a new stop. Existing stop selections are preserved; legacy empty arrays display all selected.
-- Temporarily sets the browser document title to the route name with spaces replaced by underscores during PDF export, then restores Ledger. The browser/OS controls the final suggested filename; PDF extension is added by the save dialog.
+- Lavender, Sage, Rose, Peach, Mist: selected dock icon changes to dark charcoal (#202020) for contrast with the selected pastel accent background.
+- Graphite: selected dock icon remains light (#f1f1f1) in dark mode.
+- No change to dock layout, sizing, navigation, avatars, data, or authentication code.
+- Only `styles.css` and `sw.js` changed; original `app.js` and `index.html` are included unchanged for convenience.
 
-Replace app.js, styles.css and sw.js. index.html is included unchanged for completeness.
-No SQL changes. Live Google/Supabase tests were not performed.
+Replace `styles.css` and `sw.js` on GitHub. Keep the other files unchanged.

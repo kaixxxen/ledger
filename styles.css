@@ -4295,3 +4295,27 @@ body.ledger-drive-picker-open #routeTicketOverlay{
   #routeItineraryPrintSheet .route-itinerary-card-title strong{font-size:11px!important;}
   #routeItineraryPrintSheet .route-itinerary-time,#routeItineraryPrintSheet .route-itinerary-kind{font-size:9px!important;}
 }
+
+
+/* v129 — Selected dock icons: readable contrast on pastel accent backgrounds.
+   Graphite remains light in dark mode. Do not alter any other controls. */
+:root[data-accent="lavender"] #dock button.on,
+:root[data-accent="sage"] #dock button.on,
+:root[data-accent="rose"] #dock button.on,
+:root[data-accent="peach"] #dock button.on,
+:root[data-accent="mist"] #dock button.on {
+  color:#202020 !important;
+}
+:root[data-accent="lavender"] #dock button.on svg,
+:root[data-accent="sage"] #dock button.on svg,
+:root[data-accent="rose"] #dock button.on svg,
+:root[data-accent="peach"] #dock button.on svg,
+:root[data-accent="mist"] #dock button.on svg {
+  color:#202020 !important;
+  stroke:#202020 !important;
+}
+:root[data-theme="dark"][data-accent="graphite"] #dock button.on,
+:root[data-theme="dark"][data-accent="graphite"] #dock button.on svg {
+  color:#f1f1f1 !important;
+  stroke:#f1f1f1 !important;
+}
