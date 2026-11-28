@@ -1,4 +1,4 @@
-const CACHE='ledger-v132-flat-monochrome';
+const CACHE='ledger-v130-remove-notifications';
 const SHELL = [
   'index.html', 'styles.css', 'app.js', 'config.js', 'google-picker-config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'
