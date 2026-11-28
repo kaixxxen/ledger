@@ -1,12 +1,16 @@
-# Ledger v130 — Remove notifications
+# Ledger v132 — Flat Uber-like visual refresh
 
-This package is based directly on v129.
+Based directly on v130; v131 is excluded.
 
-Changed:
-- Removed the notification bell, inbox panel, dismiss overlay and alert dot.
-- Removed notification UI initialization, observers, local inbox generation, and shared-bill change notification snapshots.
-- Restored normal header spacing with no reserved bell area.
-- Preserved card due-date reminders, route/bill synchronization, login, modals and financial data.
-- Bumped service-worker cache to v130.
+## Replace
+`index.html`, `styles.css`, and `sw.js`. `app.js` is included for completeness and is byte-for-byte unchanged from v130. Keep your original `config.js`, `google-picker-config.js`, icons, manifest, and Supabase files unchanged.
 
-Replace `app.js`, `index.html`, `styles.css`, and `sw.js`. Keep your existing configuration files, database and credentials unchanged. Existing notification-only localStorage entries are left untouched rather than wiping browser storage.
+## Changes
+- Flat black/white/charcoal visual system, no gradients, glass blur, shadows, or decorative animations.
+- Existing Ledger icon displayed in a small masthead on application pages.
+- Restyled Home, Expenses, Bill Splitter, Routes, Settings, forms, cards, and dock.
+- iOS/macOS keep the native Apple system font; Android and other non-Apple devices use Inter (existing v130 font loader).
+- All original element IDs, event handler targets, logic, and authentication methods are preserved.
+- Accent background colors are neutralized on main navigation and primary controls to match the user-approved monochrome direction. Financial data colors stay intact.
+
+The mockup's extra navigation tabs, different sample amounts, and notification bell were not added.
