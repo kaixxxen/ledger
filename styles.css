@@ -4319,3 +4319,10 @@ body.ledger-drive-picker-open #routeTicketOverlay{
   color:#f1f1f1 !important;
   stroke:#f1f1f1 !important;
 }
+
+
+/* Ledger v130 — notification feature retired. Reclaim the header space. */
+@media(max-width:600px){
+  #page-home > .top, #page-expenses > .top, #page-settings > .top,
+  #splitMainView > .top {padding-right:0 !important;}
+}

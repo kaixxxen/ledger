@@ -1,10 +1,12 @@
-# Ledger v129 — Floating dock icon contrast
+# Ledger v130 — Remove notifications
 
-Baseline: Ledger v128.
+This package is based directly on v129.
 
-- Lavender, Sage, Rose, Peach, Mist: selected dock icon changes to dark charcoal (#202020) for contrast with the selected pastel accent background.
-- Graphite: selected dock icon remains light (#f1f1f1) in dark mode.
-- No change to dock layout, sizing, navigation, avatars, data, or authentication code.
-- Only `styles.css` and `sw.js` changed; original `app.js` and `index.html` are included unchanged for convenience.
+Changed:
+- Removed the notification bell, inbox panel, dismiss overlay and alert dot.
+- Removed notification UI initialization, observers, local inbox generation, and shared-bill change notification snapshots.
+- Restored normal header spacing with no reserved bell area.
+- Preserved card due-date reminders, route/bill synchronization, login, modals and financial data.
+- Bumped service-worker cache to v130.
 
-Replace `styles.css` and `sw.js` on GitHub. Keep the other files unchanged.
+Replace `app.js`, `index.html`, `styles.css`, and `sw.js`. Keep your existing configuration files, database and credentials unchanged. Existing notification-only localStorage entries are left untouched rather than wiping browser storage.

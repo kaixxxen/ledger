@@ -529,153 +529,7 @@ function initModalAnimations() {
   });
 }
 
-// In-app notification center: local inbox, fed by card reminders and authorized shared-bill sync.
-// No background push, no new server tables, and no financial data mutations.
-const notificationScope = () => mode === 'cloud' && user ? user.id : 'local';
-const notificationKey = () => 'ledger.notifications.v1.' + notificationScope();
-const sharedSnapshotKey = () => 'ledger.sharedSnapshot.v1.' + notificationScope();
-function readNotifications() {
-  try { const value = JSON.parse(lsGet(notificationKey()) || '[]'); return Array.isArray(value) ? value.slice(0, 80) : []; }
-  catch { return []; }
-}
-function addNotification(kind, title, detail, dedupeId, billId = '') {
-  const entries = readNotifications();
-  if (entries.some(n => n.dedupe === dedupeId)) return;
-  entries.unshift({ id: uid(), kind, title, detail, dedupe: dedupeId, billId, at: Date.now(), read: false });
-  lsSet(notificationKey(), JSON.stringify(entries.slice(0, 80)));
-  renderNotifications();
-}
-function collectCardNotifications() {
-  if (mode === 'none') return;
-  const day = today();
-  (state.cards || []).filter(c => c.type !== 'debit').forEach(c => {
-    const status = computeCardStatus(c);
-    if (status.paid || status.currentDueSpent <= 0 || status.daysLeft > 7) return;
-    const message = status.daysLeft < 0 ? `${Math.abs(status.daysLeft)} days overdue` : status.daysLeft === 0 ? 'Due today' : `Due in ${status.daysLeft} days`;
-    addNotification('reminder', `${c.bank} card payment`, `${c.name} · ${message}`, `card:${day}:${c.id}:${status.cutoffStr}`);
-  });
-}
-function snapshotSharedBills(groups) {
-  const result = {};
-  groups.forEach(g => {
-    result[g.id] = { name:g.name, emoji:g.emoji, participants:JSON.stringify(g.participants.map(p => [p.key,p.code,p.name])),
-      expenses:Object.fromEntries(g.expenses.map(e=>[e.id,JSON.stringify([e.title,e.amount,e.paidBy,e.participants,e.date,e.tripData])])),
-      settlements:Object.fromEntries(g.settlements.map(s=>[s.id,JSON.stringify([s.from,s.to,s.amount,s.method,s.date])])) };
-  });
-  return result;
-}
-function compareSharedSnapshots(groups) {
-  if (!user) return;
-  const next = snapshotSharedBills(groups);
-  const key = sharedSnapshotKey();
-  const oldRaw = lsGet(key);
-  let old = {};
-  try { if (oldRaw) old = JSON.parse(oldRaw) || {}; } catch {}
-  // A first sync establishes baseline rather than flooding old bills as new notifications.
-  if (oldRaw) {
-    for (const [id, bill] of Object.entries(next)) {
-      const prior = old[id];
-      if (!prior) { addNotification('invite','Added to a shared bill',bill.name,`bill-invite:${id}`,id); continue; }
-      if (bill.name !== prior.name || bill.emoji !== prior.emoji || bill.participants !== prior.participants) {
-        addNotification('bill','Bill details changed',bill.name,`bill-details:${id}:${JSON.stringify([bill.name,bill.emoji,bill.participants])}`,id);
-      }
-      for (const [expenseId, signature] of Object.entries(bill.expenses)) {
-        if (prior.expenses?.[expenseId] === signature) continue;
-        addNotification('bill', prior.expenses?.[expenseId] ? 'Expense updated' : 'Expense added',bill.name,
-          `bill-expense:${id}:${expenseId}:${signature}`,id);
-      }
-      for (const [paymentId, signature] of Object.entries(bill.settlements)) {
-        if (prior.settlements?.[paymentId] === signature) continue;
-        addNotification('bill', prior.settlements?.[paymentId] ? 'Payment updated' : 'Payment recorded',bill.name,
-          `bill-payment:${id}:${paymentId}:${signature}`,id);
-      }
-    }
-  }
-  lsSet(key,JSON.stringify(next));
-  renderNotifications();
-}
-function renderNotifications() {
-  const box = $('notificationList'), dot = $('notificationDot');
-  if (!box) return;
-  const entries = readNotifications();
-  if (dot) dot.hidden = !entries.some(n => !n.read);
-  box.innerHTML = entries.length ? entries.map(n => `<button type="button" class="notification-entry ${n.read ? '' : 'unread'}" data-notify-id="${esc(n.id)}">
-    <span class="notification-entry-icon" aria-hidden="true">${n.kind === 'reminder' ? '◷' : n.kind === 'invite' ? '✦' : '↗'}</span>
-    <span class="notification-entry-body"><strong>${esc(n.title)}</strong><small>${esc(n.detail)}</small><time>${new Date(n.at).toLocaleDateString(undefined,{month:'short',day:'numeric'})}</time></span>
-  </button>`).join('') : '<p class="notification-empty">All caught up. New reminders and bill changes will appear here.</p>';
-}
-function closeNotifications() {
-  const p=$('notificationPanel'), d=$('notificationDismiss'), b=$('notificationToggle');
-  if (p) p.hidden=true;
-  if (d) d.hidden=true;
-  if (b) b.setAttribute('aria-expanded','false');
-}
-// Keep the notification bell in the active page header instead of pinning it
-// to the viewport. The existing button and inbox are moved, never recreated,
-// so their event handlers and unread state are preserved.
-function placeNotificationInHeader() {
-  const center = $('notificationCenter');
-  if (!center) return;
-  const splitVisible = currentPage === 'split';
-  let target;
-  if(currentPage==='journeys'&&activeJourneyId){target=document.querySelector('#journeyDetail .route-detail-actions');}
-  else if(currentPage==='journeys'&&routeArchiveView){target=document.querySelector('#routeArchiveView > .top');}
-  else
-  if (splitVisible && $('splitDetailView') && !$('splitDetailView').hidden) {
-    target = document.querySelector('#splitDetailView .split-header-actions');
-  } else if (splitVisible && $('splitArchiveView') && !$('splitArchiveView').hidden) {
-    target = document.querySelector('#splitArchiveView > .top > div:last-child');
-  } else if (splitVisible) {
-    target = document.querySelector('#splitMainView > .top .top-actions');
-  } else {
-    target = document.querySelector('#page-' + (currentPage || 'home') + ' > .top');
-  }
-  if (target && center.parentElement !== target) {
-    closeNotifications();
-    target.appendChild(center);
-  }
-}
-function initNotifications() {
-  const toggle=$('notificationToggle');
-  if (!toggle) return;
-  // The bell follows page headers, but the inbox and its backdrop belong at
-  // document level. Otherwise a narrow header can clip or offset the inbox.
-  const inbox = $('notificationPanel');
-  const backdrop = $('notificationDismiss');
-  if (inbox && inbox.parentElement !== document.body) document.body.appendChild(inbox);
-  if (backdrop && backdrop.parentElement !== document.body) document.body.appendChild(backdrop);
-  toggle.addEventListener('click',()=>{
-    const open=$('notificationPanel').hidden;
-    closeGlobalActions(true);
-    $('notificationPanel').hidden=!open; $('notificationDismiss').hidden=!open;
-    toggle.setAttribute('aria-expanded',String(open));
-    if (open) { const entries=readNotifications();entries.forEach(n=>n.read=true);lsSet(notificationKey(),JSON.stringify(entries));renderNotifications(); }
-  });
-  $('notificationClose').addEventListener('click',closeNotifications);
-  $('notificationDismiss').addEventListener('click',closeNotifications);
-  $('notificationClear').addEventListener('click',()=>{lsDel(notificationKey());renderNotifications();});
-  $('notificationList').addEventListener('click',e=>{
-    const target=e.target.closest('[data-notify-id]');if(!target)return;
-    const n=readNotifications().find(x=>x.id===target.dataset.notifyId);
-    closeNotifications();
-    if(n?.billId && state.billGroups.some(g=>g.id===n.billId)) {
-      location.hash='#split';
-      if(currentPage!=='split') route();
-      openBillDetail(n.billId);
-    } else if(n?.kind==='reminder') {location.hash='#home';route();}
-  });
-  // Page routing and Split subviews switch by toggling their hidden attribute.
-  // Watch only those view boundaries; don't watch inner UI changes.
-  const views = ['page-home','page-expenses','page-split','page-journeys','page-settings',
-                 'splitMainView','splitArchiveView','splitDetailView'];
-  const headerObserver = new MutationObserver(placeNotificationInHeader);
-  views.forEach(id => { const el = $(id); if(el) headerObserver.observe(el,
-    {attributes:true,attributeFilter:['hidden']}); });
-  placeNotificationInHeader();
-  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeNotifications();});
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden){collectCardNotifications();renderNotifications();}});
-  renderNotifications();
-}
+// Notifications retired in v130. Card due-date reminders and shared-bill sync remain intact.
 
 // Floating creation menu. No duplicate business logic: delegate to the established modal handlers.
 let globalActionsCloseTimer = null;
@@ -705,7 +559,6 @@ function setGlobalActionsOpen(open) {
     b.hidden = inBill || inRoute;
   });
   if (open) {
-    closeNotifications();
     menu.hidden = false;
     requestAnimationFrame(() => menu.classList.add('is-visible'));
   } else { closeGlobalActions(); }
@@ -746,9 +599,7 @@ function route() {
   try { window.scrollTo(0, 0); } catch {}
   if (prev && prev !== name) slideIn($('page-' + name), PAGES.indexOf(name) > PAGES.indexOf(prev) ? 1 : -1);
   currentPage = name;
-  placeNotificationInHeader();
   closeGlobalActions(true);
-  closeNotifications();
   renderAll();
 }
 
@@ -757,7 +608,6 @@ function showApp() {
   if ($('app')) $('app').hidden = false;
   if ($('dock')) $('dock').hidden = false;
   if ($('globalActions')) $('globalActions').hidden = false;
-  if ($('notificationCenter')) $('notificationCenter').hidden = false;
   ensureDockGradient();
   ensureTopEdgeFade();
   route();
@@ -786,12 +636,10 @@ function ensureTopEdgeFade() {
 
 function showAuth() {
   if (document.getElementById('topEdgeFade')) document.getElementById('topEdgeFade').hidden = true;
-  closeNotifications();
   if ($('app')) $('app').hidden = true;
   if ($('dock')) $('dock').hidden = true;
   closeGlobalActions();
   if ($('globalActions')) $('globalActions').hidden = true;
-  if ($('notificationCenter')) $('notificationCenter').hidden = true;
   if ($('auth')) $('auth').hidden = false;
   authMsg('');
   // Without a cloud config there is nothing to sign in to, so hide the provider options.
@@ -1012,7 +860,6 @@ function renderHome() {
   }
 
   renderCardReminders();
-  collectCardNotifications();
 
   if ($('homeEmpty')) $('homeEmpty').hidden = state.tx.length > 0;
   $$('.home-chart').forEach(el => { el.hidden = state.tx.length === 0; });
@@ -1753,7 +1600,6 @@ async function loadSharedBills() {
       }))
     }));
 
-    compareSharedSnapshots(shared);
     state.billGroups = (state.billGroups || []).filter(g => !g.shared).concat(shared);
     cacheWrite();
     refreshSplitUi();
@@ -4918,7 +4764,7 @@ function renderJourneys(){
     if(routeArchiveView){
       const archived=journeys.filter(j=>j.archived);
       $('routeArchivedList').innerHTML=archived.length?archived.map(j=>`<div class="bill-card route-archived-card" data-archived-route="${esc(j.id)}"><div class="bill-card-left"><span class="bill-emoji">${esc(j.emoji||'🧭')}</span><div class="bill-card-info"><div class="bill-name-row"><span class="bill-name">${esc(j.title)}</span></div><small class="muted fine">${esc(j.destination||'Archived route')}</small></div></div><button type="button" class="unarchive-btn secondary" data-restore-route="${esc(j.id)}">Restore</button>${journeyOwner(j)?`<button type="button" class="route-archive-delete secondary" data-delete-archived-route="${esc(j.id)}" aria-label="Delete ${esc(j.title)}">Delete</button>`:''}</div>`).join(''):'<div class="empty-card card">No archived routes yet.</div>';
-      placeNotificationInHeader();return;
+      return;
     }
     const pins=new Set(routePinnedIds()),visible=journeys.filter(j=>!j.archived);
     const ordered=[...routeOrdered(visible.filter(j=>pins.has(String(j.id)))),...routeOrdered(visible.filter(j=>!pins.has(String(j.id))))];
@@ -4933,9 +4779,8 @@ function renderJourneys(){
       card.querySelector('.bill-pin-btn').onclick=e=>{e.stopPropagation();toggleRoutePin(j.id);};
       attachLongPress(card,e=>{if(!e.target?.closest?.('.bill-pin-btn,.bill-drag-handle'))routeActionMenu(j);});
     });
-    initRouteDrag();placeNotificationInHeader();return;
+    initRouteDrag();return;
   }
-  placeNotificationInHeader();
   const j=journeyById(activeJourneyId), stopTotal=(j.stops||[]).filter(p=>!p.archived).reduce((n,p)=>n+(Number(p.cost)||0),0), ticketTotal=(j.tickets||[]).reduce((n,t)=>{const vals=t&&t.travelerPrices&&typeof t.travelerPrices==='object'?Object.values(t.travelerPrices).map(Number).filter(Number.isFinite):[];const v=vals.length?vals.reduce((a,b)=>a+b,0):Number(t?.cost);return n+(Number.isFinite(v)&&v>=0?v:0);},0), total=stopTotal+ticketTotal;
   paintRouteSummary();
   initializeRouteSlideshow();
@@ -5466,7 +5311,6 @@ function initJourneys(){
 
 async function boot() {
   initGlobalActions();
-  initNotifications();
   initJourneys();
   try {
     registerServiceWorker();
